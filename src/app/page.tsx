@@ -1,18 +1,9 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 z-0">
-        <Image
-          src="/Asset/Rectangle 1.png"
-          alt="Cosmic background"
-          fill
-          className="object-cover"
-          priority
-        />
-      </div>
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden space-background">
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-between w-full h-screen">
@@ -43,16 +34,18 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Bottom Section - Start Button */}
-        <div className="pb-12 cursor-pointer hover:scale-110 transition-transform duration-300">
-          <Image
-            src="/Asset/Start.png"
-            alt="Start"
-            width={300}
-            height={120}
-            className="object-contain drop-shadow-lg w-auto h-auto"
-            priority
-          />
+        {/* Start Button - Centered */}
+        <div className="w-full flex items-center justify-center pb-12">
+          <Link href="/page2" className="cursor-pointer hover:scale-110 transition-transform duration-300">
+            <Image
+              src="/Asset/Start.png"
+              alt="Start"
+              width={300}
+              height={120}
+              className="object-contain drop-shadow-lg"
+              priority
+            />
+          </Link>
         </div>
       </div>
     </main>
