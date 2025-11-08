@@ -36,7 +36,7 @@ export default function Home() {
 
         {/* Start Button - Centered */}
         <div className="w-full flex items-center justify-center pb-12">
-          <Link href="/page2" className="cursor-pointer hover:scale-110 transition-transform duration-300">
+          <Link href="/UnityBasic" className="cursor-pointer hover:scale-110 transition-transform duration-300">
             <Image
               src="/Asset/Start.png"
               alt="Start"

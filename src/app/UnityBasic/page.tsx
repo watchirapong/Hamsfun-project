@@ -111,7 +111,8 @@ const DIALOG_CONFIG = {
     ],
     responseMessages: [ // Messages shown after player sends a message
       { sender: 'ultraman' as const, text: 'ดีมาก! ขอบคุณที่ทำตามคำแนะนำ' },
-      { sender: 'ultraman' as const, text: 'ตอนนี้คุณพร้อมที่จะไปยัง Earth 2 แล้ว!' }
+      { sender: 'ultraman' as const, text: 'ตอนนี้คุณพร้อมที่จะไปยัง Earth 2 แล้ว!' },
+      { sender: 'ultraman' as const, text: 'ดีมาก!', imageUrl: '/Asset/UnityBasic/good-job.png' }
     ],
     unlocksPlanet: 2, // Unlocks Earth 2 after response messages are shown
     autoCloseDelay: 5000 // Auto-close chat after 2 seconds
@@ -144,6 +145,7 @@ export default function Page2() {
   const [dialogMessages, setDialogMessages] = useState<Array<{ sender: 'ultraman' | 'player'; text: string; imageUrl?: string }>>([]);
   const [shownDialogs, setShownDialogs] = useState<Set<number>>(new Set()); // Track which dialogs have been shown
   const [skipTyping, setSkipTyping] = useState<{ [key: number]: boolean }>({}); // Track if typing should be skipped
+  const [chatHistory, setChatHistory] = useState<{ [key: number]: Array<{ id: number; sender: 'ultraman' | 'player'; text: string; imageUrl?: string }> }>({}); // Store full chat history for each Earth
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -163,7 +165,7 @@ export default function Page2() {
     return urlRegex.test(text);
   };
 
-  const showNextMessage = (index: number, messagesToShow: Array<{ sender: 'ultraman' | 'player'; text: string; imageUrl?: string }>) => {
+  const showNextMessage = (index: number, messagesToShow: Array<{ sender: 'ultraman' | 'player'; text: string; imageUrl?: string }>, earthNumber: number) => {
     if (index < messagesToShow.length) {
       const msg = messagesToShow[index];
       
@@ -173,30 +175,40 @@ export default function Page2() {
         // Continue to next message immediately if current is empty
         if (index + 1 < messagesToShow.length) {
           setTimeout(() => {
-            showNextMessage(index + 1, messagesToShow);
+            showNextMessage(index + 1, messagesToShow, earthNumber);
           }, 100);
         }
         return;
       }
       
-      setMessages(prev => [...prev, {
-        id: prev.length + 1,
-        sender: msg.sender,
-        text: msg.text || '',
-        imageUrl: (msg as any).imageUrl
-      }]);
+      setMessages(prev => {
+        const newMessages = [...prev, {
+          id: prev.length + 1,
+          sender: msg.sender,
+          text: msg.text || '',
+          imageUrl: (msg as any).imageUrl
+        }];
+        
+        // Update chat history when showing initial messages - use the passed earthNumber
+        setChatHistory(prevHistory => ({
+          ...prevHistory,
+          [earthNumber]: newMessages
+        }));
+        
+        return newMessages;
+      });
       setCurrentMessageIndex(index + 1);
       
       // If this message has a URL, stop automatic progression
       // Otherwise, continue to next message after delay
       if (msg.text && !hasUrl(msg.text) && index + 1 < messagesToShow.length) {
         setTimeout(() => {
-          showNextMessage(index + 1, messagesToShow);
+          showNextMessage(index + 1, messagesToShow, earthNumber);
         }, 2000); // 2 second delay
       } else if (msg.imageUrl && !msg.text && index + 1 < messagesToShow.length) {
         // If message only has image, continue after delay
         setTimeout(() => {
-          showNextMessage(index + 1, messagesToShow);
+          showNextMessage(index + 1, messagesToShow, earthNumber);
         }, 2000);
       }
     }
@@ -205,19 +217,34 @@ export default function Page2() {
   const handleEarthClick = (earthNumber: number) => {
     if (!isPlanetUnlocked(earthNumber)) return;
     
-    const dialog = DIALOG_CONFIG[earthNumber as keyof typeof DIALOG_CONFIG];
-    if (dialog) {
-      setCurrentEarth(earthNumber);
-      const messagesToShow = dialog.initialMessages;
-      setDialogMessages(messagesToShow); // Store all dialog messages
+    // Ensure we're using the correct Earth number
+    const clickedEarth = earthNumber;
+    
+    const dialog = DIALOG_CONFIG[clickedEarth as keyof typeof DIALOG_CONFIG];
+    if (!dialog) {
+      console.error(`No dialog configuration found for Earth ${clickedEarth}`);
+      return;
+    }
+    
+    // Reset state and set current Earth first
+    setCurrentEarth(clickedEarth);
+    const messagesToShow = dialog.initialMessages;
+    setDialogMessages(messagesToShow); // Store all dialog messages
+    
+    // Check if this dialog has been shown before
+    const hasBeenShown = shownDialogs.has(clickedEarth);
+    
+    if (hasBeenShown) {
+      // If already shown, restore full chat history if it exists
+      setSkipTyping(prev => ({ ...prev, [clickedEarth]: true }));
       
-      // Check if this dialog has been shown before
-      const hasBeenShown = shownDialogs.has(earthNumber);
-      
-      if (hasBeenShown) {
-        // If already shown, display all messages immediately without typing
-        setSkipTyping(prev => ({ ...prev, [earthNumber]: true }));
-        // Filter out empty messages (unless they have an image)
+      // Ensure we're restoring the correct Earth's history
+      if (chatHistory[clickedEarth] && chatHistory[clickedEarth].length > 0) {
+        // Restore full conversation history including player messages
+        setMessages(chatHistory[clickedEarth]);
+        setCurrentMessageIndex(chatHistory[clickedEarth].length);
+      } else {
+        // Fallback: show initial messages if no history exists
         const allMessages = messagesToShow
           .filter(msg => (msg.text && msg.text.trim() !== '') || (msg as any).imageUrl)
           .map((msg, index) => ({
@@ -226,25 +253,32 @@ export default function Page2() {
             text: msg.text || '',
             imageUrl: (msg as any).imageUrl
           }));
-        // Set messages first, then show chat
         setMessages(allMessages);
         setCurrentMessageIndex(messagesToShow.length);
-        setShowChat(true);
-      } else {
-        // First time showing - use typing animation
-        setSkipTyping(prev => ({ ...prev, [earthNumber]: false }));
-        setMessages([]); // Clear previous messages
-        setCurrentMessageIndex(0); // Reset message index
-        setShownDialogs(prev => new Set(prev).add(earthNumber)); // Mark as shown
-        setShowChat(true);
-        
-        // Start showing messages automatically with typing
-        if (messagesToShow.length > 0) {
-          // Use setTimeout to ensure chat is visible before messages start
-          setTimeout(() => {
-            showNextMessage(0, messagesToShow);
-          }, 100);
-        }
+      }
+      setShowChat(true);
+    } else {
+      // First time showing - use typing animation
+      setSkipTyping(prev => ({ ...prev, [clickedEarth]: false }));
+      setMessages([]); // Clear previous messages
+      setCurrentMessageIndex(0); // Reset message index
+      setShownDialogs(prev => new Set(prev).add(clickedEarth)); // Mark as shown
+      setShowChat(true);
+      
+      // Start showing messages automatically with typing
+      if (messagesToShow.length > 0) {
+        // Use setTimeout to ensure chat is visible before messages start
+        // Use a closure to capture the correct Earth number
+        setTimeout(() => {
+          // Double-check currentEarth matches clickedEarth
+          setCurrentEarth(current => {
+            if (current !== clickedEarth) {
+              return clickedEarth;
+            }
+            return clickedEarth;
+          });
+          showNextMessage(0, messagesToShow, clickedEarth);
+        }, 100);
       }
     }
   };
@@ -257,7 +291,7 @@ export default function Page2() {
         // Check if this message is already displayed
         const messageExists = messages.some(m => m.text === nextMessage.text && m.sender === nextMessage.sender);
         if (!messageExists) {
-          showNextMessage(currentMessageIndex, dialogMessages);
+          showNextMessage(currentMessageIndex, dialogMessages, currentEarth);
         }
       }
     }
@@ -276,17 +310,29 @@ export default function Page2() {
 
   const handleSendMessage = () => {
     if ((inputMessage.trim() || selectedImage) && currentEarth) {
-      const dialog = DIALOG_CONFIG[currentEarth as keyof typeof DIALOG_CONFIG];
+      // Capture the current Earth number to avoid closure issues
+      const earthNumber = currentEarth;
+      const dialog = DIALOG_CONFIG[earthNumber as keyof typeof DIALOG_CONFIG];
       if (!dialog) return;
 
       // Add player message with optional image
-      const newPlayerMessage = {
-        id: messages.length + 1,
-        sender: 'player' as const,
-        text: inputMessage,
-        imageUrl: selectedImage || undefined
-      };
-      setMessages([...messages, newPlayerMessage]);
+      setMessages(prev => {
+        const newPlayerMessage = {
+          id: prev.length + 1,
+          sender: 'player' as const,
+          text: inputMessage,
+          imageUrl: selectedImage || undefined
+        };
+        const updatedMessages = [...prev, newPlayerMessage];
+        
+        // Update chat history immediately when player sends message
+        setChatHistory(prevHistory => ({
+          ...prevHistory,
+          [earthNumber]: updatedMessages
+        }));
+        
+        return updatedMessages;
+      });
       setInputMessage('');
       setSelectedImage(null);
       if (fileInputRef.current) {
@@ -299,26 +345,36 @@ export default function Page2() {
         // Show response messages sequentially
         responseMessages.forEach((msg: { sender: 'ultraman' | 'player'; text: string; imageUrl?: string }, index: number) => {
           setTimeout(() => {
-            setMessages(prev => [...prev, {
-              id: prev.length + 1,
-              sender: msg.sender,
-              text: msg.text || '',
-              imageUrl: msg.imageUrl
-            }]);
-            
-            // Unlock planet after last response message
-            if (index === responseMessages.length - 1) {
-              if (dialog.unlocksPlanet && !unlockedPlanets.includes(dialog.unlocksPlanet)) {
-                setUnlockedPlanets([...unlockedPlanets, dialog.unlocksPlanet]);
+            setMessages(prev => {
+              const newMessages = [...prev, {
+                id: prev.length + 1,
+                sender: msg.sender,
+                text: msg.text || '',
+                imageUrl: msg.imageUrl
+              }];
+              
+              // Update chat history with each new message - use captured earthNumber
+              setChatHistory(prevHistory => ({
+                ...prevHistory,
+                [earthNumber]: newMessages
+              }));
+              
+              // Unlock planet after last response message
+              if (index === responseMessages.length - 1) {
+                if (dialog.unlocksPlanet && !unlockedPlanets.includes(dialog.unlocksPlanet)) {
+                  setUnlockedPlanets([...unlockedPlanets, dialog.unlocksPlanet]);
+                }
+                
+                // Auto-close chat after delay
+                setTimeout(() => {
+                  setShowChat(false);
+                  setCurrentEarth(null);
+                  // Messages are already saved in chatHistory
+                }, dialog.autoCloseDelay || 2000);
               }
               
-              // Auto-close chat after delay
-              setTimeout(() => {
-                setShowChat(false);
-                setCurrentEarth(null);
-                setMessages([]);
-              }, dialog.autoCloseDelay || 2000);
-            }
+              return newMessages;
+            });
           }, (index + 1) * 2000); // 2 second delay between each response message
         });
       } else {
@@ -329,9 +385,17 @@ export default function Page2() {
 
         // Auto-close chat after delay
         setTimeout(() => {
+          // Save chat history before closing (use functional update to get latest messages)
+          setMessages(currentMessages => {
+            setChatHistory(prev => ({
+              ...prev,
+              [earthNumber]: currentMessages
+            }));
+            return currentMessages; // Don't change messages
+          });
           setShowChat(false);
           setCurrentEarth(null);
-          setMessages([]);
+          // Don't clear messages - keep them for history
         }, dialog.autoCloseDelay || 2000);
       }
     }
