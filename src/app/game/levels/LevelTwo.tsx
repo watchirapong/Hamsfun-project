@@ -8,17 +8,60 @@ import type { PlayerStats } from '../Player';
 const CANVAS_WIDTH = 1366;
 const CANVAS_HEIGHT = 768;
 
-const levelTwoBossAttack: BossAttackPattern = ({ bossRef, config, spawnBullet }) => {
-  const color = config.colors?.bossBullet ?? '#ff0066';
-  for (let i = -2; i <= 2; i++) {
-    spawnBullet({
-      x: bossRef.current.x + i * (config.boss.size * 0.25),
-      y: bossRef.current.y + config.boss.size * 0.8,
-      vx: i * 1.5,
-      vy: config.boss.bulletSpeed,
-      radius: 6,
-      color,
-    });
+const levelTwoBossAttack: BossAttackPattern = ({
+  bossRef,
+  config,
+  spawnBullet,
+  levelState,
+  registerBomb,
+  timestamp,
+}) => {
+  const colorPrimary = config.colors?.bossBullet ?? '#ff80b3';
+  const bombColor = '#ffcf41';
+
+  const stateStore = levelState.current as Record<string, unknown>;
+  const state = (stateStore.levelTwo as { shot: number } | undefined) ?? { shot: 0 };
+  state.shot += 1;
+  stateStore.levelTwo = state;
+
+  const { boss } = config;
+  if (state.shot % 4 === 0) {
+    for (let i = -1; i <= 1; i++) {
+      const id = `bomb-${Date.now()}-${Math.random()}`;
+      const initialVx = i * 1.6;
+      const initialVy = boss.bulletSpeed + 1.8;
+      const targetY = CANVAS_HEIGHT * (0.45 + Math.random() * 0.35);
+      registerBomb?.({
+        id,
+        x: bossRef.current.x + i * (boss.size * 0.5),
+        y: bossRef.current.y + boss.size * 0.92,
+        vx: initialVx,
+        vy: initialVy,
+        triggerTime: timestamp + 3200 + Math.random() * 400,
+        radius: 140,
+        damage: 16,
+        color: bombColor,
+        gravity: 0.045,
+        airResistance: 0.996,
+        settleResistance: 0.97,
+        settleFrame: 240,
+        targetY,
+        shrapnelCount: 16,
+        shrapnelSpeed: 1.8,
+        shrapnelColor: '#ffe98a',
+      });
+    }
+  } else {
+    for (let i = -3; i <= 3; i++) {
+      spawnBullet({
+        x: bossRef.current.x + i * 14,
+        y: bossRef.current.y + boss.size * 0.6,
+        vx: i * 1.35,
+        vy: boss.bulletSpeed + Math.abs(i) * 0.4,
+        radius: 6,
+        color: colorPrimary,
+      });
+    }
   }
 };
 
@@ -28,52 +71,46 @@ const levelTwoConfig: LevelConfig = {
   canvas: {
     width: CANVAS_WIDTH,
     height: CANVAS_HEIGHT,
-    backgroundColor: '#000011',
-    starCount: 50,
+    backgroundColor: '#070022',
+    starCount: 65,
   },
   player: {
     startPosition: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 80 },
     invincibilityTime: 500,
   },
   boss: {
-    maxHealth: 300,
+    maxHealth: 360,
     startPosition: { x: CANVAS_WIDTH / 2, y: 60 },
-    size: 100,
-    moveSpeed: 0.0005,
-    horizontalAmplitude: CANVAS_WIDTH * 0.25,
-    bulletSpeed: 2,
-    shootInterval: 800,
+    size: 110,
+    moveSpeed: 0.00055,
+    horizontalAmplitude: CANVAS_WIDTH * 0.28,
+    bulletSpeed: 3,
+    shootInterval: 1500,
     attackPattern: levelTwoBossAttack,
-    laser: {
-      interval: 5000,
-      duration: 2000,
-      widthRatio: 0.8,
-      damage: 1,
-    },
   },
   minions: {
-    spawnInterval: 5000,
-    spawnCount: 3,
-    horizontalSpacing: 120,
-    moveSpeed: 1.5,
-    shootInterval: 1000,
-    bulletSpeed: 5,
-    maxHealth: 30,
+    spawnInterval: Number.MAX_SAFE_INTEGER,
+    spawnCount: 0,
+    horizontalSpacing: 0,
+    moveSpeed: 0,
+    shootInterval: Number.MAX_SAFE_INTEGER,
+    bulletSpeed: 0,
+    maxHealth: 0,
   },
   damage: {
-    bossBullet: 5,
-    bossLaser: 1,
-    minion: 10,
+    bossBullet: 6,
+    bossLaser: 0,
+    minion: 0,
   },
   colors: {
-    boss: '#ff0000',
-    bossAccent: '#cc0000',
-    bossBullet: '#ff0066',
-    minion: '#ffaa00',
-    minionAccent: '#ff6600',
-    minionBullet: '#ffaa00',
-    player: '#00ff00',
-    background: '#000011',
+    boss: '#ff3366',
+    bossAccent: '#b81f4a',
+    bossBullet: '#ff6699',
+    minion: '#f7c844',
+    minionAccent: '#c59c28',
+    minionBullet: '#f7c844',
+    player: '#00ffcc',
+    background: '#040015',
   },
 };
 

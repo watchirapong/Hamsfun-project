@@ -59,6 +59,11 @@ export interface BossConfig {
     damage: number;
     pattern?: LaserPattern;
   };
+  shield?: {
+    radius: number;
+    color?: string;
+    health?: number;
+  };
 }
 
 export interface MinionConfig {
@@ -101,6 +106,9 @@ export interface LevelConfig {
     player?: string;
     background?: string;
   };
+  effects?: {
+    onBombRegister?: (bomb: BombDefinition) => void;
+  };
   onLevelComplete?: () => void;
   onPlayerDefeated?: () => void;
 }
@@ -116,6 +124,9 @@ export interface BossAttackContext extends AttackContextCommon {
   bossRef: MutableRefObject<Vector2>;
   playerRef: MutableRefObject<Vector2>;
   spawnBullet: (bullet: Bullet) => void;
+  registerBomb?: (bomb: BombDefinition) => void;
+  updateBomb?: (id: string, data: Partial<BombDefinition>) => void;
+  explodeBomb?: (id: string) => void;
 }
 
 export interface LaserPatternContext extends AttackContextCommon {
@@ -131,3 +142,25 @@ export interface MinionAttackContext extends AttackContextCommon {
 export type BossAttackPattern = (context: BossAttackContext) => void;
 export type LaserPattern = (context: LaserPatternContext) => void;
 export type MinionAttackPattern = (context: MinionAttackContext) => void;
+
+export interface BombDefinition {
+  id: string;
+  x: number;
+  y: number;
+  triggerTime: number;
+  radius: number;
+  damage: number;
+  color?: string;
+  triggered?: boolean;
+  vx: number;
+  vy: number;
+  gravity?: number;
+  airResistance?: number;
+  settleResistance?: number;
+  settleFrame?: number;
+  shrapnelCount?: number;
+  shrapnelSpeed?: number;
+  shrapnelColor?: string;
+  startTime?: number;
+  targetY?: number;
+}

@@ -14,6 +14,7 @@ import type {
   BossAttackContext,
   MinionAttackContext,
   LaserPatternContext,
+  BombDefinition,
 } from './types';
 
 interface GameEngineProps {
@@ -81,6 +82,8 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
   const minionsRef = useRef<Minion[]>([]);
   const minionBulletsRef = useRef<Bullet[]>([]);
   const lasersRef = useRef<Laser[]>([]);
+  const bombsRef = useRef<Map<string, BombDefinition>>(new Map());
+  const minionCountRef = useRef<number>(0);
 
   const lastShotRef = useRef<number>(0);
   const lastBossShotRef = useRef<number>(0);
@@ -231,6 +234,12 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
           bossRef,
           playerRef,
           spawnBullet: (bullet) => bossBulletsRef.current.push(bullet),
+          registerBomb: (bomb) => {
+            bombsRef.current.set(bomb.id, { ...bomb, startTime: timestamp });
+            config.effects?.onBombRegister?.(bomb);
+          },
+          updateBomb: () => undefined,
+          explodeBomb: () => undefined,
         };
         bossAttack(attackContext);
         lastBossShotRef.current = timestamp;
@@ -323,6 +332,7 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
 
         return true;
       });
+      minionCountRef.current = minionsRef.current.length;
 
       minionBulletsRef.current = minionBulletsRef.current.filter((bullet) => {
         bullet.y += bullet.vy;
@@ -398,6 +408,23 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
         config.boss.size,
         config.boss.size * 0.8
       );
+
+      if (config.boss.shield && minionCountRef.current > 0) {
+        ctx.save();
+        ctx.strokeStyle = config.boss.shield.color ?? 'rgba(0, 200, 255, 0.7)';
+        ctx.lineWidth = 6;
+        ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.arc(
+          bossRef.current.x,
+          bossRef.current.y + (config.boss.size * 0.4),
+          config.boss.shield.radius,
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+        ctx.restore();
+      }
 
       if (timestamp - lastBossShotRef.current < config.boss.shootInterval) {
         ctx.fillStyle = '#ff6666';
@@ -478,6 +505,89 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
         }
         return true;
       });
+
+      if (bombsRef.current.size > 0) {
+        const bombsToRemove: string[] = [];
+        bombsRef.current.forEach((bomb, id) => {
+          const start = bomb.startTime ?? timestamp;
+          const elapsedMs = timestamp - start;
+          const dt = delta / 16;
+
+          if (!bomb.triggered) {
+            const settleFrame = bomb.settleFrame ?? 140;
+            if (elapsedMs < settleFrame * 16) {
+              bomb.x += bomb.vx * dt;
+              bomb.y += bomb.vy * dt;
+              const air = Math.pow(bomb.airResistance ?? 0.99, dt);
+              bomb.vx *= air;
+              bomb.vy = bomb.vy * air + (bomb.gravity ?? 0.12) * dt;
+            } else {
+              const settle = Math.pow(bomb.settleResistance ?? 0.9, dt);
+              bomb.vx *= settle;
+              bomb.vy *= settle;
+              bomb.x += bomb.vx * dt;
+              bomb.y += bomb.vy * dt;
+            }
+            if (bomb.targetY !== undefined && bomb.y >= bomb.targetY) {
+              bomb.y = bomb.targetY;
+              bomb.vy = 0;
+              bomb.vx *= bomb.settleResistance ?? 0.9;
+            }
+          }
+
+          const timeLeft = bomb.triggerTime - timestamp;
+          const normalized = Math.max(0, Math.min(1, timeLeft / 1000));
+          const pulse = 0.75 + 0.25 * Math.sin(timestamp / 100);
+          const radius = bomb.radius * (0.55 + 0.45 * pulse * (1 - normalized));
+
+          const color = bomb.color ?? '#ffcf41';
+          ctx.save();
+          ctx.globalAlpha = 0.35 + 0.45 * (1 - normalized);
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(bomb.x, bomb.y, radius * 0.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.45;
+          ctx.strokeStyle = color;
+          ctx.beginPath();
+          ctx.arc(bomb.x, bomb.y, radius, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+
+          if (timestamp >= bomb.triggerTime && !bomb.triggered) {
+            bomb.triggered = true;
+            bombsToRemove.push(id);
+            const dist = Math.hypot(bomb.x - playerRef.current.x, bomb.y - playerRef.current.y);
+            if (dist < bomb.radius && timestamp - lastDamageTimeRef.current > invincibilityTime) {
+              playerHealthRef.current -= bomb.damage;
+              setHealth(playerHealthRef.current);
+              lastDamageTimeRef.current = timestamp;
+              if (playerHealthRef.current <= 0) {
+                setGameState('gameover');
+              }
+            }
+
+            const shards = bomb.shrapnelCount ?? 0;
+            const speed = bomb.shrapnelSpeed ?? 0;
+            if (shards > 0 && speed > 0) {
+              for (let i = 0; i < shards; i++) {
+                const angle = (Math.PI * 2 * i) / shards;
+                bossBulletsRef.current.push({
+                  x: bomb.x,
+                  y: bomb.y,
+                  vx: Math.cos(angle) * speed,
+                  vy: Math.sin(angle) * speed,
+                  radius: 4,
+                  color: bomb.shrapnelColor ?? '#ffe98a',
+                });
+              }
+            }
+          }
+        });
+
+        bombsToRemove.forEach((id) => bombsRef.current.delete(id));
+      }
 
       lasersRef.current.forEach((laser) => {
         if (
@@ -634,7 +744,9 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
               Retry Level
             </button>
             <button
-              onClick={() => config.onPlayerDefeated?.()}
+              onClick={() => {
+                config.onPlayerDefeated?.();
+              }}
               className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors font-semibold"
             >
               Return to Level Select

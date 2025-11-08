@@ -211,7 +211,7 @@ export default function GamePage() {
           <SelectedLevel
             playerStats={playerStats}
             onLevelComplete={handleLevelComplete}
-            onPlayerDefeated={handlePlayerDefeated}
+            onPlayerDefeated={() => setSelectedLevel(null)}
           />
         </div>
       )}
