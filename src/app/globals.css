@@ -275,3 +275,11 @@ body {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .space-background::before,
+  .space-background::after {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
+

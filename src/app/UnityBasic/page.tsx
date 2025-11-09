@@ -8,6 +8,17 @@ import LevelOne from "../game/levels/LevelOne";
 import { BASE_PLAYER_STATS, MIN_SHOOT_INTERVAL } from "../game/Player";
 import type { PlayerStats } from "../game/Player";
 
+const PLANET_LAYOUT: Array<{ id: number; marginTop?: number }> = [
+  { id: 1 },
+  { id: 2, marginTop: -400 },
+  { id: 3, marginTop: 200 },
+  { id: 4, marginTop: 600 },
+  { id: 5 },
+  { id: 6, marginTop: -400 },
+];
+
+const PLANET_IMAGE_SIZE = 320;
+
 // Component to render text with clickable links
 function MessageWithLinks({ text, onLinkClick }: { text: string; onLinkClick?: () => void }) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -145,86 +156,97 @@ const DIALOG_CONFIG = {
     initialMessages: [
       { sender: 'ultraman' as const, text: 'โย่ว นายมาที่โลกของเราใช่มั้ย' },
       { sender: 'ultraman' as const, text: 'ฉันชื่อ Ultraman และฉันต้องการความช่วยเหลือจากคุณ' },
-      { sender: 'ultraman' as const, text: 'ช่วยปกป้องโลกของเราจากภัยร้ายด้วยนะ!' },
-      { sender: 'ultraman' as const, text: 'ตอนนี้นายจะต้องเข้า Unity และ กด ลิงค์นี้ซะ https://unity.com/download' },
-      { sender: 'ultraman' as const, text: 'ถ้าโหลดเสร็จแล้วพิมพ์มาด้วยว่าเสร็จแล้ว' }
+      { sender: 'ultraman' as const, text: 'ฉันจะเป็นคนสอนพื้นฐาน Unity นายเอง' },
+      { sender: 'ultraman' as const, text: 'เริ่มจากขั้นแรกกันเลย นายต้องติดตั้ง Unity Hub ซะก่อน เพราะมันคือประตูเข้าสู่ทุกเวิร์กช็อปของเรา' },
+      { sender: 'ultraman' as const, text: 'กดโหลด Unity Hub จากหน้าเว็บทางการให้เรียบร้อย' },
+      { sender: 'ultraman' as const, text: 'จากนั้นไปต่อที่ Unity Editor เลย เข้า Unity Download Archive แล้วเลือกเวอร์ชัน LTS 6000.2.xxxx จะเสถียรที่สุด' },
+      { sender: 'ultraman' as const, text: 'ตอนกดติดตั้งให้ดูแถบ OS ของนายให้ดี เลือกตัวที่ตรงกับเครื่องนาย ถ้าอยู่ฝั่ง Windows ก็อย่าหลงไปคลิกเวอร์ชันอื่นล่ะ' },
+      { sender: 'ultraman' as const, text: 'โหลดเสร็จแล้วเปิด Installer แล้วปล่อยให้มันทำงานอย่างสงบ เมื่อทุกอย่างเสร็จ Unity จะผูกกับ Unity Hub ให้เอง' },
+      { sender: 'ultraman' as const, text: 'ไปที่ Unity Hub แล้วเลือก New Project ตั้งชื่อที่นายชอบและใช้ Template Universal 3D' },
+      { sender: 'ultraman' as const, text: 'อย่าลืมเลือกโฟลเดอร์ปลายทางที่มีพื้นที่ว่างอย่างน้อย 30GB เผื่อเราติดตั้ง asset เพิ่มเติม' },
+      { sender: 'ultraman' as const, text: 'เสร็จแล้วบอกฉันด้วย เราจะเริ่มภารกิจถัดไปทันที' },
     ],
-    responseMessages: [ // Messages shown after player sends a message
-      { sender: 'ultraman' as const, text: 'ดีมาก! ขอบคุณที่ทำตามคำแนะนำ' },
-      { sender: 'ultraman' as const, text: 'ตอนนี้คุณพร้อมที่จะไปยัง Earth 2 แล้ว!' },
-      { sender: 'ultraman' as const, text: 'ดีมาก!', imageUrl: '/Asset/Page2/big-brain.gif' }
-    ],
+    responseMessages: [
+      { sender: 'ultraman' as const, text: 'ดีมาก! นายเข้ามาใน Unity แล้ว' },
+      { sender: 'ultraman' as const, text: 'ตอนนี้นายพร้อมที่จะไปยัง Earth 2 แล้ว!' },
+    ], // Messages shown after player sends a message
     unlocksPlanet: 2, // Unlocks Earth 2 after response messages are shown
     autoCloseDelay: 5000 // Auto-close chat after 2 seconds
   },
   2: { // Earth 2 Dialog (when unlocked)
     initialMessages: [
-      { sender: 'ultraman' as const, text: 'ยินดีด้วย! คุณปลดล็อก Earth 2 แล้ว' },
-      { sender: 'ultraman' as const, text: 'ตอนนี้คุณต้องเรียนรู้เกี่ยวกับ Unity Editor' },
-      { sender: 'ultraman' as const, text: 'ลองสร้าง Scene ใหม่และเพิ่ม GameObject ดูสิ' }
+      { sender: 'ultraman' as const, text: 'ก่อนอื่น นายอาจจะสงสัยว่าหน้าต่างของ Unity มันมีอะไรบ้าง ฉันจะฮธิบายให้เอง' },
+      { sender: 'ultraman' as const, text: 'หน้าต่างแรก Hierarchy จะเป็นหน้าโชว์ Object ต่างๆภายในฉากนั้นๆ' },
+      { sender: 'ultraman' as const, text: 'หน้าต่างที่สอง Inspector จะเป็นหน้าโชว์ Properties ของ Object นั้นๆ' },
+      { sender: 'ultraman' as const, text: 'หน้าต่างที่สาม Project อันนี้ก็ไม่มีอะไรมาก เหมือนเวลาเราเปิดไฟล์เหลืองของคอมอ่ะ แต่อันนี้เป็นโฟลเดอร์ที่เกี่ยวกับโปรเจคนี้' },
+      { sender: 'ultraman' as const, text: 'หน้าต่างที่สี่ Scene พูดง่ายๆเลยนะ เป็นหน้าทำเกมไม่มีอะไรเลยไปตามแกนแต่ถ้ากดไม่โดนเส้นละก็มึนหัวแน่นอนเลื่อนๆดูนะ' },
+      { sender: 'ultraman' as const, text: 'หลักๆจะมีประมาณนี้ นายเข้าใจมั้ย' },
     ],
     responseMessages: [
-      { sender: 'ultraman' as const, text: 'ดีมาก! คุณกำลังเรียนรู้ได้เร็วมาก' },
-      { sender: 'ultraman' as const, text: 'ตอนนี้คุณพร้อมสำหรับ Earth 3 แล้ว!' }
+      { sender: 'ultraman' as const, text: 'ดีมาก! นายสอนง่ายนิ' },
+      { sender: 'ultraman' as const, text: 'ตอนนี้นายพร้อมที่จะไปยัง Earth 3 แล้ว!' },
+      { sender: 'ultraman' as const, text: 'ดีมาก!', imageUrl: '/Asset/Page2/big-brain.gif' }
     ],
     unlocksPlanet: 3,
     autoCloseDelay: 3000
   },
   3: { // Earth 3 Dialog
     initialMessages: [
-      { sender: 'ultraman' as const, text: 'ยินดีต้อนรับสู่ Earth 3!' },
-      { sender: 'ultraman' as const, text: 'ที่นี่คุณจะได้เรียนรู้เกี่ยวกับ Components และ Scripts' },
-      { sender: 'ultraman' as const, text: 'ลองสร้าง C# Script และ attach มันกับ GameObject ดูสิ' },
-      { sender: 'ultraman' as const, text: 'นี่คือลิงค์สำหรับเรียนรู้เพิ่มเติม https://docs.unity3d.com/Manual/CreatingAndUsingScripts.html' }
+      { sender: 'ultraman' as const, text: 'ยินดีด้วย! คุณปลดล็อก Earth 3 แล้ว' },
+      { sender: 'ultraman' as const, text: 'ตอนนี้นายต้องเรียนรู้เกี่ยวกับการบิน' },
+      { sender: 'ultraman' as const, text: 'เวลาจะบินใน Scene ก็ให้กดคลิกขวาค้างไว้และหันจอได้แล้วก็เหมือนเล่นเกมเลย WASD กด Shift บินเร็ว' },
+      { sender: 'ultraman' as const, text: 'ถ้านายลองบินดูนะ ถ้าคล่องแล้วบอกฉันด้วย' },
     ],
     responseMessages: [
-      { sender: 'ultraman' as const, text: 'เยี่ยมเลย! คุณเข้าใจ Components แล้ว' },
-      { sender: 'ultraman' as const, text: 'ต่อไปเราจะไปที่ Earth 4 เพื่อเรียนรู้ Physics!' }
+      { sender: 'ultraman' as const, text: 'ดีมาก! นายเรียนรู้ได้เร็วมาก' },
+      { sender: 'ultraman' as const, text: 'ตอนนี้คุณพร้อมสำหรับ Earth 4 แล้ว!' }
     ],
     unlocksPlanet: 4,
     autoCloseDelay: 3000
   },
   4: { // Earth 4 Dialog
     initialMessages: [
-      { sender: 'ultraman' as const, text: 'Earth 4! ที่นี่คุณจะได้เรียนรู้ Physics System' },
-      { sender: 'ultraman' as const, text: 'ลองเพิ่ม Rigidbody component ให้ GameObject ดู' },
-      { sender: 'ultraman' as const, text: 'และทดสอบการทำงานของ Gravity และ Collision' },
-      { sender: 'ultraman' as const, text: 'นี่คือตัวอย่างที่ดี https://learn.unity.com/tutorial/introduction-to-physics' }
+      { sender: 'ultraman' as const, text: 'ยินดีต้อนรับสู่ Earth 4!' },
+      { sender: 'ultraman' as const, text: 'ที่นี่นายจะได้เรียนรู้วิธีการสร้าง Object ในฉาก' },
+      { sender: 'ultraman' as const, text: 'เราจะเริ่มสร้างของต่างๆยังไงละ' },
+      { sender: 'ultraman' as const, text: 'ให้นายกดคลิกขวาในช่อง Hierarchy -> 3D Object -> แล้วก็เลือกสักอย่างมันก็จะสร้าง Object ออกมาได้ละลองกดๆดู' },
+      { sender: 'ultraman' as const, text: 'ถ้านายลองสร้างของต่างๆดูนะ ถ้าได้แล้วส่งรูปให้ฉันดูด้วย' },
     ],
     responseMessages: [
-      { sender: 'ultraman' as const, text: 'สุดยอด! คุณเข้าใจ Physics แล้ว' },
-      { sender: 'ultraman' as const, text: 'Earth 5 จะสอนคุณเกี่ยวกับ Animation!' }
+      { sender: 'ultraman' as const, text: 'เยี่ยมเลย! อย่างน้อย scene นายก้ไม่โล่งแล้ว' },
+      { sender: 'ultraman' as const, text: 'ต่อไปเราจะไปที่ Earth 5' }
     ],
     unlocksPlanet: 5,
     autoCloseDelay: 3000
   },
   5: { // Earth 5 Dialog
     initialMessages: [
-      { sender: 'ultraman' as const, text: 'Earth 5! เวลาของ Animation' },
-      { sender: 'ultraman' as const, text: 'ลองสร้าง Animation Clip และใช้ Animator Controller' },
-      { sender: 'ultraman' as const, text: 'คุณสามารถทำให้ตัวละครเคลื่อนไหวได้ด้วยระบบนี้' },
-      { sender: 'ultraman' as const, text: 'เรียนรู้เพิ่มเติมได้ที่ https://docs.unity3d.com/Manual/AnimationSection.html' }
+      { sender: 'ultraman' as const, text: 'Earth 5! ที่นี่นายจะได้ลองใช้ tools ต่างๆของ Unity กัน' },
+      { sender: 'ultraman' as const, text: 'นายเห็น TAB ด้านซ้ายตรงนี้ม่ะที่มีให้เลือกหลายๆอัน แล้วฉันเล่าให้ฟังว่าแต่ละอันคืออะไร' },
+      { sender: 'ultraman' as const, text: 'อันแรก เป็นรูปมือไม่ค่อยใช้อยากรู้ลองใช้เองไม่บอกหรอก' },
+      { sender: 'ultraman' as const, text: 'อันสอง รูปสี่ทิศอันนี้จะใช้ประจำเลย คือตอนที่เลือกสัก Object นึงจะมีทิศออกมาตรง Object ก็เลื่อนได้เลยลองเลื่อนๆดู' },
+      { sender: 'ultraman' as const, text: 'อันสาม รูปหมุนอันนี้เป็น Rotate เหมือนกับรูปทิศเลยแต่มันจะไม่เป็นทิศและมันจะเป็นการหมุนแทนถ้าหมุนตรงเส้นจะไปตามแกนแต่ถ้ากดไม่โดนเส้นละก็มึนหัวแน่นอนเลื่อนๆดู' },
+      { sender: 'ultraman' as const, text: 'อันสี่ รูปกล่องมีลูกศรสักอย่างอันนี้มีไว้เพื่อปรับขนาดเหมือนกับรูปทิศเลยลองปรับๆดูไปตามแกนแต่ถ้ากดไม่โดนเส้นละก็มึนหัวแน่นอนเลื่อนๆดู' },
     ],
     responseMessages: [
-      { sender: 'ultraman' as const, text: 'ยอดเยี่ยม! คุณเก่งเรื่อง Animation แล้ว' },
-      { sender: 'ultraman' as const, text: 'สุดท้ายแล้ว! ไปที่ Earth 6 เพื่อเรียนรู้ UI System!' }
+      { sender: 'ultraman' as const, text: 'สุดยอด! นายเริ่มเป็นแล้วนิ' },
+      { sender: 'ultraman' as const, text: 'Earth ต่อไปจะเป็นเรื่องสุดท้ายของบทนี้แหละ' }
     ],
     unlocksPlanet: 6,
     autoCloseDelay: 3000
   },
   6: { // Earth 6 Dialog (Final)
     initialMessages: [
-      { sender: 'ultraman' as const, text: 'Earth 6! โลกสุดท้ายแล้ว!' },
-      { sender: 'ultraman' as const, text: 'ที่นี่คุณจะได้เรียนรู้ UI System ของ Unity' },
-      { sender: 'ultraman' as const, text: 'ลองสร้าง Canvas และเพิ่ม Button, Text, Image ดูสิ' },
-      { sender: 'ultraman' as const, text: 'UI System จะช่วยให้คุณสร้างเกมที่สวยงามได้' },
-      { sender: 'ultraman' as const, text: 'เรียนรู้เพิ่มเติม: https://docs.unity3d.com/Manual/UISystem.html' }
+      { sender: 'ultraman' as const, text: 'เมื่อกี้นายโดนลอบโจมตีจากพวกโจรสลัดอวกาศงั้นหรอ โชคดีนะที่นายรอดมาได้' },
+      { sender: 'ultraman' as const, text: 'ฉันเชื่อว่ายังนายไหวนะ' },
+      { sender: 'ultraman' as const, text: 'เพราะทีนี้เรารู้วิธีการสร้างทั้ง Object และการปรับแต่งไปแล้ว' },
+      { sender: 'ultraman' as const, text: 'ฉันจะให้ภารกิจแรกกับนาย' },
+      { sender: 'ultraman' as const, text: 'ภารกิจของนายคือการที่นายจะต้องสร้าง Mascot ออกมา 1 ตัวโดยที่ใช้ Object อย่างเดียว' },
+      { sender: 'ultraman' as const, text: 'ถ้าทำเสร็จแล้วก็มาให้ฉันตรวจได้เลย ระหว่างนี้ฉันจะเอา Laser ที่พวกมันใช้มาติดยานนายให้ นายจะได้มีทางสู้มากขึ้น' }
     ],
     responseMessages: [
-      { sender: 'ultraman' as const, text: '🎉 ยินดีด้วย! คุณสำเร็จแล้ว!' },
-      { sender: 'ultraman' as const, text: 'คุณได้เรียนรู้พื้นฐานของ Unity ทั้งหมดแล้ว' },
-      { sender: 'ultraman' as const, text: 'ตอนนี้คุณพร้อมที่จะสร้างเกมของคุณเองได้แล้ว!' },
-      { sender: 'ultraman' as const, text: 'ขอบคุณที่ร่วมเดินทางกับเรา! 🚀' }
+      { sender: 'ultraman' as const, text: 'ยอดเยี่ยม! นายเรียนรู้ทั้งหมดที่ฉันสอนแล้ว นายสามารถรายงานสิ่งที่นายได้กลับศูนย์บัญชาการได้เลย' },
+      { sender: 'ultraman' as const, text: 'ขอให้นายเดินทางปลอดภัยนะ และนอกจากฉันจะติด Laser ให้ยานนายแล้ว ฉันยังติดเครื่องเปิด Starway ให้นายด้วย ตอนนี้นายสามารถข้ามไปยังหมู่ดาวอื่นได้แล้วนะ' }
     ],
     // No unlocksPlanet - this is the final Earth
     autoCloseDelay: 4000
@@ -253,6 +275,7 @@ export default function Page2() {
   const [showBossFight, setShowBossFight] = useState(false); // Boss fight modal state
   const [bossFightCompleted, setBossFightCompleted] = useState(false); // Boss fight completion state
   const [showMissionComplete, setShowMissionComplete] = useState(false); // Mission complete overlay state
+  const [showBossWarning, setShowBossWarning] = useState(false);
   const [isProcessingResponse, setIsProcessingResponse] = useState(false); // Prevent duplicate response processing
   const [responseShown, setResponseShown] = useState<{ [key: number]: boolean }>({}); // Track if response has been shown for each Earth
   const [progressLoaded, setProgressLoaded] = useState(false); // Track if progress has been loaded
@@ -742,15 +765,19 @@ export default function Page2() {
   const handleUnlockPlanet = (earthNumber: number, dialog: any) => {
     const nextPlanet = (dialog as any).unlocksPlanet;
     
-    // Special handling for Earth 4: require boss fight before unlocking Earth 5
-    if (earthNumber === 4) {
-      // Don't unlock Earth 5 yet, trigger boss fight instead
+    // Special handling for Earth 5: require boss fight before unlocking Earth 6
+    if (earthNumber === 5) {
+      // Don't unlock Earth 6 yet, trigger boss fight instead
       setTimeout(() => {
         setIsProcessingResponse(false);
         setShowChat(false);
         setCurrentEarth(null);
-        // Start boss fight
-        setShowBossFight(true);
+        setShowBossWarning(true);
+        setTimeout(() => {
+          setShowBossWarning(false);
+          // Start boss fight
+          setShowBossFight(true);
+        }, 3000);
       }, dialog.autoCloseDelay || 2000);
     } else {
       // Normal unlock for other planets
@@ -1075,171 +1102,51 @@ export default function Page2() {
 
         {/* Six Planets in Single Horizontal Line */}
         <div className="flex-1 flex items-center justify-center w-full h-full">
-          <div className="flex justify-center items-center gap-10 px-8">
-            {/* Earth 1 - Unlocked with Hover Effect */}
-            <div 
-              className="cursor-pointer transition-transform duration-300 hover:scale-125"
-              onClick={() => handleEarthClick(1)}
-            >
-              <Image
-                src="/Asset/Page2/Earth.png"
-                alt="Earth"
-                width={3000}
-                height={3000}
-                className="object-contain"
-                style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
-                priority
-              />
-            </div>
-            {/* Earth 2 - With Lock (unlocks when message is sent) */}
-            <div 
-              className="relative" 
-              style={{ marginTop: '-400px' }}
-              onClick={() => handleEarthClick(2)}
-            >
-              <Image
-                src="/Asset/Page2/Earth.png"
-                alt="Earth"
-                width={3000}
-                height={3000}
-                style={{ 
-                  imageRendering: 'pixelated', 
-                  width: 'auto', 
-                  height: 'auto', 
-                  filter: isPlanetUnlocked(2) ? 'none' : 'brightness(0.2)',
-                  transition: 'filter 0.3s ease-in-out',
-                  cursor: isPlanetUnlocked(2) ? 'pointer' : 'not-allowed'
-                }}
-                className={`object-contain ${isPlanetUnlocked(2) ? 'hover:scale-125 transition-transform duration-300' : ''}`}
-                priority
-              />
-              {!isPlanetUnlocked(2) && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg width="80" height="80" viewBox="0 0 24 24" fill="white" className="drop-shadow-2xl" style={{ imageRendering: 'pixelated' }}>
-                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-                  </svg>
-                </div>
-              )}
-            </div>
-            {/* Earth 3 - With Lock */}
-            <div 
-              className="relative" 
-              style={{ marginTop: '200px' }}
-              onClick={() => handleEarthClick(3)}
-            >
-              <Image
-                src="/Asset/Page2/Earth.png"
-                alt="Earth"
-                width={3000}
-                height={3000}
-                style={{ 
-                  imageRendering: 'pixelated', 
-                  width: 'auto', 
-                  height: 'auto', 
-                  filter: isPlanetUnlocked(3) ? 'none' : 'brightness(0.2)',
-                  transition: 'filter 0.3s ease-in-out',
-                  cursor: isPlanetUnlocked(3) ? 'pointer' : 'not-allowed'
-                }}
-                className={`object-contain ${isPlanetUnlocked(3) ? 'hover:scale-125 transition-transform duration-300' : ''}`}
-                priority
-              />
-              {!isPlanetUnlocked(3) && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg width="80" height="80" viewBox="0 0 24 24" fill="white" className="drop-shadow-2xl" style={{ imageRendering: 'pixelated' }}>
-                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-                  </svg>
-                </div>
-              )}
-            </div>
-            {/* Earth 4 - With Lock */}
-            <div 
-              className="relative" 
-              style={{ marginTop: '600px' }}
-              onClick={() => handleEarthClick(4)}
-            >
-              <Image
-                src="/Asset/Page2/Earth.png"
-                alt="Earth"
-                width={3000}
-                height={3000}
-                style={{ 
-                  imageRendering: 'pixelated', 
-                  width: 'auto', 
-                  height: 'auto', 
-                  filter: isPlanetUnlocked(4) ? 'none' : 'brightness(0.2)',
-                  transition: 'filter 0.3s ease-in-out',
-                  cursor: isPlanetUnlocked(4) ? 'pointer' : 'not-allowed'
-                }}
-                className={`object-contain ${isPlanetUnlocked(4) ? 'hover:scale-125 transition-transform duration-300' : ''}`}
-                priority
-              />
-              {!isPlanetUnlocked(4) && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg width="80" height="80" viewBox="0 0 24 24" fill="white" className="drop-shadow-2xl" style={{ imageRendering: 'pixelated' }}>
-                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-                  </svg>
-                </div>
-              )}
-            </div>
-            {/* Earth 5 - With Lock */}
-            <div 
-              className="relative"
-              onClick={() => handleEarthClick(5)}
-            >
-              <Image
-                src="/Asset/Page2/Earth.png"
-                alt="Earth"
-                width={3000}
-                height={3000}
-                style={{ 
-                  imageRendering: 'pixelated', 
-                  width: 'auto', 
-                  height: 'auto', 
-                  filter: isPlanetUnlocked(5) ? 'none' : 'brightness(0.2)',
-                  transition: 'filter 0.3s ease-in-out',
-                  cursor: isPlanetUnlocked(5) ? 'pointer' : 'not-allowed'
-                }}
-                className={`object-contain ${isPlanetUnlocked(5) ? 'hover:scale-125 transition-transform duration-300' : ''}`}
-                priority
-              />
-              {!isPlanetUnlocked(5) && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg width="80" height="80" viewBox="0 0 24 24" fill="white" className="drop-shadow-2xl" style={{ imageRendering: 'pixelated' }}>
-                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-                  </svg>
-                </div>
-              )}
-            </div>
-            {/* Earth 6 - With Lock */}
-            <div 
-              className="relative" 
-              style={{ marginTop: '-400px' }}
-              onClick={() => handleEarthClick(6)}
-            >
-              <Image
-                src="/Asset/Page2/Earth.png"
-                alt="Earth"
-                width={3000}
-                height={3000}
-                style={{ 
-                  imageRendering: 'pixelated', 
-                  width: 'auto', 
-                  height: 'auto', 
-                  filter: isPlanetUnlocked(6) ? 'none' : 'brightness(0.2)',
-                  transition: 'filter 0.3s ease-in-out',
-                  cursor: isPlanetUnlocked(6) ? 'pointer' : 'not-allowed'
-                }}
-                className={`object-contain ${isPlanetUnlocked(6) ? 'hover:scale-125 transition-transform duration-300' : ''}`}
-                priority
-              />
-              {!isPlanetUnlocked(6) && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg width="80" height="80" viewBox="0 0 24 24" fill="white" className="drop-shadow-2xl" style={{ imageRendering: 'pixelated' }}>
-                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-                  </svg>
-                </div>
-              )}
-            </div>
+          <div className="flex flex-wrap justify-center items-center gap-10 px-8 md:flex-nowrap">
+            {PLANET_LAYOUT.map(({ id, marginTop }) => {
+              const unlocked = isPlanetUnlocked(id);
+              const style = marginTop !== undefined ? { marginTop: `${marginTop}px` } : undefined;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => handleEarthClick(id)}
+                  disabled={!unlocked}
+                  aria-disabled={!unlocked}
+                  className={`relative flex items-center justify-center transition-transform duration-300 ${
+                    unlocked ? 'cursor-pointer hover:scale-110 focus:scale-110' : 'cursor-not-allowed'
+                  }`}
+                  style={style}
+                >
+                  <Image
+                    src="/Asset/Page2/Earth.png"
+                    alt={`Earth ${id}`}
+                    width={PLANET_IMAGE_SIZE}
+                    height={PLANET_IMAGE_SIZE}
+                    quality={70}
+                    loading={id === 1 ? 'eager' : 'lazy'}
+                    priority={id === 1}
+                    sizes="(max-width: 768px) 40vw, 220px"
+                    className="object-contain"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                  {!unlocked && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <svg
+                        width="72"
+                        height="72"
+                        viewBox="0 0 24 24"
+                        fill="white"
+                        className="drop-shadow-2xl"
+                        style={{ imageRendering: 'pixelated' }}
+                      >
+                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -1305,7 +1212,7 @@ export default function Page2() {
             </div>
 
             {/* Mission Complete Overlay */}
-            {showMissionComplete && (
+      {showMissionComplete && (
               <div className="absolute inset-0 z-50 pointer-events-none">
                 {/* Black semi-transparent background */}
                 <div className="absolute inset-0 bg-black/50" />
@@ -1320,6 +1227,17 @@ export default function Page2() {
                 </div>
               </div>
             )}
+
+      {showBossWarning && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black/80 animate-pulse" />
+          <div className="relative px-10 py-6 bg-red-600/90 border-4 border-red-300 rounded-xl shadow-[0_0_40px_rgba(220,38,38,0.9)]">
+            <h2 className="text-white text-4xl md:text-5xl font-extrabold tracking-widest text-center drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]">
+              ATTACK INCOMING!
+            </h2>
+          </div>
+        </div>
+      )}
 
             {/* Chat Messages Area */}
             <div className="absolute top-20 left-0 right-0 bottom-24 overflow-y-auto px-4 pb-4 space-y-4">
@@ -1523,11 +1441,11 @@ export default function Page2() {
             <LevelOne
               playerStats={playerStats}
               onLevelComplete={() => {
-                // Boss fight won - unlock Earth 5
+                // Boss fight won - unlock Earth 6
                 setBossFightCompleted(true);
                 setShowBossFight(false);
-                if (!unlockedPlanets.includes(5)) {
-                  setUnlockedPlanets([...unlockedPlanets, 5]);
+                if (!unlockedPlanets.includes(6)) {
+                  setUnlockedPlanets([...unlockedPlanets, 6]);
                   // Show Mission Complete overlay
                   setShowMissionComplete(true);
                   // Hide overlay after 3 seconds
@@ -1538,7 +1456,7 @@ export default function Page2() {
               }}
               onPlayerDefeated={() => {
                 // Boss fight lost - player can retry
-                // Don't unlock Earth 5, but allow them to try again
+                // Don't unlock Earth 6, but allow them to try again
                 setShowBossFight(false);
               }}
             />
