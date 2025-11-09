@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
+import { useCookies } from 'react-cookie';
 
 // Component to render text with clickable links
 function MessageWithLinks({ text, onLinkClick }: { text: string; onLinkClick?: () => void }) {
@@ -105,7 +106,7 @@ const DIALOG_CONFIG = {
   1: { // Earth 1 Dialog
     initialMessages: [
       { sender: 'ultraman' as const, text: 'โย่ว นายมาที่โลกของเราใช่มั้ย' },
-      { sender: 'ultraman' as const, text: 'ฉันชื่อ Ultraman และฉันต้องการความช่วยเหลือจากคุณ' },
+      { sender: 'ultraman' as const, text: 'ฉันชื่อ Mr.MaX และฉันต้องการความช่วยเหลือจากคุณ' },
       { sender: 'ultraman' as const, text: 'ช่วยปกป้องโลกของเราจากภัยร้ายด้วยนะ!' },
       { sender: 'ultraman' as const, text: 'ตอนนี้นายจะต้องเข้า Unity และ กด ลิงค์นี้ซะ https://unity.com/download' },
       { sender: 'ultraman' as const, text: 'ถ้าโหลดเสร็จแล้วพิมพ์มาด้วยว่าเสร็จแล้ว' }
@@ -193,6 +194,20 @@ const DIALOG_CONFIG = {
 };
 
 export default function Page2() {
+  const [cookies] = useCookies(['discord_user']);
+  
+  // Get player nickname/name from cookies
+  const getPlayerName = () => {
+    try {
+      const userData = typeof cookies.discord_user === 'string' 
+        ? JSON.parse(cookies.discord_user) 
+        : cookies.discord_user;
+      return userData?.nickname || userData?.username || userData?.global_name || 'Player';
+    } catch {
+      return 'Player';
+    }
+  };
+  
   const [showChat, setShowChat] = useState(false);
   const [currentEarth, setCurrentEarth] = useState<number | null>(null);
   const [unlockedPlanets, setUnlockedPlanets] = useState([1]); // Earth 1 is unlocked by default
@@ -204,6 +219,7 @@ export default function Page2() {
   const [shownDialogs, setShownDialogs] = useState<Set<number>>(new Set()); // Track which dialogs have been shown
   const [skipTyping, setSkipTyping] = useState<{ [key: number]: boolean }>({}); // Track if typing should be skipped
   const [chatHistory, setChatHistory] = useState<{ [key: number]: Array<{ id: number; sender: 'ultraman' | 'player'; text: string; imageUrl?: string }> }>({}); // Store full chat history for each Earth
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null); // Track enlarged image URL
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -366,12 +382,47 @@ export default function Page2() {
     }
   };
 
+  // Save answer to database (text and/or image)
+  const saveAnswer = async (answerText: string, imageUrl?: string, earthNumber?: number) => {
+    try {
+      if (cookies.discord_user) {
+        const userData = typeof cookies.discord_user === 'string' 
+          ? JSON.parse(cookies.discord_user) 
+          : cookies.discord_user;
+        const discordId = userData?.id;
+
+        if (discordId && (answerText.trim() || imageUrl)) {
+          await fetch('/api/answers/save', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              discordId,
+              answer: answerText.trim() || '',
+              imageUrl: imageUrl || '',
+              type: 'unityAsset',
+              earthNumber: earthNumber || null,
+            }),
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error saving answer:', error);
+    }
+  };
+
   const handleSendMessage = () => {
     if ((inputMessage.trim() || selectedImage) && currentEarth) {
       // Capture the current Earth number to avoid closure issues
       const earthNumber = currentEarth;
       const dialog = DIALOG_CONFIG[earthNumber as keyof typeof DIALOG_CONFIG];
       if (!dialog) return;
+
+      // Save answer (text and/or image)
+      if (inputMessage.trim() || selectedImage) {
+        saveAnswer(inputMessage, selectedImage || undefined, earthNumber);
+      }
 
       // Add player message with optional image
       setMessages(prev => {
@@ -719,12 +770,25 @@ export default function Page2() {
                   className={`flex items-start gap-3 ${message.sender === 'player' ? 'flex-row-reverse' : ''}`}
                 >
                   {/* Profile Icon */}
-                  <div className="w-10 h-10 rounded-full bg-gray-400 flex-shrink-0" style={{ imageRendering: 'pixelated' }} />
+                  {message.sender === 'ultraman' ? (
+                    <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden" style={{ imageRendering: 'pixelated' }}>
+                      <Image
+                        src="/Asset/Max.png"
+                        alt="Mr.MaX"
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-400 flex-shrink-0" style={{ imageRendering: 'pixelated' }} />
+                  )}
                   
                   <div className={`flex flex-col ${message.sender === 'player' ? 'items-end' : 'items-start'} max-w-[70%]`}>
                     {/* Name */}
                     <div className="text-white text-sm mb-1" style={{ fontFamily: "'Noto Sans Thai', monospace", imageRendering: 'pixelated' }}>
-                      {message.sender === 'ultraman' ? 'Ultraman' : 'Player name'}
+                      {message.sender === 'ultraman' ? 'Mr.MaX' : getPlayerName()}
                     </div>
                     
                     {/* Message Bubble */}
@@ -736,8 +800,9 @@ export default function Page2() {
                             <img
                               src={message.imageUrl}
                               alt="Sent image"
-                              className="object-contain max-w-full h-auto rounded-lg"
+                              className="object-contain max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                               style={{ imageRendering: 'pixelated', maxWidth: '300px', maxHeight: '300px' }}
+                              onClick={() => setEnlargedImage(message.imageUrl!)}
                             />
                           ) : (
                             <Image
@@ -745,8 +810,9 @@ export default function Page2() {
                               alt="Sent image"
                               width={300}
                               height={300}
-                              className="object-contain max-w-full h-auto rounded-lg"
+                              className="object-contain max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                               style={{ imageRendering: 'pixelated' }}
+                              onClick={() => setEnlargedImage(message.imageUrl!)}
                             />
                           )}
                         </div>
@@ -835,6 +901,48 @@ export default function Page2() {
                 </svg>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enlarged Image Modal */}
+      {enlargedImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/90"
+            onClick={() => setEnlargedImage(null)}
+          />
+          
+          {/* Enlarged Image */}
+          <div className="relative z-10 max-w-[90vw] max-h-[90vh] flex items-center justify-center">
+            {enlargedImage.endsWith('.gif') ? (
+              <img
+                src={enlargedImage}
+                alt="Enlarged image"
+                className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                style={{ imageRendering: 'pixelated' }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <Image
+                src={enlargedImage}
+                alt="Enlarged image"
+                width={1200}
+                height={1200}
+                className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                style={{ imageRendering: 'pixelated' }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
+            {/* Close Button */}
+            <button
+              onClick={() => setEnlargedImage(null)}
+              className="absolute top-4 right-4 w-10 h-10 bg-black/70 hover:bg-black/90 text-white text-2xl font-bold rounded-full flex items-center justify-center transition-colors"
+              aria-label="Close image"
+            >
+              ×
+            </button>
           </div>
         </div>
       )}

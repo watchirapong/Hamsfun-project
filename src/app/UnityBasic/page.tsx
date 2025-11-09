@@ -27,17 +27,6 @@ const sanitizeMessages = (messages: DisplayMessage[]): ChatMessage[] =>
     imageUrl,
   }));
 
-const PLANET_LAYOUT: Array<{ id: number; marginTop?: number }> = [
-  { id: 1 },
-  { id: 2, marginTop: -400 },
-  { id: 3, marginTop: 200 },
-  { id: 4, marginTop: 600 },
-  { id: 5 },
-  { id: 6, marginTop: -400 },
-];
-
-const PLANET_IMAGE_SIZE = 320;
-
 // Component to render text with clickable links
 function MessageWithLinks({ text, onLinkClick }: { text: string; onLinkClick?: () => void }) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -184,7 +173,7 @@ const DIALOG_CONFIG = {
   1: { // Earth 1 Dialog
     initialMessages: [
       { sender: 'ultraman' as const, text: 'โย่ว นายมาที่โลกของเราใช่มั้ย' },
-      { sender: 'ultraman' as const, text: 'ฉันชื่อ Ultraman และฉันต้องการความช่วยเหลือจากคุณ' },
+      { sender: 'ultraman' as const, text: 'ฉันชื่อ Mr.MaX และฉันต้องการความช่วยเหลือจากคุณ' },
       { sender: 'ultraman' as const, text: 'ฉันจะเป็นคนสอนพื้นฐาน Unity นายเอง' },
       { sender: 'ultraman' as const, text: 'เริ่มจากขั้นแรกกันเลย นายต้องติดตั้ง Unity Hub ซะก่อน เพราะมันคือประตูเข้าสู่ทุกเวิร์กช็อปของเรา' },
       { sender: 'ultraman' as const, text: 'กดโหลด Unity Hub จากหน้าเว็บทางการให้เรียบร้อย' },
@@ -198,25 +187,25 @@ const DIALOG_CONFIG = {
     responseMessages: [
       { sender: 'ultraman' as const, text: 'ดีมาก! นายเข้ามาใน Unity แล้ว' },
       { sender: 'ultraman' as const, text: 'ตอนนี้นายพร้อมที่จะไปยัง Earth 2 แล้ว!' },
-    ], // Messages shown after player sends a message
-    unlocksPlanet: 2, // Unlocks Earth 2 after response messages are shown
-    autoCloseDelay: 5000 // Auto-close chat after 2 seconds
+    ],
+    unlocksPlanet: 2,
+    autoCloseDelay: 5000
   },
   2: { // Earth 2 Dialog (when unlocked)
     initialMessages: [
-      { sender: 'ultraman' as const, text: 'ก่อนอื่น นายอาจจะสงสัยว่าหน้าต่างของ Unity มันมีอะไรบ้าง ฉันจะฮธิบายให้เอง' },
+      { sender: 'ultraman' as const, text: 'ก่อนอื่น นายอาจจะสงสัยว่าหน้าต่างของ Unity มันมีอะไรบ้าง ฉันจะอธิบายให้เอง' },
       { sender: 'ultraman' as const, text: 'หน้าต่างแรก Hierarchy จะเป็นหน้าโชว์ Object ต่างๆภายในฉากนั้นๆ' },
       { sender: 'ultraman' as const, text: 'หน้าต่างที่สอง Inspector จะเป็นหน้าโชว์ Properties ของ Object นั้นๆ' },
-      { sender: 'ultraman' as const, text: 'หน้าต่างที่สาม Project อันนี้ก็ไม่มีอะไรมาก เหมือนเวลาเราเปิดไฟล์เหลืองของคอมอ่ะ แต่อันนี้เป็นโฟลเดอร์ที่เกี่ยวกับโปรเจคนี้' },
-      { sender: 'ultraman' as const, text: 'หน้าต่างที่สี่ Scene พูดง่ายๆเลยนะ เป็นหน้าทำเกมไม่มีอะไรเลยไปตามแกนแต่ถ้ากดไม่โดนเส้นละก็มึนหัวแน่นอนเลื่อนๆดูนะ' },
+      { sender: 'ultraman' as const, text: 'หน้าต่างที่สาม Project อันนี้ก็ไม่มีอะไรมาก เหมือนเวลาเราเปิดไฟล์เหลืองของคอมอ่ะ แต่มันนี้เป็นโฟลเดอร์ที่เกี่ยวกับโปรเจคนี้' },
+      { sender: 'ultraman' as const, text: 'หน้าต่างที่สี่ Scene พูดง่ายๆเลยนะ เป็นหน้าทำเกมไม่มีอะไรเลยไกลตามแกนแต่ถ้ากดไม่โดนเส้นละก็มึนหัวแน่นอนเลื่อนๆดูนะ' },
       { sender: 'ultraman' as const, text: 'หลักๆจะมีประมาณนี้ นายเข้าใจมั้ย' },
     ],
     responseMessages: [
       { sender: 'ultraman' as const, text: 'ดีมาก! นายสอนง่ายนิ' },
-      { sender: 'ultraman' as const, text: 'ตอนนี้นายพร้อมที่จะไปยัง Earth 3 แล้ว!' },
+      { sender: 'ultraman' as const, text: 'ตอนนี้คุณต้องชนะ Boss Level 1 เพื่อปลดล็อก Earth 3!' },
       { sender: 'ultraman' as const, text: 'ดีมาก!', imageUrl: '/Asset/Page2/big-brain.gif' }
     ],
-    unlocksPlanet: 3,
+    // unlocksPlanet removed - Earth 3 is unlocked after winning boss fight
     autoCloseDelay: 3000
   },
   3: { // Earth 3 Dialog
@@ -254,7 +243,7 @@ const DIALOG_CONFIG = {
       { sender: 'ultraman' as const, text: 'นายเห็น TAB ด้านซ้ายตรงนี้ม่ะที่มีให้เลือกหลายๆอัน แล้วฉันเล่าให้ฟังว่าแต่ละอันคืออะไร' },
       { sender: 'ultraman' as const, text: 'อันแรก เป็นรูปมือไม่ค่อยใช้อยากรู้ลองใช้เองไม่บอกหรอก' },
       { sender: 'ultraman' as const, text: 'อันสอง รูปสี่ทิศอันนี้จะใช้ประจำเลย คือตอนที่เลือกสัก Object นึงจะมีทิศออกมาตรง Object ก็เลื่อนได้เลยลองเลื่อนๆดู' },
-      { sender: 'ultraman' as const, text: 'อันสาม รูปหมุนอันนี้เป็น Rotate เหมือนกับรูปทิศเลยแต่มันจะไม่เป็นทิศและมันจะเป็นการหมุนแทนถ้าหมุนตรงเส้นจะไปตามแกนแต่ถ้ากดไม่โดนเส้นละก็มึนหัวแน่นอนเลื่อนๆดู' },
+      { sender: 'ultraman' as const, text: 'อันสาม รูปหมุนอันนี้เป็น Rotate เหมือนกับรูปทิศเลยแต่มันจะไม่เป็นทิศแต่จะเป็นการหมุนแทนถ้าหมุนตรงเส้นจะไปตามแกนแต่ถ้ากดไม่โดนเส้นละก็มึนหัวแน่นอนเลื่อนๆดู' },
       { sender: 'ultraman' as const, text: 'อันสี่ รูปกล่องมีลูกศรสักอย่างอันนี้มีไว้เพื่อปรับขนาดเหมือนกับรูปทิศเลยลองปรับๆดูไปตามแกนแต่ถ้ากดไม่โดนเส้นละก็มึนหัวแน่นอนเลื่อนๆดู' },
     ],
     responseMessages: [
@@ -283,7 +272,20 @@ const DIALOG_CONFIG = {
 };
 
 export default function Page2() {
-  const [cookies] = useCookies(['discord_user']);
+  const [cookies, setCookie] = useCookies(['discord_user', 'discord_token']);
+  
+  // Get player nickname/name from cookies
+  const getPlayerName = () => {
+    try {
+      const userData = typeof cookies.discord_user === 'string' 
+        ? JSON.parse(cookies.discord_user) 
+        : cookies.discord_user;
+      return userData?.nickname || userData?.username || userData?.global_name || 'Player';
+    } catch {
+      return 'Player';
+    }
+  };
+  
   const [showChat, setShowChat] = useState(false);
   const [currentEarth, setCurrentEarth] = useState<number | null>(null);
   const [unlockedPlanets, setUnlockedPlanets] = useState([1]); // Only Earth 1 unlocked initially
@@ -303,11 +305,12 @@ export default function Page2() {
   const [agi, setAgi] = useState(10); // Agility stat
   const [showBossFight, setShowBossFight] = useState(false); // Boss fight modal state
   const [bossFightCompleted, setBossFightCompleted] = useState(false); // Boss fight completion state
+  const [bossFightTriggerEarth, setBossFightTriggerEarth] = useState<number | null>(null); // Track which Earth triggered boss fight
   const [showMissionComplete, setShowMissionComplete] = useState(false); // Mission complete overlay state
-  const [showBossWarning, setShowBossWarning] = useState(false);
   const [isProcessingResponse, setIsProcessingResponse] = useState(false); // Prevent duplicate response processing
   const [responseShown, setResponseShown] = useState<{ [key: number]: boolean }>({}); // Track if response has been shown for each Earth
   const [progressLoaded, setProgressLoaded] = useState(false); // Track if progress has been loaded
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null); // Track enlarged image URL
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -395,23 +398,49 @@ export default function Page2() {
             : cookies.discord_user;
           const discordId = userData?.id;
           const username = userData?.username || userData?.global_name || 'Unknown';
+          let nickname = userData?.nickname || null;
+          const avatar = userData?.avatar || null;
+
+          // If nickname is not in cookie but we have a token, try to fetch it
+          if (!nickname && cookies.discord_token) {
+            try {
+              const response = await fetch(`/api/discord/guild-member?token=${encodeURIComponent(cookies.discord_token)}`);
+              if (response.ok) {
+                const data = await response.json();
+                if (data.nickname && data.nickname.trim() !== '') {
+                  nickname = data.nickname;
+                  // Update the cookie with the nickname
+                  const updatedUser = { ...userData, nickname: data.nickname };
+                  setCookie('discord_user', JSON.stringify(updatedUser), { path: '/' });
+                }
+              }
+            } catch (error) {
+              console.error('Error fetching guild nickname:', error);
+            }
+          }
 
           if (discordId) {
+            const saveData = {
+              discordId,
+              username,
+              nickname: nickname || null, // Always include nickname, even if null
+              avatar: avatar || null, // Include avatar
+              unlockedPlanets,
+              earth6Completed,
+              points,
+              atk,
+              hp,
+              agi,
+            };
+            
+            console.log('Saving progress with data:', saveData);
+            
             await fetch('/api/progress/save', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({
-                discordId,
-                username,
-                unlockedPlanets,
-                earth6Completed,
-                points,
-                atk,
-                hp,
-                agi,
-              }),
+              body: JSON.stringify(saveData),
             });
           }
         }
@@ -423,7 +452,7 @@ export default function Page2() {
     // Debounce save to avoid too many requests
     const timeoutId = setTimeout(saveProgress, 500);
     return () => clearTimeout(timeoutId);
-  }, [unlockedPlanets, earth6Completed, points, atk, hp, agi, progressLoaded, cookies.discord_user]);
+  }, [unlockedPlanets, earth6Completed, points, atk, hp, agi, progressLoaded, cookies.discord_user, cookies.discord_token]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -779,19 +808,29 @@ export default function Page2() {
   const handleUnlockPlanet = (earthNumber: number, dialog: any) => {
     const nextPlanet = (dialog as any).unlocksPlanet;
     
-    // Special handling for Earth 5: require boss fight before unlocking Earth 6
-    if (earthNumber === 5) {
-      // Don't unlock Earth 6 yet, trigger boss fight instead
+    // Special handling for Earth 2: require boss fight before unlocking Earth 3
+    if (earthNumber === 2) {
+      // Don't unlock Earth 3 yet, trigger boss fight instead
       setTimeout(() => {
         setIsProcessingResponse(false);
         setShowChat(false);
         setCurrentEarth(null);
-        setShowBossWarning(true);
-        setTimeout(() => {
-          setShowBossWarning(false);
-          // Start boss fight
-          setShowBossFight(true);
-        }, 3000);
+        // Track which Earth triggered the boss fight
+        setBossFightTriggerEarth(earthNumber);
+        // Start boss fight
+        setShowBossFight(true);
+      }, dialog.autoCloseDelay || 2000);
+    } else if (earthNumber === 4) {
+      // Special handling for Earth 4: require boss fight before unlocking Earth 5
+      // Don't unlock Earth 5 yet, trigger boss fight instead
+      setTimeout(() => {
+        setIsProcessingResponse(false);
+        setShowChat(false);
+        setCurrentEarth(null);
+        // Track which Earth triggered the boss fight
+        setBossFightTriggerEarth(earthNumber);
+        // Start boss fight
+        setShowBossFight(true);
       }, dialog.autoCloseDelay || 2000);
     } else {
       // Normal unlock for other planets
@@ -904,7 +943,7 @@ export default function Page2() {
           setMessages(currentMessages => {
             setChatHistory(prev => ({
               ...prev,
-              [earthNumber]: sanitizeMessages(currentMessages)
+              [earthNumber]: currentMessages
             }));
             return currentMessages;
           });
@@ -914,12 +953,47 @@ export default function Page2() {
       }
     };
 
+  // Save answer to database (text and/or image)
+  const saveAnswer = async (answerText: string, imageUrl?: string, earthNumber?: number) => {
+    try {
+      if (cookies.discord_user) {
+        const userData = typeof cookies.discord_user === 'string' 
+          ? JSON.parse(cookies.discord_user) 
+          : cookies.discord_user;
+        const discordId = userData?.id;
+
+        if (discordId && (answerText.trim() || imageUrl)) {
+          await fetch('/api/answers/save', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              discordId,
+              answer: answerText.trim() || '',
+              imageUrl: imageUrl || '',
+              type: 'unityBasic',
+              earthNumber: earthNumber || null,
+            }),
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error saving answer:', error);
+    }
+  };
+
   const handleSendMessage = () => {
     if ((inputMessage.trim() || selectedImage) && currentEarth && !isProcessingResponse) {
       // Capture the current Earth number to avoid closure issues
       const earthNumber = currentEarth;
       const dialog = DIALOG_CONFIG[earthNumber as keyof typeof DIALOG_CONFIG];
       if (!dialog) return;
+
+      // Save answer (text and/or image)
+      if (inputMessage.trim() || selectedImage) {
+        saveAnswer(inputMessage, selectedImage || undefined, earthNumber);
+      }
 
       // Check if response has already been shown for this Earth
       if (responseShown[earthNumber]) {
@@ -955,6 +1029,11 @@ export default function Page2() {
       
       // If initial messages are not all shown, show remaining ones first
       if (!allInitialShown) {
+        // Save answer (text and/or image) for initial messages
+        if (inputMessage.trim() || selectedImage) {
+          saveAnswer(inputMessage, selectedImage || undefined, earthNumber);
+        }
+        
         // Add player message first
         setMessages(prev => {
           const newPlayerMessage = {
@@ -980,6 +1059,7 @@ export default function Page2() {
         
         setTimeout(() => {
           setMessages(currentMessages => {
+            // Count how many initial messages have been shown
             const initialShownCount = currentMessages.filter(m => 
               m.sender === 'ultraman' && 
               initialMessages.some((im: any) => 
@@ -1023,7 +1103,7 @@ export default function Page2() {
         // Update chat history immediately when player sends message
         setChatHistory(prevHistory => ({
           ...prevHistory,
-          [earthNumber]: sanitizeMessages(updatedMessages)
+          [earthNumber]: updatedMessages
         }));
         
         return updatedMessages;
@@ -1093,51 +1173,171 @@ export default function Page2() {
 
         {/* Six Planets in Single Horizontal Line */}
         <div className="flex-1 flex items-center justify-center w-full h-full">
-          <div className="flex flex-wrap justify-center items-center gap-10 px-8 md:flex-nowrap">
-            {PLANET_LAYOUT.map(({ id, marginTop }) => {
-              const unlocked = isPlanetUnlocked(id);
-              const style = marginTop !== undefined ? { marginTop: `${marginTop}px` } : undefined;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => handleEarthClick(id)}
-                  disabled={!unlocked}
-                  aria-disabled={!unlocked}
-                  className={`relative flex items-center justify-center transition-transform duration-300 ${
-                    unlocked ? 'cursor-pointer hover:scale-110 focus:scale-110' : 'cursor-not-allowed'
-                  }`}
-                  style={style}
-                >
-                  <Image
-                    src="/Asset/Page2/Earth.png"
-                    alt={`Earth ${id}`}
-                    width={PLANET_IMAGE_SIZE}
-                    height={PLANET_IMAGE_SIZE}
-                    quality={70}
-                    loading={id === 1 ? 'eager' : 'lazy'}
-                    priority={id === 1}
-                    sizes="(max-width: 768px) 40vw, 220px"
-                    className="object-contain"
-                    style={{ imageRendering: 'pixelated' }}
-                  />
-                  {!unlocked && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <svg
-                        width="72"
-                        height="72"
-                        viewBox="0 0 24 24"
-                        fill="white"
-                        className="drop-shadow-2xl"
-                        style={{ imageRendering: 'pixelated' }}
-                      >
-                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z" />
-                      </svg>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+          <div className="flex justify-center items-center gap-10 px-8">
+            {/* Earth 1 - Unlocked with Hover Effect */}
+            <div 
+              className="cursor-pointer transition-transform duration-300 hover:scale-125"
+              onClick={() => handleEarthClick(1)}
+            >
+              <Image
+                src="/Asset/Page2/Earth.png"
+                alt="Earth"
+                width={3000}
+                height={3000}
+                className="object-contain"
+                style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
+                priority
+              />
+            </div>
+            {/* Earth 2 - With Lock (unlocks when message is sent) */}
+            <div 
+              className="relative" 
+              style={{ marginTop: '-400px' }}
+              onClick={() => handleEarthClick(2)}
+            >
+              <Image
+                src="/Asset/Page2/Earth.png"
+                alt="Earth"
+                width={3000}
+                height={3000}
+                style={{ 
+                  imageRendering: 'pixelated', 
+                  width: 'auto', 
+                  height: 'auto', 
+                  filter: isPlanetUnlocked(2) ? 'none' : 'brightness(0.2)',
+                  transition: 'filter 0.3s ease-in-out',
+                  cursor: isPlanetUnlocked(2) ? 'pointer' : 'not-allowed'
+                }}
+                className={`object-contain ${isPlanetUnlocked(2) ? 'hover:scale-125 transition-transform duration-300' : ''}`}
+                priority
+              />
+              {!isPlanetUnlocked(2) && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <svg width="80" height="80" viewBox="0 0 24 24" fill="white" className="drop-shadow-2xl" style={{ imageRendering: 'pixelated' }}>
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                  </svg>
+                </div>
+              )}
+            </div>
+            {/* Earth 3 - With Lock */}
+            <div 
+              className="relative" 
+              style={{ marginTop: '200px' }}
+              onClick={() => handleEarthClick(3)}
+            >
+              <Image
+                src="/Asset/Page2/Earth.png"
+                alt="Earth"
+                width={3000}
+                height={3000}
+                style={{ 
+                  imageRendering: 'pixelated', 
+                  width: 'auto', 
+                  height: 'auto', 
+                  filter: isPlanetUnlocked(3) ? 'none' : 'brightness(0.2)',
+                  transition: 'filter 0.3s ease-in-out',
+                  cursor: isPlanetUnlocked(3) ? 'pointer' : 'not-allowed'
+                }}
+                className={`object-contain ${isPlanetUnlocked(3) ? 'hover:scale-125 transition-transform duration-300' : ''}`}
+                priority
+              />
+              {!isPlanetUnlocked(3) && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <svg width="80" height="80" viewBox="0 0 24 24" fill="white" className="drop-shadow-2xl" style={{ imageRendering: 'pixelated' }}>
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                  </svg>
+                </div>
+              )}
+            </div>
+            {/* Earth 4 - With Lock */}
+            <div 
+              className="relative" 
+              style={{ marginTop: '600px' }}
+              onClick={() => handleEarthClick(4)}
+            >
+              <Image
+                src="/Asset/Page2/Earth.png"
+                alt="Earth"
+                width={3000}
+                height={3000}
+                style={{ 
+                  imageRendering: 'pixelated', 
+                  width: 'auto', 
+                  height: 'auto', 
+                  filter: isPlanetUnlocked(4) ? 'none' : 'brightness(0.2)',
+                  transition: 'filter 0.3s ease-in-out',
+                  cursor: isPlanetUnlocked(4) ? 'pointer' : 'not-allowed'
+                }}
+                className={`object-contain ${isPlanetUnlocked(4) ? 'hover:scale-125 transition-transform duration-300' : ''}`}
+                priority
+              />
+              {!isPlanetUnlocked(4) && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <svg width="80" height="80" viewBox="0 0 24 24" fill="white" className="drop-shadow-2xl" style={{ imageRendering: 'pixelated' }}>
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                  </svg>
+                </div>
+              )}
+            </div>
+            {/* Earth 5 - With Lock */}
+            <div 
+              className="relative"
+              onClick={() => handleEarthClick(5)}
+            >
+              <Image
+                src="/Asset/Page2/Earth.png"
+                alt="Earth"
+                width={3000}
+                height={3000}
+                style={{ 
+                  imageRendering: 'pixelated', 
+                  width: 'auto', 
+                  height: 'auto', 
+                  filter: isPlanetUnlocked(5) ? 'none' : 'brightness(0.2)',
+                  transition: 'filter 0.3s ease-in-out',
+                  cursor: isPlanetUnlocked(5) ? 'pointer' : 'not-allowed'
+                }}
+                className={`object-contain ${isPlanetUnlocked(5) ? 'hover:scale-125 transition-transform duration-300' : ''}`}
+                priority
+              />
+              {!isPlanetUnlocked(5) && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <svg width="80" height="80" viewBox="0 0 24 24" fill="white" className="drop-shadow-2xl" style={{ imageRendering: 'pixelated' }}>
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                  </svg>
+                </div>
+              )}
+            </div>
+            {/* Earth 6 - With Lock */}
+            <div 
+              className="relative" 
+              style={{ marginTop: '-400px' }}
+              onClick={() => handleEarthClick(6)}
+            >
+              <Image
+                src="/Asset/Page2/Earth.png"
+                alt="Earth"
+                width={3000}
+                height={3000}
+                style={{ 
+                  imageRendering: 'pixelated', 
+                  width: 'auto', 
+                  height: 'auto', 
+                  filter: isPlanetUnlocked(6) ? 'none' : 'brightness(0.2)',
+                  transition: 'filter 0.3s ease-in-out',
+                  cursor: isPlanetUnlocked(6) ? 'pointer' : 'not-allowed'
+                }}
+                className={`object-contain ${isPlanetUnlocked(6) ? 'hover:scale-125 transition-transform duration-300' : ''}`}
+                priority
+              />
+              {!isPlanetUnlocked(6) && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <svg width="80" height="80" viewBox="0 0 24 24" fill="white" className="drop-shadow-2xl" style={{ imageRendering: 'pixelated' }}>
+                    <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                  </svg>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1184,17 +1384,6 @@ export default function Page2() {
         )}
       </div>
 
-      {showBossWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-black/80 animate-pulse" />
-          <div className="relative px-10 py-6 bg-red-600/90 border-4 border-red-300 rounded-xl shadow-[0_0_40px_rgba(220,38,38,0.9)]">
-            <h2 className="text-white text-4xl md:text-5xl font-extrabold tracking-widest text-center drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]">
-              ATTACK INCOMING!
-            </h2>
-          </div>
-        </div>
-      )}
-
       {/* Chat Interface Modal */}
       {showChat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1214,7 +1403,7 @@ export default function Page2() {
             </div>
 
             {/* Mission Complete Overlay */}
-      {showMissionComplete && (
+            {showMissionComplete && (
               <div className="absolute inset-0 z-50 pointer-events-none">
                 {/* Black semi-transparent background */}
                 <div className="absolute inset-0 bg-black/50" />
@@ -1238,12 +1427,25 @@ export default function Page2() {
                   className={`flex items-start gap-3 ${message.sender === 'player' ? 'flex-row-reverse' : ''}`}
                 >
                   {/* Profile Icon */}
-                  <div className="w-10 h-10 rounded-full bg-gray-400 flex-shrink-0" style={{ imageRendering: 'pixelated' }} />
+                  {message.sender === 'ultraman' ? (
+                    <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden" style={{ imageRendering: 'pixelated' }}>
+                      <Image
+                        src="/Asset/Max.png"
+                        alt="Mr.MaX"
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-400 flex-shrink-0" style={{ imageRendering: 'pixelated' }} />
+                  )}
                   
                   <div className={`flex flex-col ${message.sender === 'player' ? 'items-end' : 'items-start'} max-w-[70%]`}>
                     {/* Name */}
                     <div className="text-white text-sm mb-1" style={{ fontFamily: 'monospace', imageRendering: 'pixelated' }}>
-                      {message.sender === 'ultraman' ? 'Ultraman' : 'Player name'}
+                      {message.sender === 'ultraman' ? 'Mr.MaX' : getPlayerName()}
                     </div>
                     
                     {/* Message Bubble */}
@@ -1255,8 +1457,9 @@ export default function Page2() {
                             <img
                               src={message.imageUrl}
                               alt="Sent image"
-                              className="object-contain max-w-full h-auto rounded-lg"
+                              className="object-contain max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                               style={{ imageRendering: 'pixelated', maxWidth: '300px', maxHeight: '300px' }}
+                              onClick={() => setEnlargedImage(message.imageUrl!)}
                             />
                           ) : (
                             <Image
@@ -1264,8 +1467,9 @@ export default function Page2() {
                               alt="Sent image"
                               width={300}
                               height={300}
-                              className="object-contain max-w-full h-auto rounded-lg"
+                              className="object-contain max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                               style={{ imageRendering: 'pixelated' }}
+                              onClick={() => setEnlargedImage(message.imageUrl!)}
                             />
                           )}
                         </div>
@@ -1360,6 +1564,48 @@ export default function Page2() {
         </div>
       )}
 
+      {/* Enlarged Image Modal */}
+      {enlargedImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/90"
+            onClick={() => setEnlargedImage(null)}
+          />
+          
+          {/* Enlarged Image */}
+          <div className="relative z-10 max-w-[90vw] max-h-[90vh] flex items-center justify-center">
+            {enlargedImage.endsWith('.gif') ? (
+              <img
+                src={enlargedImage}
+                alt="Enlarged image"
+                className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                style={{ imageRendering: 'pixelated' }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <Image
+                src={enlargedImage}
+                alt="Enlarged image"
+                width={1200}
+                height={1200}
+                className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                style={{ imageRendering: 'pixelated' }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
+            {/* Close Button */}
+            <button
+              onClick={() => setEnlargedImage(null)}
+              className="absolute top-4 right-4 w-10 h-10 bg-black/70 hover:bg-black/90 text-white text-2xl font-bold rounded-full flex items-center justify-center transition-colors"
+              aria-label="Close image"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Upgrade Stat Modal */}
       {showUpgrade && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1433,11 +1679,15 @@ export default function Page2() {
             <LevelOne
               playerStats={playerStats}
               onLevelComplete={() => {
-                // Boss fight won - unlock Earth 6
+                // Boss fight won - unlock the appropriate planet based on which Earth triggered it
                 setBossFightCompleted(true);
                 setShowBossFight(false);
-                if (!unlockedPlanets.includes(6)) {
-                  setUnlockedPlanets([...unlockedPlanets, 6]);
+                
+                // Determine which planet to unlock based on which Earth triggered the boss fight
+                const planetToUnlock = bossFightTriggerEarth === 2 ? 3 : 5;
+                
+                if (!unlockedPlanets.includes(planetToUnlock)) {
+                  setUnlockedPlanets([...unlockedPlanets, planetToUnlock]);
                   // Show Mission Complete overlay
                   setShowMissionComplete(true);
                   // Hide overlay after 3 seconds
@@ -1445,11 +1695,16 @@ export default function Page2() {
                     setShowMissionComplete(false);
                   }, 3000);
                 }
+                
+                // Reset the trigger Earth
+                setBossFightTriggerEarth(null);
               }}
               onPlayerDefeated={() => {
                 // Boss fight lost - player can retry
-                // Don't unlock Earth 6, but allow them to try again
+                // Don't unlock the planet, but allow them to try again
                 setShowBossFight(false);
+                // Reset the trigger Earth so they can retry
+                setBossFightTriggerEarth(null);
               }}
             />
           </div>
