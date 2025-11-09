@@ -8,6 +8,25 @@ import LevelOne from "../game/levels/LevelOne";
 import { BASE_PLAYER_STATS, MIN_SHOOT_INTERVAL } from "../game/Player";
 import type { PlayerStats } from "../game/Player";
 
+type ChatMessage = {
+  id: number;
+  sender: 'ultraman' | 'player';
+  text: string;
+  imageUrl?: string;
+};
+
+type DisplayMessage = ChatMessage & {
+  onComplete?: () => void;
+};
+
+const sanitizeMessages = (messages: DisplayMessage[]): ChatMessage[] =>
+  messages.map(({ id, sender, text, imageUrl }) => ({
+    id,
+    sender,
+    text,
+    imageUrl,
+  }));
+
 const PLANET_LAYOUT: Array<{ id: number; marginTop?: number }> = [
   { id: 1 },
   { id: 2, marginTop: -400 },
@@ -87,11 +106,13 @@ function UpgradeRow({ label, value, description, onIncrement, disabled }: Upgrad
 }
 
 // Typing effect component for Ultraman messages with link support
-function TypingText({ text, speed = 30, onLinkClick, skipTyping = false }: { text: string; speed?: number; onLinkClick?: () => void; skipTyping?: boolean }) {
+function TypingText({ text, speed = 30, onLinkClick, skipTyping = false, onTypingComplete }: { text: string; speed?: number; onLinkClick?: () => void; skipTyping?: boolean; onTypingComplete?: () => void }) {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
+  const completedRef = useRef(false);
 
   useEffect(() => {
+    completedRef.current = false;
     // Reset state when text changes
     setDisplayedText('');
     setIsTyping(true);
@@ -100,6 +121,10 @@ function TypingText({ text, speed = 30, onLinkClick, skipTyping = false }: { tex
       // Skip typing animation - show full text immediately
       setDisplayedText(text);
       setIsTyping(false);
+      if (!completedRef.current) {
+        onTypingComplete?.();
+        completedRef.current = true;
+      }
       return;
     }
 
@@ -113,11 +138,15 @@ function TypingText({ text, speed = 30, onLinkClick, skipTyping = false }: { tex
       } else {
         setIsTyping(false);
         clearInterval(typingInterval);
+        if (!completedRef.current) {
+          onTypingComplete?.();
+          completedRef.current = true;
+        }
       }
     }, speed);
 
     return () => clearInterval(typingInterval);
-  }, [text, speed, skipTyping]);
+  }, [text, speed, skipTyping, onTypingComplete]);
 
   return (
     <span>
@@ -258,14 +287,14 @@ export default function Page2() {
   const [showChat, setShowChat] = useState(false);
   const [currentEarth, setCurrentEarth] = useState<number | null>(null);
   const [unlockedPlanets, setUnlockedPlanets] = useState([1]); // Only Earth 1 unlocked initially
-  const [messages, setMessages] = useState<Array<{ id: number; sender: 'ultraman' | 'player'; text: string; imageUrl?: string }>>([]);
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [dialogMessages, setDialogMessages] = useState<Array<{ sender: 'ultraman' | 'player'; text: string; imageUrl?: string }>>([]);
   const [shownDialogs, setShownDialogs] = useState<Set<number>>(new Set()); // No dialogs shown initially
   const [skipTyping, setSkipTyping] = useState<{ [key: number]: boolean }>({}); // No dialogs skip typing initially
-  const [chatHistory, setChatHistory] = useState<{ [key: number]: Array<{ id: number; sender: 'ultraman' | 'player'; text: string; imageUrl?: string }> }>({}); // Store full chat history for each Earth
+  const [chatHistory, setChatHistory] = useState<{ [key: number]: ChatMessage[] }>({}); // Store full chat history for each Earth
   const [earth6Completed, setEarth6Completed] = useState(false); // Earth 6 not completed initially
   const [showUpgrade, setShowUpgrade] = useState(false); // Upgrade modal state
   const [points, setPoints] = useState(10); // Upgrade points
@@ -415,14 +444,15 @@ export default function Page2() {
   const showNextMessage = (index: number, messagesToShow: Array<{ sender: 'ultraman' | 'player'; text: string; imageUrl?: string }>, earthNumber: number) => {
     if (index < messagesToShow.length) {
       const msg = messagesToShow[index];
+      const nextIndex = index + 1;
       
       // Skip empty messages (unless they have an image)
       if ((!msg.text || msg.text.trim() === '') && !msg.imageUrl) {
-        setCurrentMessageIndex(index + 1);
+        setCurrentMessageIndex(nextIndex);
         // Continue to next message immediately if current is empty
-        if (index + 1 < messagesToShow.length) {
+        if (nextIndex < messagesToShow.length) {
           setTimeout(() => {
-            showNextMessage(index + 1, messagesToShow, earthNumber);
+            showNextMessage(nextIndex, messagesToShow, earthNumber);
           }, 100);
         }
         return;
@@ -439,69 +469,65 @@ export default function Page2() {
         
         if (messageExists) {
           // Message already shown, just update index and continue
-          setCurrentMessageIndex(index + 1);
+          setCurrentMessageIndex(nextIndex);
           // Continue to next message if not waiting for link click
-          if (index + 1 < messagesToShow.length && !waitingForLinkClickRef.current[earthNumber]) {
+          if (nextIndex < messagesToShow.length && !waitingForLinkClickRef.current[earthNumber]) {
             setTimeout(() => {
               if (!waitingForLinkClickRef.current[earthNumber]) {
-                showNextMessage(index + 1, messagesToShow, earthNumber);
+                showNextMessage(nextIndex, messagesToShow, earthNumber);
               }
             }, 100);
           }
           return prev;
         }
         
-        // Add new message
-        const newMessages = [...prev, {
+        const baseDelay = 600;
+        const hasMessageUrl = msg.text ? hasUrl(msg.text) : false;
+
+        const createChatEntry = (): ChatMessage => ({
           id: prev.length + 1,
           sender: msg.sender,
           text: msg.text || '',
-          imageUrl: (msg as any).imageUrl
-        }];
+          imageUrl: (msg as any).imageUrl,
+        });
+
+        const scheduleNext = () => {
+          if (nextIndex < messagesToShow.length && !waitingForLinkClickRef.current[earthNumber]) {
+            showNextMessage(nextIndex, messagesToShow, earthNumber);
+          }
+        };
+
+        // Add new message
+        const chatEntry = createChatEntry();
+        const displayEntry: DisplayMessage = { ...chatEntry };
+
+        if (msg.text && hasMessageUrl) {
+          waitingForLinkClickRef.current[earthNumber] = true;
+        } else if (msg.sender === 'ultraman' && msg.text) {
+          displayEntry.onComplete = () => {
+            setTimeout(() => {
+              scheduleNext();
+            }, baseDelay);
+          };
+        } else if (msg.imageUrl) {
+          setTimeout(() => {
+            scheduleNext();
+          }, 1000);
+        } else {
+          setTimeout(() => {
+            scheduleNext();
+          }, baseDelay);
+        }
+
+        const newMessages = [...prev, displayEntry];
         
         // Update chat history when showing initial messages - use the passed earthNumber
         setChatHistory(prevHistory => ({
           ...prevHistory,
-          [earthNumber]: newMessages
+          [earthNumber]: [...(prevHistory[earthNumber] || []), chatEntry]
         }));
         
-        setCurrentMessageIndex(index + 1);
-        
-        // If this message has a URL, stop automatic progression and wait for link click
-        if (msg.text && hasUrl(msg.text)) {
-          // Set waiting flag - wait for link click
-          waitingForLinkClickRef.current[earthNumber] = true;
-          // Don't auto-advance, wait for handleLinkClick
-          return newMessages;
-        }
-        
-        // Calculate delay based on message length and typing speed
-        // Only calculate delay for Ultraman messages (they have typing effect)
-        const typingSpeed = 30; // ms per character (matches TypingText default)
-        const baseDelay = 500; // Base delay after typing completes
-        let delay = baseDelay;
-        
-        if (msg.sender === 'ultraman' && msg.text) {
-          // Calculate time needed for typing animation
-          const typingTime = msg.text.length * typingSpeed;
-          delay = typingTime + baseDelay;
-        } else if (msg.imageUrl) {
-          // For images, use a shorter delay
-          delay = 1000;
-        }
-        
-        // If this message doesn't have URL, continue to next message after calculated delay
-        if (index + 1 < messagesToShow.length) {
-          // Check if we're waiting for link click
-          if (!waitingForLinkClickRef.current[earthNumber]) {
-            setTimeout(() => {
-              // Double check flag before showing next message
-              if (!waitingForLinkClickRef.current[earthNumber]) {
-                showNextMessage(index + 1, messagesToShow, earthNumber);
-              }
-            }, delay);
-          }
-        }
+        setCurrentMessageIndex(nextIndex);
         
         return newMessages;
       });
@@ -529,28 +555,16 @@ export default function Page2() {
     const hasBeenShown = shownDialogs.has(clickedEarth);
     
     if (hasBeenShown) {
-      // If already shown, restore full chat history if it exists
-      setSkipTyping(prev => ({ ...prev, [clickedEarth]: true }));
-      
-      // Ensure we're restoring the correct Earth's history
-      if (chatHistory[clickedEarth] && chatHistory[clickedEarth].length > 0) {
-        // Restore full conversation history including player messages
-        setMessages(chatHistory[clickedEarth]);
-        setCurrentMessageIndex(chatHistory[clickedEarth].length);
-      } else {
-        // Fallback: show initial messages if no history exists
-        const allMessages = messagesToShow
-          .filter(msg => (msg.text && msg.text.trim() !== '') || (msg as any).imageUrl)
-          .map((msg, index) => ({
-            id: index + 1,
-            sender: msg.sender,
-            text: msg.text || '',
-            imageUrl: (msg as any).imageUrl
-          }));
-        setMessages(allMessages);
-        setCurrentMessageIndex(messagesToShow.length);
-      }
+      // Replay initial messages sequentially each time the dialog is opened
+      waitingForLinkClickRef.current[clickedEarth] = false;
+      setSkipTyping(prev => ({ ...prev, [clickedEarth]: false }));
+      setMessages([]);
+      setCurrentMessageIndex(0);
       setShowChat(true);
+
+      setTimeout(() => {
+        showNextMessage(0, messagesToShow, clickedEarth);
+      }, 100);
     } else {
       // First time showing - use typing animation
       // Explicitly set skipTyping to false for this Earth
@@ -648,7 +662,7 @@ export default function Page2() {
         // Update chat history
         setChatHistory(prevHistory => ({
           ...prevHistory,
-          [currentEarth]: newMessages
+          [currentEarth]: sanitizeMessages(newMessages)
         }));
         
         return newMessages;
@@ -697,7 +711,7 @@ export default function Page2() {
                   
                   setChatHistory(prevHistory => ({
                     ...prevHistory,
-                    [currentEarth]: updated
+                    [currentEarth]: sanitizeMessages(updated)
                   }));
                   
                   return updated;
@@ -829,7 +843,7 @@ export default function Page2() {
               // Update chat history with each new message
               setChatHistory(prevHistory => ({
                 ...prevHistory,
-                [earthNumber]: newMessages
+                [earthNumber]: sanitizeMessages(newMessages)
               }));
               
               return newMessages;
@@ -890,7 +904,7 @@ export default function Page2() {
           setMessages(currentMessages => {
             setChatHistory(prev => ({
               ...prev,
-              [earthNumber]: currentMessages
+              [earthNumber]: sanitizeMessages(currentMessages)
             }));
             return currentMessages;
           });
@@ -922,7 +936,7 @@ export default function Page2() {
           // Update chat history
           setChatHistory(prevHistory => ({
             ...prevHistory,
-            [earthNumber]: updatedMessages
+            [earthNumber]: sanitizeMessages(updatedMessages)
           }));
           
           return updatedMessages;
@@ -953,7 +967,7 @@ export default function Page2() {
           
           setChatHistory(prevHistory => ({
             ...prevHistory,
-            [earthNumber]: updatedMessages
+            [earthNumber]: sanitizeMessages(updatedMessages)
           }));
           
           return updatedMessages;
@@ -964,11 +978,8 @@ export default function Page2() {
           fileInputRef.current.value = '';
         }
         
-        // Show remaining initial messages first
-        // Continue showing initial messages until all are shown
-        const continueInitialMessages = () => {
+        setTimeout(() => {
           setMessages(currentMessages => {
-            // Count how many initial messages have been shown
             const initialShownCount = currentMessages.filter(m => 
               m.sender === 'ultraman' && 
               initialMessages.some((im: any) => 
@@ -976,40 +987,20 @@ export default function Page2() {
                 (im.imageUrl && m.imageUrl === im.imageUrl)
               )
             ).length;
-            
-            // If not all initial messages shown and not waiting for link click, show next one
+
             if (initialShownCount < initialMessages.length && !waitingForLinkClickRef.current[earthNumber]) {
               setCurrentMessageIndex(initialShownCount);
-              setTimeout(() => {
-                // Check flag again before showing
-                if (!waitingForLinkClickRef.current[earthNumber]) {
-                  showNextMessage(initialShownCount, initialMessages, earthNumber);
-                  
-                  // Check again after delay only if not waiting for link click
-                  setTimeout(() => {
-                    if (!waitingForLinkClickRef.current[earthNumber]) {
-                      continueInitialMessages();
-                    }
-                  }, 2500);
-                }
-              }, 500);
+              showNextMessage(initialShownCount, initialMessages, earthNumber);
             } else if (initialShownCount >= initialMessages.length) {
-              // All initial messages shown, now show response messages
               setIsProcessingResponse(true);
               setResponseShown(prev => ({ ...prev, [earthNumber]: true }));
               setTimeout(() => {
                 showResponseMessages(earthNumber, dialog);
               }, 500);
             }
-            // If waiting for link click, don't continue - wait for handleLinkClick
-            
+
             return currentMessages;
           });
-        };
-        
-        // Start showing remaining initial messages
-        setTimeout(() => {
-          continueInitialMessages();
         }, 500);
         return;
       }
@@ -1032,7 +1023,7 @@ export default function Page2() {
         // Update chat history immediately when player sends message
         setChatHistory(prevHistory => ({
           ...prevHistory,
-          [earthNumber]: updatedMessages
+          [earthNumber]: sanitizeMessages(updatedMessages)
         }));
         
         return updatedMessages;
@@ -1193,6 +1184,17 @@ export default function Page2() {
         )}
       </div>
 
+      {showBossWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black/80 animate-pulse" />
+          <div className="relative px-10 py-6 bg-red-600/90 border-4 border-red-300 rounded-xl shadow-[0_0_40px_rgba(220,38,38,0.9)]">
+            <h2 className="text-white text-4xl md:text-5xl font-extrabold tracking-widest text-center drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]">
+              ATTACK INCOMING!
+            </h2>
+          </div>
+        </div>
+      )}
+
       {/* Chat Interface Modal */}
       {showChat && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1227,17 +1229,6 @@ export default function Page2() {
                 </div>
               </div>
             )}
-
-      {showBossWarning && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
-          <div className="absolute inset-0 bg-black/80 animate-pulse" />
-          <div className="relative px-10 py-6 bg-red-600/90 border-4 border-red-300 rounded-xl shadow-[0_0_40px_rgba(220,38,38,0.9)]">
-            <h2 className="text-white text-4xl md:text-5xl font-extrabold tracking-widest text-center drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]">
-              ATTACK INCOMING!
-            </h2>
-          </div>
-        </div>
-      )}
 
             {/* Chat Messages Area */}
             <div className="absolute top-20 left-0 right-0 bottom-24 overflow-y-auto px-4 pb-4 space-y-4">
@@ -1288,6 +1279,7 @@ export default function Page2() {
                             speed={30} 
                             onLinkClick={handleLinkClick} 
                             skipTyping={currentEarth ? (skipTyping[currentEarth] === true) : false}
+                            onTypingComplete={message.onComplete}
                           />
                         ) : (
                           <MessageWithLinks text={message.text} onLinkClick={handleLinkClick} />
