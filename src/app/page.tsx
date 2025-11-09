@@ -35,7 +35,7 @@ export default function Home() {
         </div>
 
         {/* Start Button - Centered */}
-        <div className="w-full flex items-center justify-center pb-12">
+        <div className="w-full flex items-center justify-center pb-10" style={{ transform: "translateY(-300px)" }}>
           <Link href="/UnityBasic" className="cursor-pointer hover:scale-110 transition-transform duration-300">
             <Image
               src="/Asset/Start.png"

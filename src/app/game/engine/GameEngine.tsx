@@ -445,7 +445,7 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
       const bossBarWidth = 200;
       const bossBarHeight = 12;
       const bossBarX = config.canvas.width / 2 - bossBarWidth / 2;
-      const bossBarY = 10;
+      const bossBarY = 30; // Increased from 10 to 30 to prevent text cutoff
       ctx.fillStyle = '#330000';
       ctx.fillRect(bossBarX, bossBarY, bossBarWidth, bossBarHeight);
       ctx.fillStyle = '#ff0000';
@@ -463,7 +463,7 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('BOSS', config.canvas.width / 2, bossBarY - 5);
+      ctx.fillText('BOSS', config.canvas.width / 2, bossBarY - 8); // Adjusted to bossBarY - 8 for better spacing
       ctx.textAlign = 'left';
 
       playerBulletsRef.current = playerBulletsRef.current.filter((bullet) => {
@@ -692,13 +692,42 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
     return () => clearInterval(interval);
   }, [gameState]);
 
+  // Calculate scale to fill viewport while maintaining aspect ratio
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (!containerRef.current) return;
+      const container = containerRef.current;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      const canvasWidth = config.canvas.width;
+      const canvasHeight = config.canvas.height;
+      
+      const scaleX = containerWidth / canvasWidth;
+      const scaleY = containerHeight / canvasHeight;
+      const newScale = Math.min(scaleX, scaleY);
+      setScale(newScale);
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => window.removeEventListener('resize', updateScale);
+  }, [config.canvas.width, config.canvas.height]);
+
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center p-8 bg-black">
+    <main ref={containerRef} className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
       <canvas
         ref={canvasRef}
         width={config.canvas.width}
         height={config.canvas.height}
-        className="border-2 border-white"
+        className="block"
+        style={{
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center',
+          imageRendering: 'pixelated'
+        }}
       />
 
       {gameState === 'countdown' && (

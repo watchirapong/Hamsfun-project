@@ -2,10 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useEffect, useRef, useMemo } from "react";
-import LevelOne from "../game/levels/LevelOne";
-import { BASE_PLAYER_STATS, MIN_SHOOT_INTERVAL } from "../game/Player";
-import type { PlayerStats } from "../game/Player";
+import { useState, useEffect, useRef } from "react";
 
 // Component to render text with clickable links
 function MessageWithLinks({ text, onLinkClick }: { text: string; onLinkClick?: () => void }) {
@@ -29,7 +26,7 @@ function MessageWithLinks({ text, onLinkClick }: { text: string; onLinkClick?: (
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 underline hover:text-blue-800 cursor-pointer"
-              style={{ fontFamily: 'monospace', imageRendering: 'pixelated' }}
+              style={{ fontFamily: "'Noto Sans Thai', monospace", imageRendering: 'pixelated' }}
               onClick={handleLinkClick}
             >
               click here
@@ -42,56 +39,21 @@ function MessageWithLinks({ text, onLinkClick }: { text: string; onLinkClick?: (
   );
 }
 
-// Upgrade Row Component
-interface UpgradeRowProps {
-  label: string;
-  value: number;
-  description: string;
-  onIncrement: () => void;
-  disabled: boolean;
-}
-
-function UpgradeRow({ label, value, description, onIncrement, disabled }: UpgradeRowProps) {
-  return (
-    <div className="flex items-center justify-between rounded-2xl bg-white/5 px-6 py-5 shadow-inner" style={{ imageRendering: 'pixelated' }}>
-      <div>
-        <div className="text-3xl font-extrabold tracking-wide text-white">{label}</div>
-        <div className="text-sm uppercase tracking-widest text-white/50">{description}</div>
-      </div>
-      <div className="flex items-center gap-6">
-        <span className="text-3xl font-extrabold text-white">{value}</span>
-        <button
-          type="button"
-          onClick={onIncrement}
-          disabled={disabled}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500 text-3xl font-bold text-black shadow-lg transition-colors hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ imageRendering: 'pixelated' }}
-        >
-          +
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // Typing effect component for Ultraman messages with link support
 function TypingText({ text, speed = 30, onLinkClick, skipTyping = false }: { text: string; speed?: number; onLinkClick?: () => void; skipTyping?: boolean }) {
   const [displayedText, setDisplayedText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
 
   useEffect(() => {
-    // Reset state when text changes
-    setDisplayedText('');
-    setIsTyping(true);
-    
-    if (skipTyping === true) {
+    if (skipTyping) {
       // Skip typing animation - show full text immediately
       setDisplayedText(text);
       setIsTyping(false);
       return;
     }
 
-    // Start typing animation
+    setDisplayedText('');
+    setIsTyping(true);
     let currentIndex = 0;
 
     const typingInterval = setInterval(() => {
@@ -233,55 +195,17 @@ const DIALOG_CONFIG = {
 export default function Page2() {
   const [showChat, setShowChat] = useState(false);
   const [currentEarth, setCurrentEarth] = useState<number | null>(null);
-  const [unlockedPlanets, setUnlockedPlanets] = useState([1, 2, 3]); // Earth 1, 2, 3 unlocked initially
+  const [unlockedPlanets, setUnlockedPlanets] = useState([1]); // Earth 1 is unlocked by default
   const [messages, setMessages] = useState<Array<{ id: number; sender: 'ultraman' | 'player'; text: string; imageUrl?: string }>>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [dialogMessages, setDialogMessages] = useState<Array<{ sender: 'ultraman' | 'player'; text: string; imageUrl?: string }>>([]);
-  const [shownDialogs, setShownDialogs] = useState<Set<number>>(new Set()); // No dialogs shown initially
-  const [skipTyping, setSkipTyping] = useState<{ [key: number]: boolean }>({}); // No dialogs skip typing initially
+  const [shownDialogs, setShownDialogs] = useState<Set<number>>(new Set()); // Track which dialogs have been shown
+  const [skipTyping, setSkipTyping] = useState<{ [key: number]: boolean }>({}); // Track if typing should be skipped
   const [chatHistory, setChatHistory] = useState<{ [key: number]: Array<{ id: number; sender: 'ultraman' | 'player'; text: string; imageUrl?: string }> }>({}); // Store full chat history for each Earth
-  const [earth6Completed, setEarth6Completed] = useState(false); // Earth 6 not completed initially
-  const [showUpgrade, setShowUpgrade] = useState(false); // Upgrade modal state
-  const [points, setPoints] = useState(10); // Upgrade points
-  const [atk, setAtk] = useState(10); // Attack stat
-  const [hp, setHp] = useState(10); // Health stat
-  const [agi, setAgi] = useState(10); // Agility stat
-  const [showBossFight, setShowBossFight] = useState(false); // Boss fight modal state
-  const [bossFightCompleted, setBossFightCompleted] = useState(false); // Boss fight completion state
-  const [showMissionComplete, setShowMissionComplete] = useState(false); // Mission complete overlay state
-  const [isProcessingResponse, setIsProcessingResponse] = useState(false); // Prevent duplicate response processing
-  const [responseShown, setResponseShown] = useState<{ [key: number]: boolean }>({}); // Track if response has been shown for each Earth
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Calculate player stats from upgrade stats (same as game/page.tsx)
-  const BASE_STAT_VALUE = 10;
-  const HP_PER_POINT = 20;
-  const MOVE_SPEED_PER_POINT = 0.3;
-  const SHOOT_INTERVAL_REDUCTION_PER_POINT = 15;
-  const ATTACK_PER_POINT = 1;
-
-  const atkBonus = atk - BASE_STAT_VALUE;
-  const hpBonus = hp - BASE_STAT_VALUE;
-  const agiBonus = agi - BASE_STAT_VALUE;
-
-  const playerStats: PlayerStats = useMemo(() => {
-    const shootInterval = Math.max(
-      MIN_SHOOT_INTERVAL,
-      BASE_PLAYER_STATS.shootInterval - agiBonus * SHOOT_INTERVAL_REDUCTION_PER_POINT,
-    );
-
-    return {
-      ...BASE_PLAYER_STATS,
-      attackPowerBoss: BASE_PLAYER_STATS.attackPowerBoss + atkBonus * ATTACK_PER_POINT,
-      attackPowerMinion: BASE_PLAYER_STATS.attackPowerMinion + atkBonus * ATTACK_PER_POINT,
-      maxHealth: BASE_PLAYER_STATS.maxHealth + hpBonus * HP_PER_POINT,
-      moveSpeed: BASE_PLAYER_STATS.moveSpeed + agiBonus * MOVE_SPEED_PER_POINT,
-      shootInterval,
-    };
-  }, [atkBonus, hpBonus, agiBonus]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -315,30 +239,7 @@ export default function Page2() {
         return;
       }
       
-      // Check if this message has already been shown to prevent duplicates
       setMessages(prev => {
-        // Check if message already exists
-        const messageExists = prev.some(m => 
-          m.sender === msg.sender && 
-          m.text === msg.text && 
-          (msg.imageUrl ? m.imageUrl === msg.imageUrl : !m.imageUrl)
-        );
-        
-        if (messageExists) {
-          // Message already shown, just update index and continue
-          setCurrentMessageIndex(index + 1);
-          // Continue to next message if not waiting for link click
-          if (index + 1 < messagesToShow.length && !waitingForLinkClickRef.current[earthNumber]) {
-            setTimeout(() => {
-              if (!waitingForLinkClickRef.current[earthNumber]) {
-                showNextMessage(index + 1, messagesToShow, earthNumber);
-              }
-            }, 100);
-          }
-          return prev;
-        }
-        
-        // Add new message
         const newMessages = [...prev, {
           id: prev.length + 1,
           sender: msg.sender,
@@ -352,46 +253,22 @@ export default function Page2() {
           [earthNumber]: newMessages
         }));
         
-        setCurrentMessageIndex(index + 1);
-        
-        // If this message has a URL, stop automatic progression and wait for link click
-        if (msg.text && hasUrl(msg.text)) {
-          // Set waiting flag - wait for link click
-          waitingForLinkClickRef.current[earthNumber] = true;
-          // Don't auto-advance, wait for handleLinkClick
-          return newMessages;
-        }
-        
-        // Calculate delay based on message length and typing speed
-        // Only calculate delay for Ultraman messages (they have typing effect)
-        const typingSpeed = 30; // ms per character (matches TypingText default)
-        const baseDelay = 500; // Base delay after typing completes
-        let delay = baseDelay;
-        
-        if (msg.sender === 'ultraman' && msg.text) {
-          // Calculate time needed for typing animation
-          const typingTime = msg.text.length * typingSpeed;
-          delay = typingTime + baseDelay;
-        } else if (msg.imageUrl) {
-          // For images, use a shorter delay
-          delay = 1000;
-        }
-        
-        // If this message doesn't have URL, continue to next message after calculated delay
-        if (index + 1 < messagesToShow.length) {
-          // Check if we're waiting for link click
-          if (!waitingForLinkClickRef.current[earthNumber]) {
-            setTimeout(() => {
-              // Double check flag before showing next message
-              if (!waitingForLinkClickRef.current[earthNumber]) {
-                showNextMessage(index + 1, messagesToShow, earthNumber);
-              }
-            }, delay);
-          }
-        }
-        
         return newMessages;
       });
+      setCurrentMessageIndex(index + 1);
+      
+      // If this message has a URL, stop automatic progression
+      // Otherwise, continue to next message after delay
+      if (msg.text && !hasUrl(msg.text) && index + 1 < messagesToShow.length) {
+        setTimeout(() => {
+          showNextMessage(index + 1, messagesToShow, earthNumber);
+        }, 2000); // 2 second delay
+      } else if (msg.imageUrl && !msg.text && index + 1 < messagesToShow.length) {
+        // If message only has image, continue after delay
+        setTimeout(() => {
+          showNextMessage(index + 1, messagesToShow, earthNumber);
+        }, 2000);
+      }
     }
   };
 
@@ -440,12 +317,7 @@ export default function Page2() {
       setShowChat(true);
     } else {
       // First time showing - use typing animation
-      // Explicitly set skipTyping to false for this Earth
-      setSkipTyping(prev => {
-        const newState = { ...prev };
-        newState[clickedEarth] = false;
-        return newState;
-      });
+      setSkipTyping(prev => ({ ...prev, [clickedEarth]: false }));
       setMessages([]); // Clear previous messages
       setCurrentMessageIndex(0); // Reset message index
       setShownDialogs(prev => new Set(prev).add(clickedEarth)); // Mark as shown
@@ -469,172 +341,17 @@ export default function Page2() {
     }
   };
 
-  // Use ref to track current response index for link clicks
-  const currentResponseIndexRef = useRef<{ [key: number]: number }>({});
-  // Use ref to track if we're waiting for link click (for both initial and response messages)
-  const waitingForLinkClickRef = useRef<{ [key: number]: boolean }>({});
-
   const handleLinkClick = () => {
-    if (!currentEarth) return;
-    
-    const dialog = DIALOG_CONFIG[currentEarth as keyof typeof DIALOG_CONFIG];
-    if (!dialog) return;
-    
-    // Check if we're in initial messages phase (not processing response yet)
-    if (!isProcessingResponse) {
-      // Handle initial messages with URL
-      const initialMessages = dialog.initialMessages || [];
-      
-      // Clear waiting flag
-      waitingForLinkClickRef.current[currentEarth] = false;
-      
-      // Get current index from messages to ensure we continue from correct position
-      setMessages(currentMessages => {
-        // Count how many initial messages have been shown
-        const initialShownCount = currentMessages.filter(m => 
-          m.sender === 'ultraman' && 
-          initialMessages.some((im: any) => 
-            (im.text && m.text === im.text) || 
-            (im.imageUrl && m.imageUrl === im.imageUrl)
-          )
-        ).length;
-        
-        if (initialShownCount < initialMessages.length) {
-          // Update index and continue showing initial messages
-          setCurrentMessageIndex(initialShownCount);
-          setTimeout(() => {
-            showNextMessage(initialShownCount, initialMessages, currentEarth);
-          }, 100);
+    if (currentEarth && dialogMessages.length > currentMessageIndex) {
+      // Show next message immediately when link is clicked
+      const nextMessage = dialogMessages[currentMessageIndex];
+      if (nextMessage) {
+        // Check if this message is already displayed
+        const messageExists = messages.some(m => m.text === nextMessage.text && m.sender === nextMessage.sender);
+        if (!messageExists) {
+          showNextMessage(currentMessageIndex, dialogMessages, currentEarth);
         }
-        
-        return currentMessages;
-      });
-      return;
-    }
-    
-    // Handle response messages
-    const responseMessages = (dialog as any).responseMessages || [];
-    const currentIndex = currentResponseIndexRef.current[currentEarth] || 0;
-    
-    // Clear waiting flag
-    waitingForLinkClickRef.current[currentEarth] = false;
-    
-    // Show next response message
-    if (currentIndex < responseMessages.length) {
-      const nextMsg = responseMessages[currentIndex];
-      const nextMsgHasUrl = nextMsg.text && hasUrl(nextMsg.text);
-      
-      setMessages(prev => {
-        const newMessages = [...prev, {
-          id: prev.length + 1,
-          sender: nextMsg.sender,
-          text: nextMsg.text || '',
-          imageUrl: nextMsg.imageUrl
-        }];
-        
-        // Update chat history
-        setChatHistory(prevHistory => ({
-          ...prevHistory,
-          [currentEarth]: newMessages
-        }));
-        
-        return newMessages;
-      });
-      
-      // Update current index
-      currentResponseIndexRef.current[currentEarth] = currentIndex + 1;
-      
-      // If next message has URL, wait for link click
-      if (nextMsgHasUrl && currentIndex + 1 < responseMessages.length) {
-        waitingForLinkClickRef.current[currentEarth] = true;
-        // Don't auto-advance, wait for next link click
-        return;
       }
-      
-      // Calculate delay for current message based on typing speed
-      const typingSpeed = 30; // ms per character (matches TypingText default)
-      const baseDelay = 500; // Base delay after typing completes
-      let currentDelay = baseDelay;
-      
-      if (nextMsg.sender === 'ultraman' && nextMsg.text) {
-        const typingTime = nextMsg.text.length * typingSpeed;
-        currentDelay = typingTime + baseDelay;
-      } else if (nextMsg.imageUrl) {
-        currentDelay = 1000;
-      }
-      
-      // If next message doesn't have URL or it's the last one, continue or unlock
-      if (currentIndex + 1 < responseMessages.length) {
-        // More messages, show them automatically if no URL
-        if (!nextMsgHasUrl) {
-          setTimeout(() => {
-            let nextIndex = currentIndex + 1;
-            const showRemaining = () => {
-              if (nextIndex < responseMessages.length && !waitingForLinkClickRef.current[currentEarth]) {
-                const msg = responseMessages[nextIndex];
-                const msgHasUrl = msg.text && hasUrl(msg.text);
-                
-                setMessages(prev => {
-                  const updated = [...prev, {
-                    id: prev.length + 1,
-                    sender: msg.sender,
-                    text: msg.text || '',
-                    imageUrl: msg.imageUrl
-                  }];
-                  
-                  setChatHistory(prevHistory => ({
-                    ...prevHistory,
-                    [currentEarth]: updated
-                  }));
-                  
-                  return updated;
-                });
-                
-                currentResponseIndexRef.current[currentEarth] = nextIndex + 1;
-                nextIndex++;
-                
-                // Calculate delay for this message
-                let msgDelay = baseDelay;
-                if (msg.sender === 'ultraman' && msg.text) {
-                  const typingTime = msg.text.length * typingSpeed;
-                  msgDelay = typingTime + baseDelay;
-                } else if (msg.imageUrl) {
-                  msgDelay = 1000;
-                }
-                
-                if (msgHasUrl && nextIndex < responseMessages.length) {
-                  // Wait for link click
-                  waitingForLinkClickRef.current[currentEarth] = true;
-                } else if (!msgHasUrl && nextIndex < responseMessages.length) {
-                  // Continue automatically after typing completes
-                  setTimeout(showRemaining, msgDelay);
-                } else {
-                  // All done, unlock after typing completes
-                  setTimeout(() => {
-                    handleUnlockPlanet(currentEarth, dialog);
-                  }, msgDelay);
-                }
-              } else if (nextIndex >= responseMessages.length) {
-                // All done, unlock
-                setTimeout(() => {
-                  handleUnlockPlanet(currentEarth, dialog);
-                }, baseDelay);
-              }
-            };
-            showRemaining();
-          }, currentDelay);
-        }
-      } else {
-        // All responses shown, unlock planet after typing completes
-        setTimeout(() => {
-          handleUnlockPlanet(currentEarth, dialog);
-        }, currentDelay);
-      }
-    } else {
-      // All responses shown, unlock planet
-      setTimeout(() => {
-        handleUnlockPlanet(currentEarth, dialog);
-      }, 2000);
     }
   };
 
@@ -649,258 +366,12 @@ export default function Page2() {
     }
   };
 
-  const handleUnlockPlanet = (earthNumber: number, dialog: any) => {
-    const nextPlanet = (dialog as any).unlocksPlanet;
-    
-    // Special handling for Earth 4: require boss fight before unlocking Earth 5
-    if (earthNumber === 4) {
-      // Don't unlock Earth 5 yet, trigger boss fight instead
-      setTimeout(() => {
-        setIsProcessingResponse(false);
-        setShowChat(false);
-        setCurrentEarth(null);
-        // Start boss fight
-        setShowBossFight(true);
-      }, dialog.autoCloseDelay || 2000);
-    } else {
-      // Normal unlock for other planets
-      if (nextPlanet && !unlockedPlanets.includes(nextPlanet)) {
-        setUnlockedPlanets([...unlockedPlanets, nextPlanet]);
-        // Show Mission Complete overlay
-        setShowMissionComplete(true);
-        // Hide overlay after 3 seconds
-        setTimeout(() => {
-          setShowMissionComplete(false);
-        }, 3000);
-      }
-      
-      // Check if Earth 6 is completed
-      if (earthNumber === 6) {
-        setEarth6Completed(true);
-      }
-      
-      // Auto-close chat after delay
-      setTimeout(() => {
-        setIsProcessingResponse(false);
-        setShowChat(false);
-        setCurrentEarth(null);
-      }, dialog.autoCloseDelay || 2000);
-    }
-  };
-
-  const showResponseMessages = (earthNumber: number, dialog: any) => {
-    const responseMessages = (dialog as any).responseMessages || [];
-    if (responseMessages.length > 0) {
-        // Initialize response index for this Earth
-        currentResponseIndexRef.current[earthNumber] = 0;
-        
-        // Show response messages sequentially, checking for URLs
-        const showNextResponse = () => {
-          const currentIndex = currentResponseIndexRef.current[earthNumber] || 0;
-          if (currentIndex < responseMessages.length) {
-            const msg = responseMessages[currentIndex];
-            const msgHasUrl = msg.text && hasUrl(msg.text);
-            
-            setMessages(prev => {
-              const newMessages = [...prev, {
-                id: prev.length + 1,
-                sender: msg.sender,
-                text: msg.text || '',
-                imageUrl: msg.imageUrl
-              }];
-              
-              // Update chat history with each new message
-              setChatHistory(prevHistory => ({
-                ...prevHistory,
-                [earthNumber]: newMessages
-              }));
-              
-              return newMessages;
-            });
-            
-            // Update index
-            currentResponseIndexRef.current[earthNumber] = currentIndex + 1;
-            
-            // Calculate delay based on message length and typing speed
-            const typingSpeed = 30; // ms per character (matches TypingText default)
-            const baseDelay = 500; // Base delay after typing completes
-            let msgDelay = baseDelay;
-            
-            if (msg.sender === 'ultraman' && msg.text) {
-              const typingTime = msg.text.length * typingSpeed;
-              msgDelay = typingTime + baseDelay;
-            } else if (msg.imageUrl) {
-              msgDelay = 1000;
-            }
-            
-            // If message has URL, wait for link click before showing next
-            // Otherwise, continue after delay
-            if (msgHasUrl) {
-              // Set waiting flag - wait for link click
-              waitingForLinkClickRef.current[earthNumber] = true;
-              // Don't auto-advance, wait for handleLinkClick
-            } else {
-              // No URL, continue to next message after typing completes
-              if (currentIndex + 1 < responseMessages.length) {
-                setTimeout(() => {
-                  // Only continue if not waiting for link click
-                  if (!waitingForLinkClickRef.current[earthNumber]) {
-                    showNextResponse();
-                  }
-                }, msgDelay);
-              } else {
-                // All responses shown, unlock planet after typing completes
-                setTimeout(() => {
-                  handleUnlockPlanet(earthNumber, dialog);
-                }, msgDelay);
-              }
-            }
-          } else {
-            // All responses shown, unlock planet
-            handleUnlockPlanet(earthNumber, dialog);
-          }
-        };
-        
-        // Start showing responses after a short delay
-        setTimeout(() => {
-          showNextResponse();
-        }, 1000);
-      } else {
-        // No response messages - don't unlock, just close chat
-        setIsProcessingResponse(false);
-        setTimeout(() => {
-          // Save chat history before closing
-          setMessages(currentMessages => {
-            setChatHistory(prev => ({
-              ...prev,
-              [earthNumber]: currentMessages
-            }));
-            return currentMessages;
-          });
-          setShowChat(false);
-          setCurrentEarth(null);
-        }, dialog.autoCloseDelay || 2000);
-      }
-    };
-
   const handleSendMessage = () => {
-    if ((inputMessage.trim() || selectedImage) && currentEarth && !isProcessingResponse) {
+    if ((inputMessage.trim() || selectedImage) && currentEarth) {
       // Capture the current Earth number to avoid closure issues
       const earthNumber = currentEarth;
       const dialog = DIALOG_CONFIG[earthNumber as keyof typeof DIALOG_CONFIG];
       if (!dialog) return;
-
-      // Check if response has already been shown for this Earth
-      if (responseShown[earthNumber]) {
-        // Response already shown, just add player message and don't process response again
-        setMessages(prev => {
-          const newPlayerMessage = {
-            id: prev.length + 1,
-            sender: 'player' as const,
-            text: inputMessage,
-            imageUrl: selectedImage || undefined
-          };
-          const updatedMessages = [...prev, newPlayerMessage];
-          
-          // Update chat history
-          setChatHistory(prevHistory => ({
-            ...prevHistory,
-            [earthNumber]: updatedMessages
-          }));
-          
-          return updatedMessages;
-        });
-        setInputMessage('');
-        setSelectedImage(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        return;
-      }
-
-      // Check if all initial messages have been shown
-      const initialMessages = dialog.initialMessages || [];
-      const allInitialShown = currentMessageIndex >= initialMessages.length;
-      
-      // If initial messages are not all shown, show remaining ones first
-      if (!allInitialShown) {
-        // Add player message first
-        setMessages(prev => {
-          const newPlayerMessage = {
-            id: prev.length + 1,
-            sender: 'player' as const,
-            text: inputMessage,
-            imageUrl: selectedImage || undefined
-          };
-          const updatedMessages = [...prev, newPlayerMessage];
-          
-          setChatHistory(prevHistory => ({
-            ...prevHistory,
-            [earthNumber]: updatedMessages
-          }));
-          
-          return updatedMessages;
-        });
-        setInputMessage('');
-        setSelectedImage(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
-        
-        // Show remaining initial messages first
-        // Continue showing initial messages until all are shown
-        const continueInitialMessages = () => {
-          setMessages(currentMessages => {
-            // Count how many initial messages have been shown
-            const initialShownCount = currentMessages.filter(m => 
-              m.sender === 'ultraman' && 
-              initialMessages.some((im: any) => 
-                (im.text && m.text === im.text) || 
-                (im.imageUrl && m.imageUrl === im.imageUrl)
-              )
-            ).length;
-            
-            // If not all initial messages shown and not waiting for link click, show next one
-            if (initialShownCount < initialMessages.length && !waitingForLinkClickRef.current[earthNumber]) {
-              setCurrentMessageIndex(initialShownCount);
-              setTimeout(() => {
-                // Check flag again before showing
-                if (!waitingForLinkClickRef.current[earthNumber]) {
-                  showNextMessage(initialShownCount, initialMessages, earthNumber);
-                  
-                  // Check again after delay only if not waiting for link click
-                  setTimeout(() => {
-                    if (!waitingForLinkClickRef.current[earthNumber]) {
-                      continueInitialMessages();
-                    }
-                  }, 2500);
-                }
-              }, 500);
-            } else if (initialShownCount >= initialMessages.length) {
-              // All initial messages shown, now show response messages
-              setIsProcessingResponse(true);
-              setResponseShown(prev => ({ ...prev, [earthNumber]: true }));
-              setTimeout(() => {
-                showResponseMessages(earthNumber, dialog);
-              }, 500);
-            }
-            // If waiting for link click, don't continue - wait for handleLinkClick
-            
-            return currentMessages;
-          });
-        };
-        
-        // Start showing remaining initial messages
-        setTimeout(() => {
-          continueInitialMessages();
-        }, 500);
-        return;
-      }
-
-      // All initial messages shown, proceed with response
-      // Set processing flag to prevent duplicate responses
-      setIsProcessingResponse(true);
-      setResponseShown(prev => ({ ...prev, [earthNumber]: true }));
 
       // Add player message with optional image
       setMessages(prev => {
@@ -926,8 +397,67 @@ export default function Page2() {
         fileInputRef.current.value = '';
       }
 
-      // Show response messages
-      showResponseMessages(earthNumber, dialog);
+      // Show response messages if configured
+      const responseMessages = (dialog as any).responseMessages || [];
+      if (responseMessages.length > 0) {
+        // Show response messages sequentially
+        responseMessages.forEach((msg: { sender: 'ultraman' | 'player'; text: string; imageUrl?: string }, index: number) => {
+          setTimeout(() => {
+            setMessages(prev => {
+              const newMessages = [...prev, {
+                id: prev.length + 1,
+                sender: msg.sender,
+                text: msg.text || '',
+                imageUrl: msg.imageUrl
+              }];
+              
+              // Update chat history with each new message - use captured earthNumber
+              setChatHistory(prevHistory => ({
+                ...prevHistory,
+                [earthNumber]: newMessages
+              }));
+              
+              // Unlock planet after last response message
+              if (index === responseMessages.length - 1) {
+                const nextPlanet = (dialog as any).unlocksPlanet;
+                if (nextPlanet && !unlockedPlanets.includes(nextPlanet)) {
+                  setUnlockedPlanets([...unlockedPlanets, nextPlanet]);
+                }
+                
+                // Auto-close chat after delay
+                setTimeout(() => {
+                  setShowChat(false);
+                  setCurrentEarth(null);
+                  // Messages are already saved in chatHistory
+                }, dialog.autoCloseDelay || 2000);
+              }
+              
+              return newMessages;
+            });
+          }, (index + 1) * 2000); // 2 second delay between each response message
+        });
+      } else {
+        // No response messages - unlock immediately
+        const nextPlanet = (dialog as any).unlocksPlanet;
+        if (nextPlanet && !unlockedPlanets.includes(nextPlanet)) {
+          setUnlockedPlanets([...unlockedPlanets, nextPlanet]);
+        }
+
+        // Auto-close chat after delay
+        setTimeout(() => {
+          // Save chat history before closing (use functional update to get latest messages)
+          setMessages(currentMessages => {
+            setChatHistory(prev => ({
+              ...prev,
+              [earthNumber]: currentMessages
+            }));
+            return currentMessages; // Don't change messages
+          });
+          setShowChat(false);
+          setCurrentEarth(null);
+          // Don't clear messages - keep them for history
+        }, dialog.autoCloseDelay || 2000);
+      }
     }
   };
 
@@ -937,23 +467,14 @@ export default function Page2() {
     }
   };
 
-  const handleUpgrade = (stat: 'atk' | 'hp' | 'agi') => {
-    if (points <= 0) return;
-    setPoints((prev) => prev - 1);
-    if (stat === 'atk') setAtk((prev) => prev + 1);
-    if (stat === 'hp') setHp((prev) => prev + 1);
-    if (stat === 'agi') setAgi((prev) => prev + 1);
-  };
-
   return (
     <main className="relative flex min-h-screen overflow-hidden space-background">
       {/* Content */}
       <div className="relative z-10 w-full h-screen flex flex-col">
-        {/* Top-Left: Back Button and Basic Unity Text */}
-        <div className="absolute top-6 left-6 z-30 flex items-center gap-4">
-          {/* Back Button */}
+        {/* Left Side: Back Button */}
+        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-30">
           <Link 
-            href="/"
+            href="/UnityBasic"
             className="cursor-pointer hover:scale-110 transition-transform duration-300"
           >
             <Image
@@ -966,8 +487,10 @@ export default function Page2() {
               priority
             />
           </Link>
-          
-          {/* Basic Unity Text */}
+        </div>
+
+        {/* Top-Left: Unity Asset Text */}
+        <div className="absolute top-6 left-6 z-30">
           <h1 
             className="text-white font-bold"
             style={{ 
@@ -979,7 +502,7 @@ export default function Page2() {
               letterSpacing: '0.05em'
             }}
           >
-            Basic Unity
+            Unity Asset
           </h1>
         </div>
 
@@ -1153,47 +676,21 @@ export default function Page2() {
           </div>
         </div>
 
-        {/* Bottom-Right Icon - Circular with Bar Chart/Equalizer - Clickable Upgrade Button */}
+        {/* Bottom-Right Icon - Circular with Bar Chart/Equalizer */}
         <div className="absolute bottom-4 right-4 z-20">
-          <button
-            onClick={() => setShowUpgrade(true)}
-            className="cursor-pointer hover:scale-110 transition-transform duration-300"
-            style={{ imageRendering: 'pixelated' }}
-          >
-            <div className="relative w-16 h-16">
-              {/* Circle */}
-              <svg width="64" height="64" viewBox="0 0 28 28" fill="none" className="absolute">
-                <circle cx="14" cy="14" r="13" stroke="white" strokeWidth="1.5" fill="none" opacity="0.9" />
-              </svg>
-              {/* Bar Chart inside circle - 3 bars increasing height */}
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="white" className="absolute" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '40px', height: '40px' }} opacity="0.9">
-                <rect x="4" y="15" width="2.5" height="5" />
-                <rect x="8.5" y="12" width="2.5" height="8" />
-                <rect x="13" y="8" width="2.5" height="12" />
-              </svg>
-            </div>
-          </button>
-        </div>
-
-        {/* Next Button - Show when Earth 6 is completed */}
-        {earth6Completed && (
-          <div className="absolute right-4 top-1/2 transform -translate-y-1/2 z-30">
-            <Link 
-              href="/UnityAsset"
-              className="cursor-pointer hover:scale-110 transition-transform duration-300"
-            >
-              <Image
-                src="/Asset/Page2/เรียน (1) 4.png"
-                alt="Next"
-                width={100}
-                height={100}
-                className="object-contain"
-                style={{ imageRendering: 'pixelated', width: 'auto', height: 'auto' }}
-                priority
-              />
-            </Link>
+          <div className="relative w-7 h-7">
+            {/* Circle */}
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" className="absolute">
+              <circle cx="14" cy="14" r="13" stroke="white" strokeWidth="1.5" fill="none" opacity="0.9" />
+            </svg>
+            {/* Bar Chart inside circle - 3 bars increasing height */}
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="white" className="absolute" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)', width: '18px', height: '18px' }} opacity="0.9">
+              <rect x="4" y="15" width="2.5" height="5" />
+              <rect x="8.5" y="12" width="2.5" height="8" />
+              <rect x="13" y="8" width="2.5" height="12" />
+            </svg>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Chat Interface Modal */}
@@ -1209,27 +706,10 @@ export default function Page2() {
           <div className="relative w-full max-w-4xl h-[80vh] max-h-[600px] mx-4 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 border-2 border-cyan-400 rounded-lg overflow-hidden" style={{ imageRendering: 'pixelated' }}>
             {/* Chat Header */}
             <div className="absolute top-4 left-4 z-10">
-              <h1 className="text-white text-4xl font-bold" style={{ fontFamily: 'monospace', imageRendering: 'pixelated' }}>
+              <h1 className="text-white text-4xl font-bold" style={{ fontFamily: "'Noto Sans Thai', monospace", imageRendering: 'pixelated' }}>
                 Quest
               </h1>
             </div>
-
-            {/* Mission Complete Overlay */}
-            {showMissionComplete && (
-              <div className="absolute inset-0 z-50 pointer-events-none">
-                {/* Black semi-transparent background */}
-                <div className="absolute inset-0 bg-black/50" />
-                {/* Mission Complete Text */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-6xl font-bold text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.8)]" style={{ fontFamily: 'monospace', textShadow: '0 0 20px rgba(74,222,128,0.8), 0 0 40px rgba(74,222,128,0.6)' }}>
-                      <div>Mission</div>
-                      <div>Complete</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Chat Messages Area */}
             <div className="absolute top-20 left-0 right-0 bottom-24 overflow-y-auto px-4 pb-4 space-y-4">
@@ -1243,12 +723,12 @@ export default function Page2() {
                   
                   <div className={`flex flex-col ${message.sender === 'player' ? 'items-end' : 'items-start'} max-w-[70%]`}>
                     {/* Name */}
-                    <div className="text-white text-sm mb-1" style={{ fontFamily: 'monospace', imageRendering: 'pixelated' }}>
+                    <div className="text-white text-sm mb-1" style={{ fontFamily: "'Noto Sans Thai', monospace", imageRendering: 'pixelated' }}>
                       {message.sender === 'ultraman' ? 'Ultraman' : 'Player name'}
                     </div>
                     
                     {/* Message Bubble */}
-                    <div className="bg-white rounded-lg px-4 py-2 text-black text-sm" style={{ fontFamily: 'monospace', imageRendering: 'pixelated' }}>
+                    <div className="bg-white rounded-lg px-4 py-2 text-black text-sm" style={{ fontFamily: "'Noto Sans Thai', monospace", imageRendering: 'pixelated' }}>
                       {/* Image if present */}
                       {message.imageUrl && (
                         <div className="mb-2 rounded-lg overflow-hidden">
@@ -1275,11 +755,10 @@ export default function Page2() {
                       {message.text && (
                         message.sender === 'ultraman' ? (
                           <TypingText 
-                            key={`${message.id}-${message.text}`}
                             text={message.text} 
                             speed={30} 
                             onLinkClick={handleLinkClick} 
-                            skipTyping={currentEarth ? (skipTyping[currentEarth] === true) : false}
+                            skipTyping={currentEarth ? skipTyping[currentEarth] || false : false}
                           />
                         ) : (
                           <MessageWithLinks text={message.text} onLinkClick={handleLinkClick} />
@@ -1341,14 +820,14 @@ export default function Page2() {
                 onKeyPress={handleKeyPress}
                 placeholder="Type your message..."
                 className="flex-1 h-12 bg-white rounded-lg px-4 text-black text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                style={{ fontFamily: 'monospace', imageRendering: 'pixelated' }}
+                style={{ fontFamily: "'Noto Sans Thai', monospace", imageRendering: 'pixelated' }}
               />
               
               {/* Send Button */}
               <button
                 onClick={handleSendMessage}
                 className="bg-gray-300 hover:bg-gray-400 rounded-lg px-6 h-12 flex items-center gap-2 text-sm transition-colors"
-                style={{ fontFamily: 'monospace', imageRendering: 'pixelated' }}
+                style={{ fontFamily: "'Noto Sans Thai', monospace", imageRendering: 'pixelated' }}
               >
                 <span className="text-gray-700">ส่งข้อความ</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="white" className="transform rotate-45">
@@ -1356,102 +835,6 @@ export default function Page2() {
                 </svg>
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Upgrade Stat Modal */}
-      {showUpgrade && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/60"
-            onClick={() => setShowUpgrade(false)}
-          />
-          
-          {/* Upgrade Modal */}
-          <div className="relative w-full max-w-2xl mx-4 rounded-3xl bg-black/80 border-2 border-cyan-400 shadow-2xl text-white px-8 py-10" style={{ imageRendering: 'pixelated' }}>
-            {/* Close Button */}
-            <button
-              onClick={() => setShowUpgrade(false)}
-              className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl font-bold"
-              aria-label="Close upgrade panel"
-            >
-              ✕
-            </button>
-
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <p className="text-sm uppercase tracking-widest text-white/60" style={{ fontFamily: 'monospace' }}>Stat</p>
-                <h2 className="text-3xl font-extrabold" style={{ fontFamily: 'monospace' }}>Spaceship Upgrades</h2>
-              </div>
-              <div className="text-right">
-                <p className="text-sm uppercase tracking-widest text-white/60" style={{ fontFamily: 'monospace' }}>My Points</p>
-                <p className="text-3xl font-extrabold text-yellow-400">{points}</p>
-              </div>
-            </div>
-
-            {/* Upgrade Rows */}
-            <div className="space-y-6">
-              <UpgradeRow
-                label="Atk"
-                value={atk}
-                description="Increases bullet damage"
-                onIncrement={() => handleUpgrade('atk')}
-                disabled={points <= 0}
-              />
-              <UpgradeRow
-                label="Hp"
-                value={hp}
-                description="Raises maximum health"
-                onIncrement={() => handleUpgrade('hp')}
-                disabled={points <= 0}
-              />
-              <UpgradeRow
-                label="Agi"
-                value={agi}
-                description="Boosts speed & fire rate"
-                onIncrement={() => handleUpgrade('agi')}
-                disabled={points <= 0}
-              />
-            </div>
-
-            {/* Footer Info */}
-            <p className="mt-8 text-sm text-white/60" style={{ fontFamily: 'monospace' }}>
-              Each stat starts at 10. Allocate points to tailor your ship. Upgrades apply to every level.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Boss Fight Modal - Level 1 */}
-      {showBossFight && (
-        <div className="fixed inset-0 z-50 bg-black w-screen h-screen">
-          <div className="relative w-full h-full">
-            {/* Boss Fight Game */}
-            <LevelOne
-              playerStats={playerStats}
-              onLevelComplete={() => {
-                // Boss fight won - unlock Earth 5
-                setBossFightCompleted(true);
-                setShowBossFight(false);
-                if (!unlockedPlanets.includes(5)) {
-                  setUnlockedPlanets([...unlockedPlanets, 5]);
-                  // Show Mission Complete overlay
-                  setShowMissionComplete(true);
-                  // Hide overlay after 3 seconds
-                  setTimeout(() => {
-                    setShowMissionComplete(false);
-                  }, 3000);
-                }
-              }}
-              onPlayerDefeated={() => {
-                // Boss fight lost - player can retry
-                // Don't unlock Earth 5, but allow them to try again
-                setShowBossFight(false);
-              }}
-            />
           </div>
         </div>
       )}
