@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useCookies } from 'react-cookie';
 import LevelOne from "../game/levels/LevelOne";
 import { BASE_PLAYER_STATS, MIN_SHOOT_INTERVAL } from "../game/Player";
 import type { PlayerStats } from "../game/Player";
@@ -231,9 +232,10 @@ const DIALOG_CONFIG = {
 };
 
 export default function Page2() {
+  const [cookies] = useCookies(['discord_user']);
   const [showChat, setShowChat] = useState(false);
   const [currentEarth, setCurrentEarth] = useState<number | null>(null);
-  const [unlockedPlanets, setUnlockedPlanets] = useState([1, 2, 3]); // Earth 1, 2, 3 unlocked initially
+  const [unlockedPlanets, setUnlockedPlanets] = useState([1]); // Only Earth 1 unlocked initially
   const [messages, setMessages] = useState<Array<{ id: number; sender: 'ultraman' | 'player'; text: string; imageUrl?: string }>>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -253,6 +255,7 @@ export default function Page2() {
   const [showMissionComplete, setShowMissionComplete] = useState(false); // Mission complete overlay state
   const [isProcessingResponse, setIsProcessingResponse] = useState(false); // Prevent duplicate response processing
   const [responseShown, setResponseShown] = useState<{ [key: number]: boolean }>({}); // Track if response has been shown for each Earth
+  const [progressLoaded, setProgressLoaded] = useState(false); // Track if progress has been loaded
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -282,6 +285,93 @@ export default function Page2() {
       shootInterval,
     };
   }, [atkBonus, hpBonus, agiBonus]);
+
+  // Load progress from database on mount
+  useEffect(() => {
+    const loadProgress = async () => {
+      try {
+        if (cookies.discord_user) {
+          const userData = typeof cookies.discord_user === 'string' 
+            ? JSON.parse(cookies.discord_user) 
+            : cookies.discord_user;
+          const discordId = userData?.id;
+          
+          if (discordId) {
+            const response = await fetch(`/api/progress/load?discordId=${discordId}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.unlockedPlanets) {
+                setUnlockedPlanets(data.unlockedPlanets);
+              }
+              if (data.earth6Completed !== undefined) {
+                setEarth6Completed(data.earth6Completed);
+              }
+              if (data.points !== undefined) {
+                setPoints(data.points);
+              }
+              if (data.atk !== undefined) {
+                setAtk(data.atk);
+              }
+              if (data.hp !== undefined) {
+                setHp(data.hp);
+              }
+              if (data.agi !== undefined) {
+                setAgi(data.agi);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading progress:', error);
+      } finally {
+        setProgressLoaded(true);
+      }
+    };
+
+    loadProgress();
+  }, [cookies.discord_user]);
+
+  // Save progress to database whenever it changes
+  useEffect(() => {
+    if (!progressLoaded) return; // Don't save on initial load
+
+    const saveProgress = async () => {
+      try {
+        if (cookies.discord_user) {
+          const userData = typeof cookies.discord_user === 'string' 
+            ? JSON.parse(cookies.discord_user) 
+            : cookies.discord_user;
+          const discordId = userData?.id;
+          const username = userData?.username || userData?.global_name || 'Unknown';
+
+          if (discordId) {
+            await fetch('/api/progress/save', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                discordId,
+                username,
+                unlockedPlanets,
+                earth6Completed,
+                points,
+                atk,
+                hp,
+                agi,
+              }),
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error saving progress:', error);
+      }
+    };
+
+    // Debounce save to avoid too many requests
+    const timeoutId = setTimeout(saveProgress, 500);
+    return () => clearTimeout(timeoutId);
+  }, [unlockedPlanets, earth6Completed, points, atk, hp, agi, progressLoaded, cookies.discord_user]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {

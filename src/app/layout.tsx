@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Noto_Sans_Thai, Jersey_25 } from "next/font/google";
 import React from "react";
+import CookieProviderWrapper from "./components/CookieProviderWrapper";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -19,7 +20,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full">
-      <body className={`${inter.className} ${notoSansThai.className} ${jersey25.className} h-full m-0 p-0 overflow-hidden`}>{children}</body>
+      <body className={`${inter.className} ${notoSansThai.className} ${jersey25.className} h-full m-0 p-0 overflow-hidden`}>
+        <CookieProviderWrapper>{children}</CookieProviderWrapper>
+      </body>
     </html>
   );
 }
