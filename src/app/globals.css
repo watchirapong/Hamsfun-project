@@ -20,11 +20,12 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  background: transparent;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background: transparent;
   font-family: Arial, Helvetica, sans-serif;
 }
 
@@ -36,10 +37,9 @@ body {
 
 /* Space Background */
 .space-background {
-  background: linear-gradient(135deg, #0a0a2e 0%, #16213e 25%, #1a1a4e 50%, #2d1b4e 75%, #1a0a2e 100%);
-  position: relative;
+  position: relative !important;
   overflow: hidden;
-  /* Base layer of stars */
+  /* Combined background: stars on top, gradient at bottom */
   background-image: 
     radial-gradient(2px 2px at 2% 5%, white, transparent),
     radial-gradient(1px 1px at 4% 12%, white, transparent),
@@ -89,8 +89,10 @@ body {
     radial-gradient(2px 2px at 92% 33%, white, transparent),
     radial-gradient(1px 1px at 94% 15%, white, transparent),
     radial-gradient(1px 1px at 96% 23%, white, transparent),
-    radial-gradient(2px 2px at 98% 9%, white, transparent);
+    radial-gradient(2px 2px at 98% 9%, white, transparent),
+    linear-gradient(135deg, #0a0a2e 0%, #16213e 25%, #1a1a4e 50%, #2d1b4e 75%, #1a0a2e 100%);
   background-size: 100% 100%;
+  background-color: #0a0a2e;
 }
 
 .space-background::before {

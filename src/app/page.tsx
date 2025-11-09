@@ -59,7 +59,15 @@ export default function Home() {
   };
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden space-background">
+    <main 
+      className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden space-background" 
+      style={{ 
+        minHeight: '100vh', 
+        width: '100%',
+        backgroundColor: '#0a0a2e',
+        position: 'relative'
+      }}
+    >
 
       {/* User Info - Top Right Corner (only when logged in) */}
       {isLoggedIn && userData && (
