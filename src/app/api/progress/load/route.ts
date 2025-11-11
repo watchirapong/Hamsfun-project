@@ -37,8 +37,12 @@ export async function GET(request: NextRequest) {
     // Convert to plain object to ensure all fields are included
     const progressObj = progress.toObject ? progress.toObject() : progress;
     
+    // Ensure purchasedAssets is an array of strings
+    const purchasedAssets = (progressObj.purchasedAssets || []).map((id: any) => String(id));
+    
     console.log('📊 Loading progress for discordId:', discordId);
     console.log('📊 Progress object hamsterCoin:', progressObj.hamsterCoin, 'Type:', typeof progressObj.hamsterCoin);
+    console.log('📊 PurchasedAssets:', purchasedAssets, 'Count:', purchasedAssets.length);
     console.log('📊 Progress object keys:', Object.keys(progressObj));
     
     return NextResponse.json({
@@ -57,6 +61,7 @@ export async function GET(request: NextRequest) {
       achievements: progressObj.achievements || [],
       answers: progressObj.answers || { unityBasic: [], unityAsset: [] },
       declinedAnswers: progressObj.declinedAnswers || [],
+      purchasedAssets: purchasedAssets,
     });
   } catch (error: any) {
     console.error('Error loading progress:', error);

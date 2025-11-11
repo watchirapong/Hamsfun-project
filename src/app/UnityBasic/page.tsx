@@ -314,6 +314,7 @@ export default function Page2() {
   const [atk, setAtk] = useState(10); // Attack stat
   const [hp, setHp] = useState(10); // Health stat
   const [agi, setAgi] = useState(10); // Agility stat
+  const [hamsterCoin, setHamsterCoin] = useState(0); // Hamster coin currency
   const [showBossFight, setShowBossFight] = useState(false); // Boss fight modal state
   const [bossFightCompleted, setBossFightCompleted] = useState(false); // Boss fight completion state
   const [bossFightTriggerEarth, setBossFightTriggerEarth] = useState<number | null>(null); // Track which Earth triggered boss fight
@@ -384,6 +385,9 @@ export default function Page2() {
               if (data.agi !== undefined) {
                 setAgi(data.agi);
               }
+              if (data.hamsterCoin !== undefined) {
+                setHamsterCoin(Number(data.hamsterCoin) || 0);
+              }
               // Load user answers to check for admin comments
               if (data.answers) {
                 setUserAnswers(data.answers);
@@ -450,6 +454,7 @@ export default function Page2() {
               atk,
               hp,
               agi,
+              hamsterCoin,
             };
             
             console.log('Saving progress with data:', saveData);
@@ -471,7 +476,7 @@ export default function Page2() {
     // Debounce save to avoid too many requests
     const timeoutId = setTimeout(saveProgress, 500);
     return () => clearTimeout(timeoutId);
-  }, [unlockedPlanets, earth6Completed, points, atk, hp, agi, progressLoaded, cookies.discord_user, cookies.discord_token]);
+  }, [unlockedPlanets, earth6Completed, points, atk, hp, agi, hamsterCoin, progressLoaded, cookies.discord_user, cookies.discord_token]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -874,6 +879,9 @@ export default function Page2() {
       // Normal unlock for other planets
       if (nextPlanet && !unlockedPlanets.includes(nextPlanet)) {
         setUnlockedPlanets([...unlockedPlanets, nextPlanet]);
+        // Award rewards: +10 Hamster Coin & +5 Skill Points
+        setHamsterCoin(prev => prev + 10);
+        setPoints(prev => prev + 5);
         // Show Mission Complete overlay
         setShowMissionComplete(true);
         // Hide overlay after 3 seconds
@@ -1234,10 +1242,10 @@ export default function Page2() {
               onClick={() => handleEarthClick(2)}
             >
               <Image
-                src="/Asset/Page2/Earth.png"
+                src="/Asset/Page2/สำเนาของ สำเนาของ Py highschool camp level 1 (1920 × 1080px).png"
                 alt="Earth"
-                width={3000}
-                height={3000}
+                width={1920}
+                height={1080}
                 style={{ 
                   imageRendering: 'pixelated', 
                   width: 'auto', 
@@ -1448,9 +1456,14 @@ export default function Page2() {
                 {/* Mission Complete Text */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center">
-                    <div className="text-6xl font-bold text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.8)]" style={{ fontFamily: 'monospace', textShadow: '0 0 20px rgba(74,222,128,0.8), 0 0 40px rgba(74,222,128,0.6)' }}>
+                    <div className="text-6xl font-bold text-green-400 drop-shadow-[0_0_10px_rgba(74,222,128,0.8)] mb-6" style={{ fontFamily: 'monospace', textShadow: '0 0 20px rgba(74,222,128,0.8), 0 0 40px rgba(74,222,128,0.6)' }}>
                       <div>Mission</div>
                       <div>Complete</div>
+                    </div>
+                    {/* Rewards */}
+                    <div className="text-3xl font-bold text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]" style={{ fontFamily: 'monospace', textShadow: '0 0 15px rgba(250,204,21,0.8), 0 0 30px rgba(250,204,21,0.6)' }}>
+                      <div>+ 10 Hamster Coin</div>
+                      <div>+ 5 Skill Point</div>
                     </div>
                   </div>
                 </div>
@@ -1726,6 +1739,9 @@ export default function Page2() {
                 
                 if (!unlockedPlanets.includes(planetToUnlock)) {
                   setUnlockedPlanets([...unlockedPlanets, planetToUnlock]);
+                  // Award rewards: +10 Hamster Coin & +5 Skill Points
+                  setHamsterCoin(prev => prev + 10);
+                  setPoints(prev => prev + 5);
                   // Show Mission Complete overlay
                   setShowMissionComplete(true);
                   // Hide overlay after 3 seconds

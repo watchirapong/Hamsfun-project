@@ -156,18 +156,31 @@ export default function Home() {
         </div>
 
         {/* Login/Start Button - Centered */}
-        <div className="w-full flex items-center justify-center pb-10" style={{ transform: "translateY(-300px)" }}>
+        <div className="w-full flex flex-col items-center justify-center pb-10" style={{ transform: "translateY(-300px)" }}>
           {isLoggedIn ? (
-            <Link href="/UnityBasic" className="cursor-pointer hover:scale-110 transition-transform duration-300">
-              <div className="text-white text-6xl font-bold" style={{ 
-                fontFamily: 'Jersey 25, sans-serif',
-                textShadow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5)',
-                imageRendering: 'pixelated',
-                letterSpacing: '0.1em'
-              }}>
-                START
-              </div>
-            </Link>
+            <>
+              <Link href="/UnityBasic" className="cursor-pointer hover:scale-110 transition-transform duration-300">
+                <div className="text-white text-6xl font-bold" style={{ 
+                  fontFamily: 'Jersey 25, sans-serif',
+                  textShadow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5)',
+                  imageRendering: 'pixelated',
+                  letterSpacing: '0.1em'
+                }}>
+                  START
+                </div>
+              </Link>
+              {/* Shop Button */}
+              <Link href="/shop" className="cursor-pointer hover:scale-110 transition-transform duration-300 mt-6">
+                <div className="text-white text-4xl font-bold" style={{ 
+                  fontFamily: 'Jersey 25, sans-serif',
+                  textShadow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.5)',
+                  imageRendering: 'pixelated',
+                  letterSpacing: '0.1em'
+                }}>
+                  Shop
+                </div>
+              </Link>
+            </>
           ) : (
             <button
               onClick={handleLogin}

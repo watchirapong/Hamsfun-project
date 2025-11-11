@@ -48,6 +48,7 @@ export interface IUserProgress extends Document {
     declinedAt: Date;
   }>; // Declined answers with admin comments for user to see
   achievements?: Achievement[]; // Achievements unlocked by the user
+  purchasedAssets?: string[]; // Array of purchased asset IDs
   updatedAt: Date;
   createdAt: Date;
 }
@@ -156,6 +157,10 @@ const UserProgressSchema = new Schema<IUserProgress>(
         description: String,
         unlockedAt: { type: Date, default: Date.now },
       }],
+      default: [],
+    },
+    purchasedAssets: {
+      type: [String],
       default: [],
     },
   },
