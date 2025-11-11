@@ -18,22 +18,45 @@ export async function GET(request: NextRequest) {
     if (!progress) {
       // Return default progress if not found
       return NextResponse.json({
+        name: 'Unknown',
+        username: 'Unknown',
+        nickname: null,
+        avatarUrl: null,
+        hamsterCoin: 0,
+        gachaTicket: 0,
         unlockedPlanets: [1],
         earth6Completed: false,
         points: 10,
         atk: 10,
         hp: 10,
         agi: 10,
+        achievements: [],
       });
     }
 
+    // Convert to plain object to ensure all fields are included
+    const progressObj = progress.toObject ? progress.toObject() : progress;
+    
+    console.log('📊 Loading progress for discordId:', discordId);
+    console.log('📊 Progress object hamsterCoin:', progressObj.hamsterCoin, 'Type:', typeof progressObj.hamsterCoin);
+    console.log('📊 Progress object keys:', Object.keys(progressObj));
+    
     return NextResponse.json({
-      unlockedPlanets: progress.unlockedPlanets,
-      earth6Completed: progress.earth6Completed,
-      points: progress.points,
-      atk: progress.atk,
-      hp: progress.hp,
-      agi: progress.agi,
+      name: progressObj.name || progressObj.username || 'Unknown',
+      username: progressObj.username || 'Unknown',
+      nickname: progressObj.nickname || null,
+      avatarUrl: progressObj.avatarUrl || null,
+      hamsterCoin: progressObj.hamsterCoin !== undefined && progressObj.hamsterCoin !== null ? Number(progressObj.hamsterCoin) : 0,
+      gachaTicket: progressObj.gachaTicket !== undefined && progressObj.gachaTicket !== null ? Number(progressObj.gachaTicket) : 0,
+      unlockedPlanets: progressObj.unlockedPlanets || [1],
+      earth6Completed: progressObj.earth6Completed || false,
+      points: progressObj.points || 10,
+      atk: progressObj.atk || 10,
+      hp: progressObj.hp || 10,
+      agi: progressObj.agi || 10,
+      achievements: progressObj.achievements || [],
+      answers: progressObj.answers || { unityBasic: [], unityAsset: [] },
+      declinedAnswers: progressObj.declinedAnswers || [],
     });
   } catch (error: any) {
     console.error('Error loading progress:', error);

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import connectDB from '@/lib/mongodb';
+import UserProgress from '@/models/UserProgress';
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '1402212628956315709';
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || 'a2P9QW4U9WT6zX8dALT6QU86OwqDhB_v';
@@ -42,7 +44,7 @@ export async function GET(request: NextRequest) {
 
       // Get guild member info to get nickname
       const GUILD_ID = '699984143542517801';
-      let nickname = userData.username || userData.global_name || 'Unknown';
+      let nickname: string | null = null;
       
       try {
         const guildMemberResponse = await fetch(`https://discord.com/api/users/@me/guilds/${GUILD_ID}/member`, {
@@ -53,13 +55,12 @@ export async function GET(request: NextRequest) {
         
         if (guildMemberResponse.ok) {
           const guildMember = await guildMemberResponse.json();
-          if (guildMember.nick) {
-            nickname = guildMember.nick;
-          }
+          // Set nickname to the guild nickname (can be null if user has no nickname in guild)
+          nickname = guildMember.nick || null;
         }
       } catch (error) {
         console.error('Error fetching guild member:', error);
-        // Fallback to username if guild member fetch fails
+        // If fetch fails, keep nickname as null
       }
 
       // Add nickname to user data
@@ -67,6 +68,76 @@ export async function GET(request: NextRequest) {
         ...userData,
         nickname: nickname,
       };
+
+      // Save user data to MongoDB on first login
+      try {
+        console.log('Attempting to connect to MongoDB...');
+        await connectDB();
+        console.log('MongoDB connected successfully');
+        
+        const discordId = userData.id;
+        const name = userData.global_name || userData.username || 'Unknown';
+        const username = userData.username || 'Unknown';
+        const avatarUrl = userData.avatar 
+          ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png?size=64`
+          : undefined;
+
+        console.log(`Looking for user with discordId: ${discordId}`);
+        // Check if user already exists
+        const existingUser = await UserProgress.findOne({ discordId });
+        
+        if (!existingUser) {
+          console.log(`Creating new user: ${name} (${discordId})`);
+          // Create new user with initial values
+          const newUser = await UserProgress.create({
+            discordId,
+            name,
+            username,
+            nickname: nickname || undefined, // Save guild nickname if it exists, otherwise undefined
+            avatarUrl,
+            hamsterCoin: 0, // Start with 0 coins
+            gachaTicket: 0, // Start with 0 tickets
+            unlockedPlanets: [1], // Start with Earth 1 unlocked
+            earth6Completed: false,
+            points: 10,
+            atk: 10,
+            hp: 10,
+            agi: 10,
+            answers: {
+              unityBasic: [],
+              unityAsset: [],
+            },
+            achievements: [],
+          });
+          console.log(`✅ New user created successfully: ${name} (${discordId})`);
+          console.log(`User document ID: ${newUser._id}`);
+          console.log(`Nickname: ${nickname || 'none'}`);
+        } else {
+          console.log(`User already exists, updating: ${name} (${discordId})`);
+          // Update existing user's name, nickname, and avatar if they changed
+          // Always update nickname from guild (can be null if user has no nickname)
+          const updatedUser = await UserProgress.findOneAndUpdate(
+            { discordId },
+            {
+              name,
+              username,
+              nickname: nickname || undefined, // Always update with guild nickname (or undefined if null)
+              avatarUrl: avatarUrl || existingUser.avatarUrl,
+            },
+            { new: true }
+          );
+          console.log(`✅ User updated successfully: ${updatedUser?._id}`);
+          console.log(`Nickname: ${nickname || 'none'}`);
+        }
+      } catch (error: any) {
+        console.error('❌ Error saving user to database:', error);
+        console.error('Error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+        });
+        // Continue even if database save fails - don't block login
+      }
 
       // Create response with user data
       const response = NextResponse.redirect(new URL('/', request.url));

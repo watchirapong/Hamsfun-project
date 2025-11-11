@@ -220,6 +220,17 @@ export default function Page2() {
   const [skipTyping, setSkipTyping] = useState<{ [key: number]: boolean }>({}); // Track if typing should be skipped
   const [chatHistory, setChatHistory] = useState<{ [key: number]: Array<{ id: number; sender: 'ultraman' | 'player'; text: string; imageUrl?: string }> }>({}); // Store full chat history for each Earth
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null); // Track enlarged image URL
+  const [userAnswers, setUserAnswers] = useState<{ unityBasic: any[], unityAsset: any[] }>({ unityBasic: [], unityAsset: [] }); // Store user answers
+  const [declinedAnswers, setDeclinedAnswers] = useState<Array<{
+    earthNumber: number;
+    answerType: 'unityBasic' | 'unityAsset';
+    answerText?: string;
+    answerImageUrl?: string;
+    adminComment: string;
+    reviewedAt: string;
+    reviewedBy: string;
+    declinedAt: string;
+  }>>([]); // Store declined answers with admin comments
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -229,6 +240,42 @@ export default function Page2() {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+
+  // Load progress and answers from database on mount
+  useEffect(() => {
+    const loadProgress = async () => {
+      try {
+        if (cookies.discord_user) {
+          const userData = typeof cookies.discord_user === 'string' 
+            ? JSON.parse(cookies.discord_user) 
+            : cookies.discord_user;
+          const discordId = userData?.id;
+          
+          if (discordId) {
+            const response = await fetch(`/api/progress/load?discordId=${discordId}`);
+            if (response.ok) {
+              const data = await response.json();
+              if (data.unlockedPlanets) {
+                setUnlockedPlanets(data.unlockedPlanets);
+              }
+              // Load user answers to check for admin comments
+              if (data.answers) {
+                setUserAnswers(data.answers);
+              }
+              // Load declined answers with admin comments
+              if (data.declinedAnswers) {
+                setDeclinedAnswers(data.declinedAnswers);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading progress:', error);
+      }
+    };
+
+    loadProgress();
+  }, [cookies.discord_user]);
 
   const isPlanetUnlocked = (planetNumber: number) => {
     return unlockedPlanets.includes(planetNumber);
@@ -300,9 +347,25 @@ export default function Page2() {
       return;
     }
     
+    // Check for declined answers with admin comments for this Earth
+    const declinedAnswer = declinedAnswers.find(
+      (declined: any) => declined.earthNumber === clickedEarth && 
+      declined.answerType === 'unityAsset' &&
+      declined.adminComment
+    );
+    
     // Reset state and set current Earth first
     setCurrentEarth(clickedEarth);
-    const messagesToShow = dialog.initialMessages;
+    let messagesToShow = [...dialog.initialMessages];
+    
+    // If there's a declined answer with admin comment, add it to the messages
+    if (declinedAnswer && declinedAnswer.adminComment) {
+      messagesToShow = [
+        ...messagesToShow,
+        { sender: 'ultraman' as const, text: `[Admin Feedback] ${declinedAnswer.adminComment}` }
+      ];
+    }
+    
     setDialogMessages(messagesToShow); // Store all dialog messages
     
     // Check if this dialog has been shown before

@@ -1,9 +1,12 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { useCookies } from 'react-cookie';
+import { useRouter } from 'next/navigation';
 import LevelOne from './levels/LevelOne';
 import LevelTwo from './levels/LevelTwo';
 import LevelThree from './levels/LevelThree';
+import BossEventLevel from './levels/BossEventLevel';
 import { BASE_PLAYER_STATS, MIN_SHOOT_INTERVAL } from './Player';
 import type { PlayerStats } from './Player';
 
@@ -52,13 +55,37 @@ function UpgradeRow({ label, value, description, onIncrement, disabled }: Upgrad
   );
 }
 
+interface BossEvent {
+  isActive: boolean;
+  bossLevel: number;
+  bossHp: number;
+  maxBossHp: number;
+  startedAt: string | null;
+}
+
+interface Player {
+  discordId: string;
+  name: string;
+  avatarUrl?: string;
+  damage: number;
+  position?: { x: number; y: number };
+  health?: number;
+  maxHealth?: number;
+}
+
 export default function GamePage() {
+  const router = useRouter();
+  const [cookies] = useCookies(['discord_user']);
   const [selectedLevel, setSelectedLevel] = useState<LevelKey>(null);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [points, setPoints] = useState(INITIAL_POINTS);
   const [atk, setAtk] = useState(BASE_STAT_VALUE);
   const [hp, setHp] = useState(BASE_STAT_VALUE);
   const [agi, setAgi] = useState(BASE_STAT_VALUE);
+  const [bossEvent, setBossEvent] = useState<BossEvent | null>(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [userDamage, setUserDamage] = useState(0);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const atkBonus = atk - BASE_STAT_VALUE;
   const hpBonus = hp - BASE_STAT_VALUE;
@@ -99,10 +126,257 @@ export default function GamePage() {
   };
 
   const handlePlayerDefeated = () => {
+    // Clear boss event first to exit boss event mode
+    if (bossEvent?.isActive) {
+      setBossEvent(null);
+    }
+    // Then clear selected level to return to default page
     setSelectedLevel(null);
   };
 
+  // Get user info
+  const getUserInfo = () => {
+    try {
+      const userData = typeof cookies.discord_user === 'string' 
+        ? JSON.parse(cookies.discord_user) 
+        : cookies.discord_user;
+      return {
+        discordId: userData?.id || 'unknown',
+        name: userData?.nickname || userData?.username || userData?.global_name || 'Player',
+        avatarUrl: userData?.avatar 
+          ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png?size=64`
+          : undefined,
+      };
+    } catch {
+      return {
+        discordId: 'unknown',
+        name: 'Player',
+        avatarUrl: undefined,
+      };
+    }
+  };
+
+  // Fetch boss event state
+  const fetchBossEvent = async () => {
+    try {
+      const response = await fetch('/api/boss-event');
+      if (response.ok) {
+        const data = await response.json();
+        setBossEvent(data);
+      }
+    } catch (error) {
+      console.error('Error fetching boss event:', error);
+    }
+  };
+
+  // Fetch active players
+  const fetchPlayers = async () => {
+    try {
+      const response = await fetch('/api/boss-event/players');
+      if (response.ok) {
+        const data = await response.json();
+        setPlayers(data.players || []);
+      }
+    } catch (error) {
+      console.error('Error fetching players:', error);
+    }
+  };
+
+  // Sync player position to API
+  const syncPlayerPosition = async (position: { x: number; y: number }, health: number) => {
+    const userInfo = getUserInfo();
+    try {
+      await fetch('/api/boss-event/players', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          discordId: userInfo.discordId,
+          name: userInfo.name,
+          avatarUrl: userInfo.avatarUrl,
+          position,
+          health,
+          maxHealth: playerStats.maxHealth,
+        }),
+      });
+    } catch (error) {
+      console.error('Error syncing player position:', error);
+    }
+  };
+
+
+  useEffect(() => {
+    fetchBossEvent();
+    fetchPlayers();
+
+    pollIntervalRef.current = setInterval(() => {
+      fetchBossEvent();
+      fetchPlayers();
+    }, 2000);
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
+
   const SelectedLevel = selectedLevel ? LEVELS[selectedLevel]?.Component : null;
+
+  // Deal damage to boss (for bullet hell game)
+  const handleBossDamage = async (damage: number) => {
+    try {
+      const response = await fetch('/api/boss-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'damage', damage }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const wasActive = bossEvent?.isActive;
+        setBossEvent(prev => prev ? { ...prev, bossHp: data.bossHp, isActive: data.isActive } : null);
+        setUserDamage(prev => prev + damage);
+        
+        // If boss was active but now is not, boss was defeated
+        if (wasActive && !data.isActive) {
+          console.log('🎉 Boss defeated detected in handleBossDamage!');
+          // Claim rewards when boss is defeated
+          const userInfo = getUserInfo();
+          console.log('User info:', userInfo);
+          
+          try {
+            console.log('📞 Calling claim-rewards API for:', userInfo.discordId);
+            const claimResponse = await fetch('/api/boss-event/claim-rewards', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ discordId: userInfo.discordId }),
+            });
+            
+            console.log('📥 Claim response status:', claimResponse.status, claimResponse.statusText);
+            const claimData = await claimResponse.json();
+            console.log('📦 Claim response data:', claimData);
+            
+            if (claimResponse.ok) {
+              console.log('✅ Rewards claimed successfully!', claimData);
+              console.log('💰 New balance - Points:', claimData.newBalance?.points, 'HamsterCoin:', claimData.newBalance?.hamsterCoin);
+              alert(`Rewards claimed! Points: +${claimData.rewards?.statPoint || 0}, HamsterCoin: +${claimData.rewards?.hamsterCoin || 0}`);
+            } else {
+              console.error('❌ Failed to claim rewards:', claimData.error, claimData.details);
+              alert(`Failed to claim rewards: ${claimData.error || 'Unknown error'}`);
+            }
+          } catch (error) {
+            console.error('💥 Error claiming rewards:', error);
+            alert(`Error claiming rewards: ${error}`);
+          }
+          
+          setSelectedLevel(null);
+          
+          // Redirect to the page before boss event teleport
+          const previousPage = localStorage.getItem('bossEventPreviousPage');
+          if (previousPage && previousPage !== '/game' && previousPage !== '/admin') {
+            localStorage.removeItem('bossEventPreviousPage');
+            router.push(previousPage);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error attacking boss:', error);
+    }
+  };
+
+  // Show boss event UI if active - use bullet hell game
+  if (bossEvent?.isActive) {
+    const userInfo = getUserInfo();
+
+    return (
+      <main className="relative w-full h-screen bg-black overflow-hidden">
+        {/* Players List Overlay */}
+        <div className="absolute top-4 right-4 z-30">
+          <div className="bg-gray-800 rounded-lg p-4 border-2 border-gray-600 min-w-[200px]">
+            <div className="text-white font-bold mb-2">
+              Players ({players.length})
+            </div>
+            <div className="space-y-2">
+              {players.map((player) => (
+                <div key={player.discordId} className="flex items-center gap-2 text-white text-sm">
+                  {player.avatarUrl ? (
+                    <img src={player.avatarUrl} alt={player.name} className="w-6 h-6 rounded-full" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-gray-600" />
+                  )}
+                  <span>{player.name}</span>
+                  {player.discordId === userInfo.discordId && (
+                    <span className="text-yellow-400">(You)</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Bullet Hell Game for Boss Event */}
+        <BossEventLevel
+          playerStats={playerStats}
+          bossLevel={bossEvent.bossLevel}
+          bossHp={bossEvent.bossHp}
+          maxBossHp={bossEvent.maxBossHp}
+          onBossDamage={handleBossDamage}
+          onBossDefeated={async () => {
+            console.log('🎉 BOSS DEFEATED! onBossDefeated callback triggered');
+            // Claim rewards when boss is defeated
+            const userInfo = getUserInfo();
+            console.log('User info:', userInfo);
+            
+            try {
+              console.log('📞 Calling claim-rewards API for:', userInfo.discordId);
+              const response = await fetch('/api/boss-event/claim-rewards', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ discordId: userInfo.discordId }),
+              });
+              
+              console.log('📥 Response status:', response.status, response.statusText);
+              const data = await response.json();
+              console.log('📦 Response data:', data);
+              
+              if (response.ok) {
+                console.log('✅ Rewards claimed successfully!', data);
+                console.log('💰 New balance - Points:', data.newBalance?.points, 'HamsterCoin:', data.newBalance?.hamsterCoin);
+                alert(`Rewards claimed! Points: +${data.rewards?.statPoint || 0}, HamsterCoin: +${data.rewards?.hamsterCoin || 0}`);
+              } else {
+                console.error('❌ Failed to claim rewards:', data.error, data.details);
+                alert(`Failed to claim rewards: ${data.error || 'Unknown error'}`);
+              }
+            } catch (error) {
+              console.error('💥 Error claiming rewards:', error);
+              alert(`Error claiming rewards: ${error}`);
+            }
+            
+            setBossEvent(null);
+            setSelectedLevel(null);
+            
+            // Redirect to the page before boss event teleport
+            const previousPage = localStorage.getItem('bossEventPreviousPage');
+            if (previousPage && previousPage !== '/game' && previousPage !== '/admin') {
+              localStorage.removeItem('bossEventPreviousPage');
+              router.push(previousPage);
+            }
+          }}
+          onPlayerDefeated={handlePlayerDefeated}
+          otherPlayers={players.filter(p => p.discordId !== userInfo.discordId).map(p => ({
+            discordId: p.discordId,
+            name: p.name,
+            avatarUrl: p.avatarUrl,
+            position: p.position || { x: 683, y: 688 }, // Default position if not set
+            health: p.health || playerStats.maxHealth,
+            maxHealth: p.maxHealth || playerStats.maxHealth,
+          }))}
+          currentPlayerId={userInfo.discordId}
+          onPositionUpdate={syncPlayerPosition}
+        />
+      </main>
+    );
+  }
 
   return (
     <main className="relative flex min-h-screen flex-col items-center justify-center p-8 bg-black text-white">

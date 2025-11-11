@@ -17,9 +17,25 @@ import type {
   BombDefinition,
 } from './types';
 
+interface OtherPlayer {
+  discordId: string;
+  name: string;
+  avatarUrl?: string;
+  position: { x: number; y: number };
+  health: number;
+  maxHealth: number;
+}
+
 interface GameEngineProps {
   config: LevelConfig;
   playerStats: PlayerStats;
+  externalBossHp?: number; // For multiplayer - sync boss HP from API
+  onBossDamage?: (damage: number) => Promise<void>; // Callback when boss takes damage
+  onBossDefeated?: () => void; // Callback when boss is defeated
+  onPlayerDefeated?: () => void; // Callback when player is defeated
+  otherPlayers?: OtherPlayer[]; // Other players in multiplayer mode
+  currentPlayerId?: string; // Current player's Discord ID
+  onPositionUpdate?: (position: { x: number; y: number }, health: number) => void; // Callback to sync position
 }
 
 const DEFAULT_BOSS_ATTACK: BossAttackPattern = ({ bossRef, config, spawnBullet }) => {
@@ -65,11 +81,23 @@ const DEFAULT_LASER_PATTERN = ({ bossRef, config, lasersRef }: LaserPatternConte
 const COUNTDOWN_START = 3;
 const PLAYER_SPRITE_SRC = '/game/assets/player.png';
 
-export default function GameEngine({ config, playerStats }: GameEngineProps) {
+export default function GameEngine({ 
+  config, 
+  playerStats,
+  externalBossHp,
+  onBossDamage,
+  onBossDefeated,
+  onPlayerDefeated,
+  otherPlayers = [],
+  currentPlayerId,
+  onPositionUpdate,
+}: GameEngineProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<'countdown' | 'playing' | 'victory' | 'gameover'>('countdown');
   const [countdown, setCountdown] = useState(COUNTDOWN_START);
   const [health, setHealth] = useState(playerStats.maxHealth);
+  const lastPositionUpdateRef = useRef<number>(0);
+  const isDeadRef = useRef<boolean>(false);
 
   const keysRef = useRef<Record<string, boolean>>({});
   const playerRef = useRef<Vector2>({ ...config.player.startPosition });
@@ -78,7 +106,9 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
 
   const playerBulletsRef = useRef<Bullet[]>([]);
   const bossBulletsRef = useRef<Bullet[]>([]);
-  const bossHealthRef = useRef<number>(config.boss.maxHealth);
+  const bossHealthRef = useRef<number>(externalBossHp ?? config.boss.maxHealth);
+  const accumulatedDamageRef = useRef<number>(0);
+  const lastDamageSyncRef = useRef<number>(0);
   const minionsRef = useRef<Minion[]>([]);
   const minionBulletsRef = useRef<Bullet[]>([]);
   const lasersRef = useRef<Laser[]>([]);
@@ -110,26 +140,30 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
   const minionAttack = config.minions.attackPattern ?? DEFAULT_MINION_ATTACK;
   const laserPattern = config.boss.laser?.pattern ?? DEFAULT_LASER_PATTERN;
 
-  const resetLevelState = () => {
-    playerRef.current = { ...config.player.startPosition };
-    playerHealthRef.current = playerStats.maxHealth;
-    bossRef.current = { ...config.boss.startPosition };
-    bossBulletsRef.current = [];
-    bossHealthRef.current = config.boss.maxHealth;
-    playerBulletsRef.current = [];
-    minionBulletsRef.current = [];
-    minionsRef.current = [];
-    lasersRef.current = [];
-    lastShotRef.current = 0;
-    lastBossShotRef.current = 0;
-    lastMinionSpawnRef.current = 0;
-    lastLaserRef.current = 0;
-    lastFrameRef.current = 0;
-    lastDamageTimeRef.current = 0;
-    levelStateRef.current = {};
-    setHealth(playerStats.maxHealth);
-    winRewardedRef.current = false;
-  };
+    const resetLevelState = () => {
+      playerRef.current = { ...config.player.startPosition };
+      playerHealthRef.current = playerStats.maxHealth;
+      bossRef.current = { ...config.boss.startPosition };
+      bossBulletsRef.current = [];
+      bossHealthRef.current = externalBossHp ?? config.boss.maxHealth;
+      playerBulletsRef.current = [];
+      minionBulletsRef.current = [];
+      minionsRef.current = [];
+      lasersRef.current = [];
+      lastShotRef.current = 0;
+      lastBossShotRef.current = 0;
+      lastMinionSpawnRef.current = 0;
+      lastLaserRef.current = 0;
+      lastFrameRef.current = 0;
+      lastDamageTimeRef.current = 0;
+      levelStateRef.current = {};
+      accumulatedDamageRef.current = 0;
+      lastDamageSyncRef.current = 0;
+      lastPositionUpdateRef.current = 0;
+      isDeadRef.current = false;
+      setHealth(playerStats.maxHealth);
+      winRewardedRef.current = false;
+    };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -171,6 +205,22 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
 
       if (gameState !== 'playing') {
         animationFrameRef.current = requestAnimationFrame(gameLoop);
+        return;
+      }
+
+      // Check if player is dead at the start of each frame
+      if (playerHealthRef.current <= 0 && !isDeadRef.current) {
+        isDeadRef.current = true;
+        if (onPlayerDefeated) {
+          onPlayerDefeated();
+        } else {
+          setGameState('gameover');
+        }
+        return; // Stop processing this frame
+      }
+
+      // If already dead, don't continue game loop
+      if (isDeadRef.current) {
         return;
       }
 
@@ -363,6 +413,33 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
         return true;
       });
 
+      // Draw other players (multiplayer) - draw before current player
+      otherPlayers.forEach((otherPlayer) => {
+        if (otherPlayer.discordId === currentPlayerId) return; // Skip self
+        
+        ctx.globalAlpha = 1.0;
+        // Draw other player ship
+        ctx.fillStyle = '#8888ff'; // Different color for other players
+        ctx.beginPath();
+        ctx.moveTo(otherPlayer.position.x, otherPlayer.position.y - 15);
+        ctx.lineTo(otherPlayer.position.x - 10, otherPlayer.position.y + 10);
+        ctx.lineTo(otherPlayer.position.x, otherPlayer.position.y + 5);
+        ctx.lineTo(otherPlayer.position.x + 10, otherPlayer.position.y + 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#4444ff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw other player name
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(otherPlayer.name, otherPlayer.position.x, otherPlayer.position.y - 25);
+        ctx.textAlign = 'left';
+      });
+
+      // Draw current player
       const isInvincible = timestamp - lastDamageTimeRef.current < invincibilityTime;
       const alpha = isInvincible && Math.floor(timestamp / 100) % 2 === 0 ? 0.5 : 1.0;
       ctx.globalAlpha = alpha;
@@ -392,6 +469,19 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
         ctx.stroke();
       }
       ctx.globalAlpha = 1.0;
+
+      // Sync position to API (multiplayer mode)
+      if (onPositionUpdate && currentPlayerId) {
+        const now = Date.now();
+        // Update position every 200ms
+        if (now - lastPositionUpdateRef.current > 200) {
+          lastPositionUpdateRef.current = now;
+          onPositionUpdate(
+            { x: playerRef.current.x, y: playerRef.current.y },
+            playerHealthRef.current
+          );
+        }
+      }
 
       ctx.fillStyle = bossColor;
       ctx.fillRect(
@@ -466,12 +556,45 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
       ctx.fillText('BOSS', config.canvas.width / 2, bossBarY - 8); // Adjusted to bossBarY - 8 for better spacing
       ctx.textAlign = 'left';
 
+      // Sync external boss HP if provided (multiplayer mode) - update every frame
+      if (externalBossHp !== undefined) {
+        bossHealthRef.current = externalBossHp;
+      }
+
       playerBulletsRef.current = playerBulletsRef.current.filter((bullet) => {
         const dist = Math.hypot(bullet.x - bossRef.current.x, bullet.y - bossRef.current.y);
         if (dist < config.boss.size / 2 + bullet.radius) {
-          bossHealthRef.current -= playerStats.attackPowerBoss;
-          if (bossHealthRef.current <= 0) {
-            setGameState('victory');
+          const damage = playerStats.attackPowerBoss;
+          
+          if (onBossDamage) {
+            // Multiplayer mode: send damage to API
+            accumulatedDamageRef.current += damage;
+            const now = Date.now();
+            // Throttle API calls - sync every 500ms
+            if (now - lastDamageSyncRef.current > 500) {
+              const totalDamage = accumulatedDamageRef.current;
+              accumulatedDamageRef.current = 0;
+              lastDamageSyncRef.current = now;
+              onBossDamage(totalDamage).catch(console.error);
+            }
+          } else {
+            // Solo mode: local damage
+            bossHealthRef.current -= damage;
+          }
+          
+          if (bossHealthRef.current <= 0 || (externalBossHp !== undefined && externalBossHp <= 0)) {
+            console.log('🔥 Boss HP reached 0!', {
+              bossHealthRef: bossHealthRef.current,
+              externalBossHp,
+              hasCallback: !!onBossDefeated,
+            });
+            if (onBossDefeated) {
+              console.log('🎯 Calling onBossDefeated callback');
+              onBossDefeated();
+            } else {
+              console.log('⚠️ No onBossDefeated callback, setting victory state');
+              setGameState('victory');
+            }
           }
           return false;
         }
@@ -495,11 +618,15 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
       bossBulletsRef.current = bossBulletsRef.current.filter((bullet) => {
         const dist = Math.hypot(bullet.x - playerRef.current.x, bullet.y - playerRef.current.y);
         if (dist < 15 + bullet.radius && timestamp - lastDamageTimeRef.current > invincibilityTime) {
-          playerHealthRef.current -= config.damage.bossBullet;
+          playerHealthRef.current = Math.max(0, playerHealthRef.current - config.damage.bossBullet);
           setHealth(playerHealthRef.current);
           lastDamageTimeRef.current = timestamp;
           if (playerHealthRef.current <= 0) {
-            setGameState('gameover');
+            if (onPlayerDefeated) {
+              onPlayerDefeated();
+            } else {
+              setGameState('gameover');
+            }
           }
           return false;
         }
@@ -560,11 +687,15 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
             bombsToRemove.push(id);
             const dist = Math.hypot(bomb.x - playerRef.current.x, bomb.y - playerRef.current.y);
             if (dist < bomb.radius && timestamp - lastDamageTimeRef.current > invincibilityTime) {
-              playerHealthRef.current -= bomb.damage;
-              setHealth(playerHealthRef.current);
-              lastDamageTimeRef.current = timestamp;
+          playerHealthRef.current = Math.max(0, playerHealthRef.current - bomb.damage);
+          setHealth(playerHealthRef.current);
+          lastDamageTimeRef.current = timestamp;
               if (playerHealthRef.current <= 0) {
-                setGameState('gameover');
+                if (onPlayerDefeated) {
+                  onPlayerDefeated();
+                } else {
+                  setGameState('gameover');
+                }
               }
             }
 
@@ -597,11 +728,15 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
           playerRef.current.y > laser.y &&
           timestamp - lastDamageTimeRef.current > 100
         ) {
-          playerHealthRef.current -= config.damage.bossLaser;
+          playerHealthRef.current = Math.max(0, playerHealthRef.current - config.damage.bossLaser);
           setHealth(playerHealthRef.current);
           lastDamageTimeRef.current = timestamp;
           if (playerHealthRef.current <= 0) {
-            setGameState('gameover');
+            if (onPlayerDefeated) {
+              onPlayerDefeated();
+            } else {
+              setGameState('gameover');
+            }
           }
         }
       });
@@ -609,11 +744,15 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
       minionBulletsRef.current = minionBulletsRef.current.filter((bullet) => {
         const dist = Math.hypot(bullet.x - playerRef.current.x, bullet.y - playerRef.current.y);
         if (dist < 15 + bullet.radius && timestamp - lastDamageTimeRef.current > invincibilityTime) {
-          playerHealthRef.current -= config.damage.minion;
+          playerHealthRef.current = Math.max(0, playerHealthRef.current - config.damage.minion);
           setHealth(playerHealthRef.current);
           lastDamageTimeRef.current = timestamp;
           if (playerHealthRef.current <= 0) {
-            setGameState('gameover');
+            if (onPlayerDefeated) {
+              onPlayerDefeated();
+            } else {
+              setGameState('gameover');
+            }
           }
           return false;
         }
@@ -623,17 +762,24 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
       minionsRef.current = minionsRef.current.filter((minion) => {
         const dist = Math.hypot(minion.x - playerRef.current.x, minion.y - playerRef.current.y);
         if (dist < minion.radius + 15 && timestamp - lastDamageTimeRef.current > invincibilityTime) {
-          playerHealthRef.current -= config.damage.minion;
+          playerHealthRef.current = Math.max(0, playerHealthRef.current - config.damage.minion);
           setHealth(playerHealthRef.current);
           lastDamageTimeRef.current = timestamp;
           if (playerHealthRef.current <= 0) {
-            setGameState('gameover');
+            if (onPlayerDefeated) {
+              onPlayerDefeated();
+            } else {
+              setGameState('gameover');
+            }
           }
           return false;
         }
         return true;
       });
 
+
+      // Draw player health bar - ensure health is synced
+      const currentHealth = Math.max(0, Math.min(playerHealthRef.current, playerStats.maxHealth));
       const playerBarWidth = 200;
       const playerBarHeight = 12;
       const playerBarX = config.canvas.width / 2 - playerBarWidth / 2;
@@ -643,10 +789,11 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
       ctx.fillStyle = '#ff0000';
       ctx.fillRect(playerBarX + 2, playerBarY + 2, playerBarWidth - 4, playerBarHeight - 4);
       ctx.fillStyle = '#00ff00';
+      const healthPercentage = currentHealth / playerStats.maxHealth;
       ctx.fillRect(
         playerBarX + 2,
         playerBarY + 2,
-        (playerHealthRef.current / playerStats.maxHealth) * (playerBarWidth - 4),
+        healthPercentage * (playerBarWidth - 4),
         playerBarHeight - 4
       );
       ctx.strokeStyle = '#ffffff';
@@ -655,7 +802,7 @@ export default function GameEngine({ config, playerStats }: GameEngineProps) {
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 14px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('PLAYER', config.canvas.width / 2, playerBarY - 5);
+      ctx.fillText(`PLAYER ${Math.ceil(currentHealth)}/${playerStats.maxHealth}`, config.canvas.width / 2, playerBarY - 5);
       ctx.textAlign = 'left';
 
       animationFrameRef.current = requestAnimationFrame(gameLoop);

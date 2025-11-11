@@ -7,24 +7,61 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
-    const { discordId, username, unlockedPlanets, earth6Completed, points, atk, hp, agi } = body;
+    const { 
+      discordId, 
+      name,
+      username, 
+      nickname, 
+      avatar, 
+      unlockedPlanets, 
+      earth6Completed, 
+      points, 
+      atk, 
+      hp, 
+      agi,
+      hamsterCoin,
+      gachaTicket,
+      achievements
+    } = body;
 
     if (!discordId) {
       return NextResponse.json({ error: 'Discord ID is required' }, { status: 400 });
     }
 
+    const updateData: any = {
+      discordId,
+      name: name || username || 'Unknown',
+      username: username || 'Unknown',
+      unlockedPlanets: unlockedPlanets || [1],
+      earth6Completed: earth6Completed || false,
+      points: points !== undefined ? points : 10,
+      atk: atk !== undefined ? atk : 10,
+      hp: hp !== undefined ? hp : 10,
+      agi: agi !== undefined ? agi : 10,
+    };
+
+    // Add nickname and avatarUrl if provided
+    if (nickname !== undefined) {
+      updateData.nickname = nickname;
+    }
+    if (avatar !== undefined) {
+      updateData.avatarUrl = avatar;
+    }
+    
+    // Add new fields if provided
+    if (hamsterCoin !== undefined) {
+      updateData.hamsterCoin = hamsterCoin;
+    }
+    if (gachaTicket !== undefined) {
+      updateData.gachaTicket = gachaTicket;
+    }
+    if (achievements !== undefined && Array.isArray(achievements)) {
+      updateData.achievements = achievements;
+    }
+
     const progress = await UserProgress.findOneAndUpdate(
       { discordId },
-      {
-        discordId,
-        username: username || 'Unknown',
-        unlockedPlanets: unlockedPlanets || [1],
-        earth6Completed: earth6Completed || false,
-        points: points !== undefined ? points : 10,
-        atk: atk !== undefined ? atk : 10,
-        hp: hp !== undefined ? hp : 10,
-        agi: agi !== undefined ? agi : 10,
-      },
+      updateData,
       {
         upsert: true,
         new: true,
