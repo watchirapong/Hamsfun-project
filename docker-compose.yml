@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI:-mongodb://admin:hamster1234@82.26.104.178:27017/hamsfun?authSource=admin}
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-1402212628956315709}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET:-hL7Lt63Jckmrang3hxraAbyr2eHfnib5}
+      - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI:-http://localhost:3000/api/auth/discord/callback}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN:-MTQwMjIxMjYyODk1NjMxNTcwOQ.GYBWfp.w3pQFIUy_FIof29Ky7XwYyZPc6xuKiDFWSwQGg}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID:-699984143542517801}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+

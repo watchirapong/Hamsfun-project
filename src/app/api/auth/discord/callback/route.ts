@@ -3,7 +3,7 @@ import connectDB from '@/lib/mongodb';
 import UserProgress from '@/models/UserProgress';
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || '1402212628956315709';
-const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || 'a2P9QW4U9WT6zX8dALT6QU86OwqDhB_v';
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET || 'hL7Lt63Jckmrang3hxraAbyr2eHfnib5';
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI || 'http://localhost:3000/api/auth/discord/callback';
 
 export async function GET(request: NextRequest) {
