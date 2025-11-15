@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "bot": "tsx src/bot/index.ts",
+    "bot:dev": "tsx watch src/bot/index.ts"
   },
   "dependencies": {
     "mongoose": "^8.19.3",

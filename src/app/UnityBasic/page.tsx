@@ -323,6 +323,19 @@ export default function Page2() {
   const [responseShown, setResponseShown] = useState<{ [key: number]: boolean }>({}); // Track if response has been shown for each Earth
   const [progressLoaded, setProgressLoaded] = useState(false); // Track if progress has been loaded
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null); // Track enlarged image URL
+  const [leaderboard, setLeaderboard] = useState<Array<{
+    discordId: string;
+    name: string;
+    nickname: string;
+    avatarUrl?: string;
+    hamsterCoin: number;
+    points: number;
+    unlockedPlanets: number[];
+    maxUnlocked: number;
+    progress: number;
+    score: number;
+  }>>([]);
+  const [showLeaderboard, setShowLeaderboard] = useState(false); // Leaderboard modal state
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -408,6 +421,27 @@ export default function Page2() {
 
     loadProgress();
   }, [cookies.discord_user]);
+
+  // Load leaderboard separately
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      try {
+        const response = await fetch('/api/leaderboard');
+        if (response.ok) {
+          const data = await response.json();
+          setLeaderboard(data.leaderboard || []);
+        }
+      } catch (error) {
+        console.error('Error loading leaderboard:', error);
+      }
+    };
+    
+    loadLeaderboard();
+    // Refresh leaderboard every 30 seconds
+    const leaderboardInterval = setInterval(loadLeaderboard, 30000);
+    
+    return () => clearInterval(leaderboardInterval);
+  }, []);
 
   // Save progress to database whenever it changes
   useEffect(() => {
@@ -1387,6 +1421,22 @@ export default function Page2() {
           </div>
         </div>
 
+        {/* Leaderboard Button - Bottom Right */}
+        <div className="absolute bottom-24 right-4 z-20">
+          <button
+            onClick={() => setShowLeaderboard(true)}
+            className="bg-black/80 border-2 border-cyan-400 rounded-lg px-4 py-2 shadow-2xl hover:bg-black/90 transition-colors"
+            style={{ 
+              imageRendering: 'pixelated',
+              fontFamily: 'monospace'
+            }}
+          >
+            <div className="text-cyan-400 text-sm uppercase tracking-widest" style={{ fontFamily: 'monospace' }}>
+              Leaderboard
+            </div>
+          </button>
+        </div>
+
         {/* Bottom-Right Icon - Circular with Bar Chart/Equalizer - Clickable Upgrade Button */}
         <div className="absolute bottom-4 right-4 z-20">
           <button
@@ -1718,6 +1768,177 @@ export default function Page2() {
             <p className="mt-8 text-sm text-white/60" style={{ fontFamily: 'monospace' }}>
               Each stat starts at 10. Allocate points to tailor your ship. Upgrades apply to every level.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Leaderboard Modal */}
+      {showLeaderboard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setShowLeaderboard(false)}
+          />
+          
+          {/* Leaderboard Modal */}
+          <div className="relative w-full max-w-3xl mx-4 max-h-[80vh] overflow-y-auto bg-black/95 border-2 border-cyan-400 rounded-lg shadow-2xl" style={{ imageRendering: 'pixelated' }}>
+            {/* Header */}
+            <div className="sticky top-0 bg-black/95 border-b-2 border-cyan-400 p-4 z-10">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                {/* Globe Icon */}
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-cyan-400">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" />
+                  <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" strokeWidth="2" />
+                </svg>
+                
+                {/* Title */}
+                <h2 className="text-cyan-400 text-2xl font-bold uppercase tracking-widest" style={{ fontFamily: 'monospace' }}>
+                  Leaderboard
+                </h2>
+                
+                {/* Swords Icon */}
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-cyan-400">
+                  <path d="M6 2L18 2L16 8L8 8L6 2Z" stroke="currentColor" strokeWidth="2" fill="none" />
+                  <path d="M8 8L16 8L14 20L10 20L8 8Z" stroke="currentColor" strokeWidth="2" fill="none" />
+                  <line x1="12" y1="2" x2="12" y2="8" stroke="currentColor" strokeWidth="2" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Leaderboard List */}
+            <div className="p-4 space-y-3">
+              {leaderboard.length === 0 ? (
+                <div className="text-white/70 text-center py-8" style={{ fontFamily: 'monospace' }}>
+                  No players yet
+                </div>
+              ) : (
+                leaderboard.map((user, index) => {
+                  const rank = index + 1;
+                  const isCurrentUser = cookies.discord_user && (() => {
+                    try {
+                      const userData = typeof cookies.discord_user === 'string' 
+                        ? JSON.parse(cookies.discord_user) 
+                        : cookies.discord_user;
+                      return userData?.id === user.discordId;
+                    } catch {
+                      return false;
+                    }
+                  })();
+                  
+                  return (
+                    <div
+                      key={user.discordId}
+                      className={`bg-gray-900/50 border-2 rounded-lg p-3 transition-all ${
+                        isCurrentUser ? 'border-yellow-400 bg-yellow-400/10' : 'border-gray-700'
+                      }`}
+                      style={{ fontFamily: 'monospace' }}
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* Rank Icon */}
+                        <div className="flex-shrink-0">
+                          {rank === 1 ? (
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400">
+                              <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                            </svg>
+                          ) : (
+                            <div className="w-3 h-3 rounded-full bg-cyan-400" />
+                          )}
+                        </div>
+
+                        {/* Avatar */}
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden border-2 border-cyan-400">
+                          {user.avatarUrl ? (
+                            <img
+                              src={user.avatarUrl.startsWith('http') 
+                                ? user.avatarUrl 
+                                : `https://cdn.discordapp.com/avatars/${user.discordId}/${user.avatarUrl}.png?size=64`}
+                              alt={user.nickname}
+                              className="w-full h-full object-cover"
+                              style={{ imageRendering: 'pixelated' }}
+                              onError={(e) => {
+                                // Fallback to default Discord avatar
+                                const target = e.target as HTMLImageElement;
+                                target.src = `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discordId) % 5}.png`;
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-600 flex items-center justify-center text-white text-xs">
+                              {user.nickname.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Name */}
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-sm font-bold truncate ${isCurrentUser ? 'text-yellow-400' : 'text-white'}`}>
+                            {user.nickname || user.name}
+                          </div>
+                        </div>
+
+                        {/* Progress Numbers */}
+                        <div className="flex-shrink-0 text-right">
+                          <div className="text-white text-sm font-bold">
+                            {user.maxUnlocked * 1000 + user.points * 10 + user.hamsterCoin}
+                          </div>
+                          <div className="text-white/50 text-xs">
+                            / {6 * 1000}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress Bar */}
+                      <div className="mt-2 w-full bg-gray-700 rounded-full h-2">
+                        <div 
+                          className="bg-cyan-400 h-2 rounded-full transition-all duration-300"
+                          style={{ 
+                            width: `${user.progress}%`,
+                            boxShadow: '0 0 8px rgba(34, 211, 238, 0.6)'
+                          }}
+                        />
+                      </div>
+
+                      {/* Stats Row */}
+                      <div className="mt-2 flex items-center gap-4 text-xs">
+                        <div className="flex items-center gap-1">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-cyan-400">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" />
+                            <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" fill="none" />
+                            <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" fill="none" />
+                          </svg>
+                          <span className="text-white/70">Earth {user.maxUnlocked}/6</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400">
+                            <circle cx="12" cy="12" r="10" />
+                            <text x="12" y="16" textAnchor="middle" fill="black" fontSize="10" fontWeight="bold">P</text>
+                          </svg>
+                          <span className="text-white/70">{user.points}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400">
+                            <circle cx="12" cy="12" r="10" />
+                            <text x="12" y="16" textAnchor="middle" fill="black" fontSize="8" fontWeight="bold">$</text>
+                          </svg>
+                          <span className="text-white/70">{user.hamsterCoin}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Close Button */}
+            <div className="sticky bottom-0 bg-black/95 border-t-2 border-cyan-400 p-4">
+              <button
+                onClick={() => setShowLeaderboard(false)}
+                className="w-full bg-cyan-400/20 hover:bg-cyan-400/30 text-cyan-400 border-2 border-cyan-400 rounded-lg px-4 py-2 font-bold transition-colors"
+                style={{ fontFamily: 'monospace' }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
