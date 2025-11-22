@@ -11,6 +11,7 @@
     "bot:dev": "tsx watch src/bot/index.ts"
   },
   "dependencies": {
+    "lucide-react": "^0.554.0",
     "mongoose": "^8.19.3",
     "next": "^14.2.5",
     "react": "^18.3.1",
