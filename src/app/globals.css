@@ -130,3 +130,23 @@ body {
 .flip-card-back {
   transform: rotateY(180deg);
 }
+
+/* Reward Bubble Animation */
+@keyframes bubbleFloat {
+  0% {
+    transform: translate(0, 0) scale(0.8);
+    opacity: 0;
+  }
+  10% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(calc(var(--drift-x) * 0.5), 50vh) scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(var(--drift-x), 100vh) scale(0.6);
+    opacity: 0;
+  }
+}
