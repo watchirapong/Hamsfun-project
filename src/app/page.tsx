@@ -53,17 +53,16 @@ const getRankIconPath = (rankName: string): string => {
 
 interface User {
   name: string;
-  level: number;
   avatar: string;
   badge: string;
-  xp: number;
-  maxXp: number;
   coins: number;
   rankPoints: number;
   rankName: string;
   rankObjectives: RankObjective[];
   gameDemos: number;
   petLevel: number;
+  petXp: number;
+  petMaxXp: number;
 }
 
 interface Skill {
@@ -164,6 +163,12 @@ const App: React.FC = () => {
   // Ref to track skill level-ups to prevent duplicate rewards
   const skillLevelUpProcessed = useRef<Set<string>>(new Set());
   
+  // Ref to track reward animations in progress to prevent duplicates
+  const rewardAnimationsInProgress = useRef<Set<string>>(new Set());
+  
+  // Ref to track awarded rewards to prevent duplicates when overlay closes
+  const awardedRewards = useRef<Set<string>>(new Set());
+  
   // State for reward animations
   const [rewardAnimations, setRewardAnimations] = useState<Array<{
     id: string;
@@ -197,14 +202,14 @@ const App: React.FC = () => {
         { text: "Map Layout", reward: { type: 'coins', value: 50 } },
         { text: "Sound Effect", reward: { type: 'animal', value: 'ANIMAL APPEAR!' } }
       ],
-      objectiveCompleted: [true, true, true, false], // 3 out of 4 completed
+      objectiveCompleted: [false, false, false, false],
       objectiveSubmissions: [
-        { imageUrl: null, status: 'approved' },
-        { imageUrl: null, status: 'approved' },
-        { imageUrl: null, status: 'approved' },
+        { imageUrl: null, status: 'none' },
+        { imageUrl: null, status: 'none' },
+        { imageUrl: null, status: 'none' },
         { imageUrl: null, status: 'none' }
       ],
-      objectiveRewardsAwarded: [true, true, true, false],
+      objectiveRewardsAwarded: [false, false, false, false],
       rewardClaimed: false,
       rewardSubmissionStatus: 'none',
       questRewardsAwarded: false,
@@ -219,24 +224,24 @@ const App: React.FC = () => {
         { type: 'coins', value: 50 },
         { type: 'exp', value: 500 }
       ],
-      completed: true,
+      completed: false,
       objectives: [
         { text: "Set up basic lighting", reward: { type: 'coins', value: 30 } },
         { text: "Adjust light intensity", reward: { type: 'exp', value: 2500 } },
         { text: "Create ambient occlusion", reward: { type: 'skill', value: 150, skillName: 'Drawing' } },
         { text: "Test in different scenes", reward: { type: 'coins', value: 25 } }
       ],
-      objectiveCompleted: [true, true, true, true],
+      objectiveCompleted: [false, false, false, false],
       objectiveSubmissions: [
         { imageUrl: null, status: 'none' },
         { imageUrl: null, status: 'none' },
         { imageUrl: null, status: 'none' },
         { imageUrl: null, status: 'none' }
       ],
-      objectiveRewardsAwarded: [true, true, true, true],
-      rewardClaimed: true,
+      objectiveRewardsAwarded: [false, false, false, false],
+      rewardClaimed: false,
       rewardSubmissionStatus: 'none',
-      questRewardsAwarded: true,
+      questRewardsAwarded: false,
       category: "Drawing"
     },
     {
@@ -249,24 +254,24 @@ const App: React.FC = () => {
         { type: 'exp', value: 800 },
         { type: 'skill', value: 300, skillName: 'Level Design' }
       ],
-      completed: true,
+      completed: false,
       objectives: [
         { text: "Create timeline asset", reward: { type: 'exp', value: 4000 } },
         { text: "Add camera movements", reward: { type: 'coins', value: 40 } },
         { text: "Add character animations", reward: { type: 'skill', value: 200, skillName: 'Level Design' } },
         { text: "Add audio cues", reward: { type: 'exp', value: 3000 } }
       ],
-      objectiveCompleted: [true, true, true, true],
+      objectiveCompleted: [false, false, false, false],
       objectiveSubmissions: [
-        { imageUrl: null, status: 'approved' },
-        { imageUrl: null, status: 'approved' },
-        { imageUrl: null, status: 'approved' },
-        { imageUrl: null, status: 'approved' }
+        { imageUrl: null, status: 'none' },
+        { imageUrl: null, status: 'none' },
+        { imageUrl: null, status: 'none' },
+        { imageUrl: null, status: 'none' }
       ],
-      objectiveRewardsAwarded: [true, true, true, true],
-      rewardClaimed: true,
-      rewardSubmissionStatus: 'approved',
-      questRewardsAwarded: true,
+      objectiveRewardsAwarded: [false, false, false, false],
+      rewardClaimed: false,
+      rewardSubmissionStatus: 'none',
+      questRewardsAwarded: false,
       category: "Level Design"
     },
     {
@@ -289,7 +294,7 @@ const App: React.FC = () => {
         { text: "Add chase logic", reward: { type: 'coins', value: 50 } },
         { text: "Test against player", reward: { type: 'skill', value: 250, skillName: 'C# Programming' } }
       ],
-      objectiveCompleted: [true, true, false, false],
+      objectiveCompleted: [false, false, false, false],
       objectiveSubmissions: [
         { imageUrl: null, status: 'none' },
         { imageUrl: null, status: 'none' },
@@ -319,7 +324,7 @@ const App: React.FC = () => {
         { text: "Implement settings panel", reward: { type: 'coins', value: 50 } },
         { text: "Test usability", reward: { type: 'skill', value: 180, skillName: 'Game Design' } }
       ],
-      objectiveCompleted: [true, true, true, true], // All objectives done but reward not claimed
+      objectiveCompleted: [false, false, false, false],
       objectiveSubmissions: [
         { imageUrl: null, status: 'none' },
         { imageUrl: null, status: 'none' },
@@ -367,16 +372,15 @@ const App: React.FC = () => {
   // Mock data - User state
   const [user, setUser] = useState<User>({
     name: "mr.X",
-    level: 25,
-    avatar: "https://placehold.co/100x100/FFFFFF/000000?text=DOG",
+    avatar: "/Asset/pets/dog.png",
     badge: getRankIconPath("Planet I"),
-    xp: 45000,
-    maxXp: 100000,
     coins: 1000,
     rankPoints: 45,
     rankName: "Planet I",
     gameDemos: 1,
-    petLevel: 25,
+    petLevel: 1,
+    petXp: 0,
+    petMaxXp: 1000, // Level 1->2 requires 1000 XP (500 * (1 + 1))
     rankObjectives: [
       { text: "Game Demo x1", completed: false },
       { text: "Coins x1,000", completed: false },
@@ -436,10 +440,10 @@ const App: React.FC = () => {
   ]);
 
   const leaderboard: LeaderboardItem[] = [
-    { rank: 1, name: "mr.X", avatar: "https://placehold.co/30x30/FFD700/000000?text=DOG", level: 25, score: 3589 },
-    { rank: 2, name: "mr.X", avatar: "https://placehold.co/30x30/FFD700/000000?text=DOG", level: 25, score: 2439 },
-    { rank: 3, name: "mr.X", avatar: "https://placehold.co/30x30/FFD700/000000?text=DOG", level: 25, score: 1321 },
-    { rank: 4, name: "mr.X", avatar: "https://placehold.co/30x30/FFD700/000000?text=DOG", level: 25, score: 589 }
+    { rank: 1, name: "mr.X", avatar: "/Asset/pets/dog.png", level: 25, score: 3589 },
+    { rank: 2, name: "mr.X", avatar: "/Asset/pets/dog.png", level: 25, score: 2439 },
+    { rank: 3, name: "mr.X", avatar: "/Asset/pets/dog.png", level: 25, score: 1321 },
+    { rank: 4, name: "mr.X", avatar: "/Asset/pets/dog.png", level: 25, score: 589 }
   ];
 
   const backpackItems: BackpackItem[] = [
@@ -464,7 +468,10 @@ const App: React.FC = () => {
   const QuestCard: React.FC<{ quest: Quest }> = ({ quest }) => {
     const isCompleted = isQuestTrulyCompleted(quest);
     const approvedCount = getApprovedObjectivesCount(quest);
-    const currentStep = quest.steps ? Math.min(approvedCount, quest.steps.length) : 0;
+    
+    // Use objectives count instead of steps
+    const totalObjectives = quest.objectives.length;
+    const completedObjectives = quest.objectiveCompleted.filter(completed => completed).length;
     
     return (
       <div 
@@ -489,22 +496,27 @@ const App: React.FC = () => {
           </div>
         </div>
         
-        {quest.steps && (
+        {/* Step indicators based on objectives */}
+        {totalObjectives > 0 && (
           <div className="flex items-center gap-1 mt-3">
-            {quest.steps.map((step, index) => (
-              <React.Fragment key={index}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                  index + 1 <= currentStep
-                    ? 'bg-blue-500 text-white' 
-                    : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {index + 1}
-                </div>
-                {index < quest.steps!.length - 1 && (
-                  <div className={`h-0.5 flex-1 ${index + 1 < currentStep ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
-                )}
-              </React.Fragment>
-            ))}
+            {Array.from({ length: totalObjectives }).map((_, index) => {
+              const isObjectiveCompleted = quest.objectiveCompleted[index] || false;
+              
+              return (
+                <React.Fragment key={index}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                    isObjectiveCompleted
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  {index < totalObjectives - 1 && (
+                    <div className={`h-0.5 flex-1 ${isObjectiveCompleted ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </div>
         )}
       </div>
@@ -699,6 +711,28 @@ const App: React.FC = () => {
 
   // Function to trigger reward animation
   const triggerRewardAnimation = (reward: ObjectiveReward) => {
+    // Create a key for this reward type to prevent duplicates (without timestamp)
+    const rewardKey = `${reward.type}-${reward.value || 0}-${reward.skillName || ''}`;
+    const now = Date.now();
+    
+    // Check if this exact reward animation was triggered recently (within last 150ms)
+    const recentReward = Array.from(rewardAnimationsInProgress.current).find(key => {
+      if (key.startsWith(rewardKey + '-')) {
+        const timestamp = parseInt(key.split('-').pop() || '0');
+        return now - timestamp < 150; // Within last 150ms
+      }
+      return false;
+    });
+    
+    if (recentReward) {
+      console.log('Duplicate reward animation prevented:', rewardKey);
+      return; // Skip duplicate animation
+    }
+    
+    // Mark this reward as in progress with timestamp
+    const rewardKeyWithTimestamp = `${rewardKey}-${now}`;
+    rewardAnimationsInProgress.current.add(rewardKeyWithTimestamp);
+    
     // Use counter for unique IDs to prevent collisions
     animationIdCounter.current += 1;
     const animationId = `reward-${Date.now()}-${animationIdCounter.current}-${Math.random().toString(36).substr(2, 9)}`;
@@ -733,6 +767,8 @@ const App: React.FC = () => {
     // Remove animation after it completes (bubble animation duration)
     setTimeout(() => {
       setRewardAnimations(prev => prev.filter(anim => anim.id !== animationId));
+      // Remove from in-progress set after animation completes
+      rewardAnimationsInProgress.current.delete(rewardKeyWithTimestamp);
     }, 3000); // Increased for bubble float animation
   };
 
@@ -782,6 +818,39 @@ const App: React.FC = () => {
     }
   };
 
+  // Helper function to calculate required XP for a level
+  // Level 1->2: 1000, Level 2->3: 1500, Level 3->4: 2000, Level 4->5: 2500
+  // Formula: XP needed for level N = 500 * (N + 1)
+  const getRequiredXpForLevel = (level: number): number => {
+    return 500 * (level + 1);
+  };
+
+  // Helper function to calculate pet level progression with multiple level-ups
+  const calculatePetLevelProgression = (currentLevel: number, currentXp: number, xpToAdd: number): { newLevel: number; newXp: number; newMaxXp: number } => {
+    let level = currentLevel;
+    let xp = currentXp + xpToAdd;
+    
+    // Keep leveling up while there's enough XP for the next level
+    while (true) {
+      const requiredXp = getRequiredXpForLevel(level);
+      if (xp >= requiredXp) {
+        xp -= requiredXp;
+        level += 1;
+      } else {
+        break;
+      }
+    }
+    
+    // Calculate max XP for current level
+    const maxXp = getRequiredXpForLevel(level);
+    
+    return {
+      newLevel: level,
+      newXp: xp,
+      newMaxXp: maxXp
+    };
+  };
+
   // Helper function to award objective reward
   const awardObjectiveReward = (reward: ObjectiveReward) => {
     // Trigger reward animation
@@ -801,17 +870,18 @@ const App: React.FC = () => {
       const expValue = typeof reward.value === 'number' ? reward.value : 0;
       if (expValue > 0) {
         setUser(prev => {
-          const newXp = prev.xp + expValue;
-          const newLevel = newXp >= prev.maxXp ? prev.level + 1 : prev.level;
-          const newMaxXp = newXp >= prev.maxXp ? prev.maxXp * 1.5 : prev.maxXp;
+          // All XP goes to pet (100% of exp reward)
+          // Calculate multiple level-ups if needed
+          const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, expValue);
+          
           return {
             ...prev,
-            xp: newXp >= prev.maxXp ? 0 : newXp,
-            level: newLevel,
-            maxXp: Math.floor(newMaxXp)
+            petXp: progression.newXp,
+            petLevel: progression.newLevel,
+            petMaxXp: progression.newMaxXp
           };
         });
-        console.log(`Awarded ${expValue} XP`);
+        console.log(`Awarded ${expValue} XP to pet`);
       }
     } else if (reward.type === 'rank') {
       const rankValue = typeof reward.value === 'number' ? reward.value : 0;
@@ -869,10 +939,18 @@ const App: React.FC = () => {
   };
 
   // Helper function to award quest completion rewards
-  const awardQuestRewards = (rewards: ObjectiveReward[]) => {
-    // Award all quest completion rewards
-    rewards.forEach(reward => {
-      awardObjectiveReward(reward);
+  const awardQuestRewards = (rewards: ObjectiveReward[], questId: number) => {
+    // Award all quest completion rewards with quest ID to prevent duplicates
+    rewards.forEach((reward, index) => {
+      const rewardKey = `quest-${questId}-reward-${index}`;
+      if (!awardedRewards.current.has(rewardKey)) {
+        awardedRewards.current.add(rewardKey);
+        awardObjectiveReward(reward);
+        // Clean up after 5 seconds
+        setTimeout(() => {
+          awardedRewards.current.delete(rewardKey);
+        }, 5000);
+      }
     });
   };
 
@@ -955,8 +1033,18 @@ const App: React.FC = () => {
       ? existingRewardsAwarded[selectedObjective.objectiveIndex] 
       : false;
     
-    if (objective.reward && !rewardAlreadyAwarded) {
+    // Create unique key for this reward to prevent duplicates
+    const rewardKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
+    
+    if (objective.reward && !rewardAlreadyAwarded && !awardedRewards.current.has(rewardKey)) {
+      // Mark as awarded immediately to prevent duplicates
+      awardedRewards.current.add(rewardKey);
       awardObjectiveReward(objective.reward);
+      
+      // Clean up after 5 seconds to allow same reward to be awarded again if needed (unlikely but safe)
+      setTimeout(() => {
+        awardedRewards.current.delete(rewardKey);
+      }, 5000);
     }
 
     setQuestsState(prevQuests =>
@@ -1094,8 +1182,23 @@ const App: React.FC = () => {
     // Use setTimeout to ensure the state update callback has executed and rewardRef is set
     setTimeout(() => {
       if (rewardRef.value) {
-        awardObjectiveReward(rewardRef.value);
-        console.log('Reward awarded for objective:', objectiveIndex);
+        // Create unique key for this reward to prevent duplicates
+        const rewardKey = `${questId}-${objectiveIndex}`;
+        
+        // Check if already awarded
+        if (!awardedRewards.current.has(rewardKey)) {
+          // Mark as awarded immediately to prevent duplicates
+          awardedRewards.current.add(rewardKey);
+          awardObjectiveReward(rewardRef.value);
+          console.log('Reward awarded for objective:', objectiveIndex);
+          
+          // Clean up after 5 seconds to allow same reward to be awarded again if needed (unlikely but safe)
+          setTimeout(() => {
+            awardedRewards.current.delete(rewardKey);
+          }, 5000);
+        } else {
+          console.log('Reward already awarded, skipping duplicate:', rewardKey);
+        }
       }
     }, 0);
     
@@ -1177,8 +1280,20 @@ const App: React.FC = () => {
     // Award rewards outside of state update to ensure it only happens once
     setTimeout(() => {
       if (rewardsRef.value && rewardsRef.value.length > 0) {
-        awardQuestRewards(rewardsRef.value);
-        console.log('Quest rewards awarded for quest:', questId);
+        // Check if quest rewards already awarded
+        const questRewardKey = `quest-${questId}-rewards`;
+        if (!awardedRewards.current.has(questRewardKey)) {
+          awardedRewards.current.add(questRewardKey);
+          awardQuestRewards(rewardsRef.value, questId);
+          console.log('Quest rewards awarded for quest:', questId);
+          
+          // Clean up after 5 seconds
+          setTimeout(() => {
+            awardedRewards.current.delete(questRewardKey);
+          }, 5000);
+        } else {
+          console.log('Quest rewards already awarded, skipping duplicate:', questId);
+        }
       }
       
       // Clear processing flag after a delay
@@ -1884,9 +1999,22 @@ const App: React.FC = () => {
       <div className="p-4 bg-white shadow-sm mb-4">
         <div className="flex items-start gap-4">
           {/* Pet Display on Left */}
-          <div className="flex flex-col items-center flex-shrink-0">
-            <img src={user.avatar} alt="Pet" className="w-24 h-24 object-contain" />
-            <span className="text-sm font-medium mt-1">{user.petLevel}</span>
+          <div className="flex flex-col items-center flex-1">
+            <img src={user.avatar} alt="Pet" className="w-32 h-32 sm:w-40 sm:h-40 object-contain" />
+            <div className="mt-3 w-full max-w-[200px]">
+              <div className="text-center mb-1">
+                <span className="text-base font-bold">Lv {user.petLevel}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
+                <div 
+                  className="bg-blue-500 h-2.5 rounded-full transition-all duration-300" 
+                  style={{ width: `${Math.min((user.petXp / user.petMaxXp) * 100, 100)}%` }}
+                ></div>
+              </div>
+              <div className="text-xs text-gray-600 text-center">
+                {user.petXp.toLocaleString()}/{user.petMaxXp.toLocaleString()} XP
+              </div>
+            </div>
           </div>
           
           {/* Rank Card on Right - Clickable with Flip Animation */}
@@ -1894,38 +2022,38 @@ const App: React.FC = () => {
             <div 
               className={`flip-card cursor-pointer w-full ${rankCardFlipped ? 'flipped' : ''}`}
               onClick={() => setRankCardFlipped(!rankCardFlipped)}
-              style={{ minHeight: '220px' }}
+              style={{ minHeight: '180px' }}
             >
-              <div className="flip-card-inner" style={{ minHeight: '220px' }}>
+              <div className="flip-card-inner" style={{ minHeight: '180px' }}>
                 {/* Front of Card */}
-                <div className="flip-card-front bg-white rounded-xl p-4 sm:p-5 shadow-md border border-gray-200 flex flex-col w-full h-full">
+                <div className="flip-card-front bg-white rounded-xl p-3 sm:p-4 shadow-md border border-gray-200 flex flex-col w-full h-full">
                   {/* Rank Icon/Badge */}
-                  <div className="flex justify-center mb-3">
+                  <div className="flex justify-center mb-2">
                     <img 
                       src={user.badge} 
                       alt="Rank Badge" 
-                      className="w-20 h-20 sm:w-24 sm:h-24 object-contain" 
+                      className="w-16 h-16 sm:w-20 sm:h-20 object-contain" 
                     />
                   </div>
-                  <h3 className="font-bold text-xl sm:text-2xl text-center mb-4 sm:mb-6 truncate">{user.rankName}</h3>
+                  <h3 className="font-bold text-lg sm:text-xl text-center mb-2 sm:mb-3 truncate">{user.rankName}</h3>
                   <div className="flex-1 flex flex-col justify-center">
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                    <div className="w-full bg-gray-200 rounded-full h-2 mb-1.5">
                       <div 
-                        className="bg-gray-500 h-2.5 rounded-full transition-all duration-300" 
+                        className="bg-gray-500 h-2 rounded-full transition-all duration-300" 
                         style={{ width: `${Math.min((user.rankPoints / 100) * 100, 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-sm text-gray-700 text-center">
+                    <div className="text-xs sm:text-sm text-gray-700 text-center">
                       {user.rankPoints}/100 rp
                     </div>
                   </div>
                 </div>
                 
                 {/* Back of Card - Rank Objectives */}
-                <div className="flip-card-back bg-white rounded-xl p-4 sm:p-5 shadow-md border border-gray-200 flex flex-col w-full h-full">
-                  <h3 className="font-bold text-xl sm:text-2xl text-center mb-3 sm:mb-4 truncate">{user.rankName}</h3>
-                  <div className="text-xs sm:text-sm font-semibold mb-3 sm:mb-4 text-gray-600 text-center">Objectives to Rank Up</div>
-                  <div className="space-y-2 sm:space-y-3 text-xs sm:text-sm mb-4">
+                <div className="flip-card-back bg-white rounded-xl p-3 sm:p-4 shadow-md border border-gray-200 flex flex-col w-full h-full">
+                  <h3 className="font-bold text-lg sm:text-xl text-center mb-2 sm:mb-3 truncate">{user.rankName}</h3>
+                  <div className="text-xs font-semibold mb-2 sm:mb-3 text-gray-600 text-center">Objectives to Rank Up</div>
+                  <div className="space-y-1.5 sm:space-y-2 text-xs mb-3">
                     {user.rankObjectives.map((objective, index) => {
                       // Check completion status based on objective type
                       let isCompleted = false;
@@ -1961,13 +2089,13 @@ const App: React.FC = () => {
                       );
                     })}
                   </div>
-                  <div className="border-t pt-3 mt-auto">
-                    <div className="flex justify-between items-center gap-2 text-xs sm:text-sm">
+                  <div className="border-t pt-2 mt-auto">
+                    <div className="flex justify-between items-center gap-2 text-xs">
                       <span className="text-left truncate">Pet Lv{user.petLevel}</span>
                       <span className="text-right flex-shrink-0">x1</span>
                     </div>
                   </div>
-                  <div className="mt-2 text-xs text-gray-400 text-center">
+                  <div className="mt-1.5 text-[10px] text-gray-400 text-center">
                     Tap to flip back
                   </div>
                 </div>
