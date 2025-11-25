@@ -178,6 +178,24 @@ const App: React.FC = () => {
       setRewardAnimations([]);
     }
   }, [showQuestOverlay]);
+
+  // Restore scroll position when image upload modal closes
+  useEffect(() => {
+    if (!showImageUploadModal && scrollPositionRef.current.container) {
+      // Restore scroll position after modal closes
+      setTimeout(() => {
+        const containers = document.querySelectorAll('.overflow-y-auto');
+        const container = Array.from(containers).find(el => {
+          const rect = el.getBoundingClientRect();
+          return rect.height > 200;
+        }) as HTMLElement;
+        
+        if (container && scrollPositionRef.current.scrollTop > 0) {
+          container.scrollTop = scrollPositionRef.current.scrollTop;
+        }
+      }, 0);
+    }
+  }, [showImageUploadModal]);
   
   // State for reward animations
   const [rewardAnimations, setRewardAnimations] = useState<Array<{
@@ -384,10 +402,10 @@ const App: React.FC = () => {
   const [user, setUser] = useState<User>({
     name: "mr.X",
     avatar: "/Asset/pets/dog.png",
-    badge: getRankIconPath("Planet I"),
+    badge: getRankIconPath("Meteor I"),
     coins: 1000,
-    rankPoints: 45,
-    rankName: "Planet I",
+    rankPoints: 0,
+    rankName: "Meteor I",
     gameDemos: 1,
     petLevel: 1,
     petXp: 0,
@@ -403,8 +421,8 @@ const App: React.FC = () => {
     { 
       name: "Game Design", 
       icon: Gamepad2,
-      currentLevel: 3, // Gold
-      points: 7500,
+      currentLevel: 1, // Bronze
+      points: 0,
       maxPoints: 10000,
       description: "Basic Game Designer. Can Create Simple Games",
       rewards: [
@@ -415,8 +433,8 @@ const App: React.FC = () => {
     { 
       name: "Level Design", 
       icon: Monitor,
-      currentLevel: 2, // Silver
-      points: 4500,
+      currentLevel: 1, // Bronze
+      points: 0,
       maxPoints: 10000,
       description: "Basic Level Designer. Can Create Simple Levels",
       rewards: [
@@ -427,8 +445,8 @@ const App: React.FC = () => {
     { 
       name: "Drawing", 
       icon: Paintbrush,
-      currentLevel: 4, // Diamond
-      points: 10000,
+      currentLevel: 1, // Bronze
+      points: 0,
       maxPoints: 10000,
       description: "Master Artist. Can Create Professional Art",
       rewards: [
@@ -439,8 +457,8 @@ const App: React.FC = () => {
     { 
       name: "C# Programming", 
       icon: Code,
-      currentLevel: 3, // Gold
-      points: 4500,
+      currentLevel: 1, // Bronze
+      points: 0,
       maxPoints: 10000,
       description: "Basic Programmer. Can Create Simple System",
       rewards: [
@@ -1194,16 +1212,12 @@ const App: React.FC = () => {
     const submission = quest.objectiveSubmissions[objectiveIndex];
     // Only allow upload if not already approved
     if (submission.status !== 'approved') {
+      // Cancel all reward animations when opening a new submission modal
+      setRewardAnimations([]);
+      
       setSelectedObjective({ questId, objectiveIndex });
       setUploadedImage(submission.imageUrl);
       setShowImageUploadModal(true);
-      
-      // Restore scroll position after modal opens (prevent scroll reset)
-      setTimeout(() => {
-        if (scrollPositionRef.current.container) {
-          scrollPositionRef.current.container.scrollTop = scrollPositionRef.current.scrollTop;
-        }
-      }, 0);
     }
   };
 
