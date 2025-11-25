@@ -6,6 +6,8 @@ import { Trophy, Gamepad2, Monitor, Paintbrush, Code, ChevronRight, Star, Crown,
 interface RankObjective {
   text: string;
   completed: boolean;
+  questId?: number; // Link to main quest
+  coinCost?: number; // Cost to rank up
 }
 
 // Rank system from bottom to top
@@ -411,8 +413,8 @@ const App: React.FC = () => {
     petXp: 0,
     petMaxXp: 1000, // Level 1->2 requires 1000 XP (500 * (1 + 1))
     rankObjectives: [
-      { text: "Game Demo x1", completed: false },
-      { text: "Coins x1,000", completed: false },
+      { text: "Complete Shooting Game", completed: false, questId: 1 },
+      { text: "Coins x1,000", completed: false, coinCost: 1000 },
       { text: "Earn 100 Rank Points", completed: false }
     ]
   });
@@ -899,6 +901,55 @@ const App: React.FC = () => {
   // Helper function to check if quest is truly completed (all objectives done AND reward claimed)
   const isQuestTrulyCompleted = (quest: Quest): boolean => {
     return quest.rewardClaimed && quest.objectiveCompleted.every(completed => completed);
+  };
+
+  // Check if user can rank up (all objectives complete and enough coins)
+  const canRankUp = (): boolean => {
+    const allObjectivesComplete = user.rankObjectives.every(objective => {
+      if (objective.text.includes('Rank Points')) {
+        return user.rankPoints >= 100;
+      } else if (objective.questId) {
+        const linkedQuest = questsState.find(q => q.id === objective.questId);
+        return linkedQuest ? isQuestTrulyCompleted(linkedQuest) : false;
+      } else if (objective.coinCost) {
+        return user.coins >= objective.coinCost;
+      } else {
+        return objective.completed;
+      }
+    });
+    
+    // Also check if user has enough coins for the coin cost objective
+    const coinObjective = user.rankObjectives.find(obj => obj.coinCost);
+    const hasEnoughCoins = coinObjective ? user.coins >= coinObjective.coinCost! : true;
+    
+    return allObjectivesComplete && hasEnoughCoins;
+  };
+
+  // Handle rank up
+  const handleRankUp = () => {
+    if (!canRankUp()) return;
+    
+    // Find current rank index
+    const currentRankIndex = RANKS.indexOf(user.rankName as RankName);
+    if (currentRankIndex === -1 || currentRankIndex === RANKS.length - 1) {
+      // Already at max rank or rank not found
+      return;
+    }
+    
+    // Get coin cost
+    const coinObjective = user.rankObjectives.find(obj => obj.coinCost);
+    const coinCost = coinObjective?.coinCost || 0;
+    
+    // Deduct coins
+    if (coinCost > 0 && user.coins >= coinCost) {
+      setUser(prev => ({
+        ...prev,
+        coins: prev.coins - coinCost,
+        rankName: RANKS[currentRankIndex + 1] as RankName,
+        badge: getRankIconPath(RANKS[currentRankIndex + 1]),
+        rankPoints: 0 // Reset rank points after ranking up
+      }));
+    }
   };
 
   // Helper function to check if all objectives are completed (approved by admin)
@@ -2345,10 +2396,13 @@ const App: React.FC = () => {
                       let isCompleted = false;
                       if (objective.text.includes('Rank Points')) {
                         isCompleted = user.rankPoints >= 100;
-                      } else if (objective.text.includes('Game Demo')) {
-                        isCompleted = user.gameDemos >= 1;
-                      } else if (objective.text.includes('Coins')) {
-                        isCompleted = user.coins >= 1000;
+                      } else if (objective.questId) {
+                        // Check if linked quest is completed
+                        const linkedQuest = questsState.find(q => q.id === objective.questId);
+                        isCompleted = linkedQuest ? isQuestTrulyCompleted(linkedQuest) : false;
+                      } else if (objective.coinCost) {
+                        // Check if user has enough coins
+                        isCompleted = user.coins >= objective.coinCost;
                       } else {
                         isCompleted = objective.completed;
                       }
@@ -2370,16 +2424,31 @@ const App: React.FC = () => {
                                 Progress: {user.rankPoints}/100 rp
                               </div>
                             )}
+                            {objective.coinCost && !isCompleted && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Need: {objective.coinCost} coins (Have: {user.coins})
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
                     })}
                   </div>
                   <div className="border-t pt-2 mt-auto">
-                    <div className="flex justify-between items-center gap-2 text-xs">
-                      <span className="text-left truncate">Pet Lv{user.petLevel}</span>
-                      <span className="text-right flex-shrink-0">x1</span>
-                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card flip
+                        handleRankUp();
+                      }}
+                      disabled={!canRankUp()}
+                      className={`w-full py-2 rounded-lg font-semibold text-xs transition-colors ${
+                        canRankUp()
+                          ? 'bg-yellow-400 hover:bg-yellow-500 text-gray-900'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Rank Up
+                    </button>
                   </div>
                   <div className="mt-1.5 text-[10px] text-gray-400 text-center">
                     Tap to flip back
