@@ -127,6 +127,8 @@ interface BackpackItem {
   date: string;
   quantity: number;
   image: string;
+  used: boolean;
+  active: boolean;
 }
 
 const App: React.FC = () => {
@@ -169,6 +171,14 @@ const App: React.FC = () => {
   // Ref to track awarded rewards to prevent duplicates when overlay closes
   const awardedRewards = useRef<Set<string>>(new Set());
   
+  // Cancel reward animations when quest overlay closes
+  useEffect(() => {
+    if (!showQuestOverlay) {
+      // Clear all reward animations when overlay closes
+      setRewardAnimations([]);
+    }
+  }, [showQuestOverlay]);
+  
   // State for reward animations
   const [rewardAnimations, setRewardAnimations] = useState<Array<{
     id: string;
@@ -178,6 +188,7 @@ const App: React.FC = () => {
     x: number; // Random X position
     y: number; // Random Y position
     driftX: number; // Random drift direction and amount
+    startTime: number; // Track when animation started
   }>>([]);
   
   // State for skill level-up animations
@@ -446,14 +457,47 @@ const App: React.FC = () => {
     { rank: 4, name: "mr.X", avatar: "/Asset/pets/dog.png", level: 25, score: 589 }
   ];
 
-  const backpackItems: BackpackItem[] = [
+  // Helper function to parse date string and check if time has passed
+  const parseItemDate = (dateString: string): { startTime: Date; endTime: Date } | null => {
+    // Format: "20/11/2025 (19:00-21:00)"
+    try {
+      const datePart = dateString.split(' ')[0]; // "20/11/2025"
+      const timePart = dateString.match(/\((\d{2}):(\d{2})-(\d{2}):(\d{2})\)/);
+      
+      if (!timePart) return null;
+      
+      const [day, month, year] = datePart.split('/');
+      const startHour = parseInt(timePart[1]);
+      const startMinute = parseInt(timePart[2]);
+      const endHour = parseInt(timePart[3]);
+      const endMinute = parseInt(timePart[4]);
+      
+      const startTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), startHour, startMinute);
+      const endTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), endHour, endMinute);
+      
+      return { startTime, endTime };
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const hasItemTimePassed = (dateString: string): boolean => {
+    const times = parseItemDate(dateString);
+    if (!times) return false;
+    const now = new Date();
+    return now > times.endTime;
+  };
+
+  const [backpackItems, setBackpackItems] = useState<BackpackItem[]>([
     {
       id: 1,
       name: "Lighting Ticket",
       description: "Dojo Basic Lighting",
       date: "20/11/2025 (19:00-21:00)",
       quantity: 1,
-      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET"
+      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      used: false,
+      active: false
     },
     {
       id: 2,
@@ -461,9 +505,105 @@ const App: React.FC = () => {
       description: "Dojo Basic Programming",
       date: "21/11/2025 (19:00-21:00)",
       quantity: 1,
-      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET"
+      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      used: false,
+      active: false
+    },
+    {
+      id: 3,
+      name: "Game Design Ticket",
+      description: "Advanced Game Mechanics",
+      date: "30/11/2025 (14:00-16:00)",
+      quantity: 1,
+      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      used: false,
+      active: false
+    },
+    {
+      id: 4,
+      name: "Level Design Ticket",
+      description: "Environment Creation Workshop",
+      date: "01/12/2025 (10:00-12:00)",
+      quantity: 1,
+      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      used: false,
+      active: false
+    },
+    {
+      id: 5,
+      name: "Drawing Ticket",
+      description: "Character Design Masterclass",
+      date: "05/12/2025 (15:00-17:00)",
+      quantity: 1,
+      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      used: false,
+      active: false
+    },
+    {
+      id: 6,
+      name: "Unity Ticket",
+      description: "Unity Basics Workshop",
+      date: "10/12/2025 (18:00-20:00)",
+      quantity: 1,
+      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      used: false,
+      active: false
     }
-  ];
+  ]);
+
+  // Handle item usage - only 1 used item at a time across all types
+  const handleUseItem = (itemId: number) => {
+    setBackpackItems(prevItems => {
+      return prevItems.map(item => {
+        if (item.id === itemId) {
+          return { ...item, used: true, active: true };
+        } else {
+          // Un-use and deactivate all other items (only 1 used at a time across all types)
+          return { ...item, used: false, active: false };
+        }
+      });
+    });
+  };
+
+  // Handle item deletion
+  const handleDeleteItem = (itemId: number) => {
+    setBackpackItems(prevItems => prevItems.filter(item => item.id !== itemId));
+  };
+
+  // Check if item is expired (current date/time has passed the ticket's end time)
+  const isItemExpired = (dateString: string): boolean => {
+    const times = parseItemDate(dateString);
+    if (!times) return false;
+    const now = new Date();
+    return now > times.endTime;
+  };
+
+  // Remove items that are used and their time has passed
+  useEffect(() => {
+    setBackpackItems(prevItems => {
+      return prevItems.filter(item => {
+        // Remove if used AND time has passed
+        if (item.used && hasItemTimePassed(item.date)) {
+          return false;
+        }
+        return true;
+      });
+    });
+    
+    // Check every minute for expired items
+    const interval = setInterval(() => {
+      setBackpackItems(prevItems => {
+        return prevItems.filter(item => {
+          if (item.used && hasItemTimePassed(item.date)) {
+            return false;
+          }
+          return true;
+        });
+      });
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const QuestCard: React.FC<{ quest: Quest }> = ({ quest }) => {
     const isCompleted = isQuestTrulyCompleted(quest);
@@ -500,19 +640,21 @@ const App: React.FC = () => {
         {totalObjectives > 0 && (
           <div className="flex items-center gap-1 mt-3">
             {Array.from({ length: totalObjectives }).map((_, index) => {
-              const isObjectiveCompleted = quest.objectiveCompleted[index] || false;
+              // Count how many objectives are completed (not which ones)
+              // Fill balls from left to right based on count
+              const isStepCompleted = index < completedObjectives;
               
               return (
                 <React.Fragment key={index}>
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                    isObjectiveCompleted
+                    isStepCompleted
                       ? 'bg-blue-500 text-white' 
                       : 'bg-gray-200 text-gray-600'
                   }`}>
                     {index + 1}
                   </div>
                   {index < totalObjectives - 1 && (
-                    <div className={`h-0.5 flex-1 ${isObjectiveCompleted ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
+                    <div className={`h-0.5 flex-1 ${isStepCompleted ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
                   )}
                 </React.Fragment>
               );
@@ -583,6 +725,25 @@ const App: React.FC = () => {
 
   // Reward Animation Component
   const RewardAnimation: React.FC<{ animation: typeof rewardAnimations[0] }> = ({ animation }) => {
+    // Calculate elapsed time to prevent animation restart on re-render
+    const [elapsedTime, setElapsedTime] = React.useState(0);
+    const animationDuration = 5000; // 5 seconds
+    
+    React.useEffect(() => {
+      const updateElapsed = () => {
+        const elapsed = Date.now() - animation.startTime;
+        setElapsedTime(Math.min(elapsed, animationDuration));
+      };
+      
+      updateElapsed();
+      const interval = setInterval(updateElapsed, 16); // ~60fps
+      
+      return () => clearInterval(interval);
+    }, [animation.startTime]);
+    
+    // Calculate animation delay (negative to skip to current point)
+    const animationDelay = elapsedTime > 0 ? -elapsedTime : 0;
+    
     const getIcon = () => {
       switch (animation.type) {
         case 'coins':
@@ -623,7 +784,8 @@ const App: React.FC = () => {
       style={{ 
           left: `${animation.x}px`,
           top: `${animation.y}px`,
-          animation: `bubbleFloat 3s ease-in-out forwards`,
+          animation: `bubbleFloat ${animationDuration}ms ease-in-out forwards`,
+          animationDelay: `${animationDelay}ms`,
           '--drift-x': `${animation.driftX}px`
         } as React.CSSProperties & { '--drift-x': string }}
       >
@@ -666,17 +828,55 @@ const App: React.FC = () => {
     </div>
   );
 
-  const BackpackItemComponent: React.FC<{ item: BackpackItem }> = ({ item }) => (
-    <div className="flex items-center gap-3 p-3 bg-white rounded-xl mb-2 shadow-sm border border-gray-100">
-      <img src={item.image} alt={item.name} className="w-12 h-8 object-contain" />
-      <div className="flex-1">
-        <div className="font-semibold text-sm">{item.name}</div>
-        <div className="text-xs text-gray-500">{item.description}</div>
-        <div className="text-xs text-gray-500">{item.date}</div>
-              </div>
-      <div className="text-xs bg-gray-100 px-2 py-1 rounded-full">x{item.quantity}</div>
-          </div>
-  );
+  const BackpackItemComponent: React.FC<{ item: BackpackItem; onUse: (id: number) => void; onDelete: (id: number) => void }> = ({ item, onUse, onDelete }) => {
+    const isUsed = item.used;
+    const timePassed = hasItemTimePassed(item.date);
+    const expired = isItemExpired(item.date);
+    
+    // Determine background color
+    let backgroundColor = 'white';
+    if (isUsed) {
+      backgroundColor = '#e3cd0b'; // Yellow for used
+    } else if (expired) {
+      backgroundColor = '#ef4444'; // Red for expired
+    }
+    
+    return (
+      <div 
+        className={`flex items-center gap-3 p-3 rounded-xl mb-2 shadow-sm border border-gray-100`}
+        style={{ backgroundColor }}
+      >
+        <img src={item.image} alt={item.name} className="w-12 h-8 object-contain" />
+        <div className="flex-1">
+          <div className="font-semibold text-sm">{item.name}</div>
+          <div className="text-xs text-gray-500">{item.description}</div>
+          <div className="text-xs text-gray-500">{item.date}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="text-xs bg-gray-100 px-2 py-1 rounded-full">x{item.quantity}</div>
+          {expired && !isUsed && (
+            <button
+              onClick={() => onDelete(item.id)}
+              className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Delete
+            </button>
+          )}
+          {!expired && !isUsed && (
+            <button
+              onClick={() => onUse(item.id)}
+              className="px-3 py-1.5 bg-blue-500 text-white text-xs font-semibold rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Use
+            </button>
+          )}
+          {isUsed && (
+            <span className="text-xs text-gray-600 font-semibold">Used</span>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Helper function to check if quest is truly completed (all objectives done AND reward claimed)
   const isQuestTrulyCompleted = (quest: Quest): boolean => {
@@ -715,17 +915,18 @@ const App: React.FC = () => {
     const rewardKey = `${reward.type}-${reward.value || 0}-${reward.skillName || ''}`;
     const now = Date.now();
     
-    // Check if this exact reward animation was triggered recently (within last 150ms)
+    // Check if this exact reward animation was triggered recently (within last 1000ms)
+    // Increased window to prevent duplicates when overlay closes
     const recentReward = Array.from(rewardAnimationsInProgress.current).find(key => {
       if (key.startsWith(rewardKey + '-')) {
         const timestamp = parseInt(key.split('-').pop() || '0');
-        return now - timestamp < 150; // Within last 150ms
+        return now - timestamp < 1000; // Within last 1000ms (1 second)
       }
       return false;
     });
     
     if (recentReward) {
-      console.log('Duplicate reward animation prevented:', rewardKey);
+      console.log('Duplicate reward animation prevented:', rewardKey, 'recent:', recentReward);
       return; // Skip duplicate animation
     }
     
@@ -760,7 +961,8 @@ const App: React.FC = () => {
         skillName: reward.skillName,
         x,
         y,
-        driftX
+        driftX,
+        startTime: Date.now() // Track animation start time
       }];
     });
     
@@ -769,7 +971,7 @@ const App: React.FC = () => {
       setRewardAnimations(prev => prev.filter(anim => anim.id !== animationId));
       // Remove from in-progress set after animation completes
       rewardAnimationsInProgress.current.delete(rewardKeyWithTimestamp);
-    }, 3000); // Increased for bubble float animation
+    }, 5000); // 5 seconds for slower animation
   };
 
   // Function to handle skill level-up
@@ -852,9 +1054,28 @@ const App: React.FC = () => {
   };
 
   // Helper function to award objective reward
-  const awardObjectiveReward = (reward: ObjectiveReward) => {
+  const awardObjectiveReward = (reward: ObjectiveReward, contextKey?: string) => {
+    // Create a unique key for this reward with context to prevent duplicates
+    const rewardKey = contextKey 
+      ? `${contextKey}-${reward.type}-${reward.value || 0}-${reward.skillName || ''}`
+      : `${reward.type}-${reward.value || 0}-${reward.skillName || ''}`;
+    
+    // Check if this exact reward with context was already awarded
+    if (awardedRewards.current.has(rewardKey)) {
+      console.log('Reward already awarded (with context), skipping:', rewardKey);
+      return;
+    }
+    
+    // Mark as awarded immediately
+    awardedRewards.current.add(rewardKey);
+    
     // Trigger reward animation
     triggerRewardAnimation(reward);
+    
+    // Clean up after 5 seconds
+    setTimeout(() => {
+      awardedRewards.current.delete(rewardKey);
+    }, 5000);
     
     // Award the reward based on type
     if (reward.type === 'coins') {
@@ -945,11 +1166,8 @@ const App: React.FC = () => {
       const rewardKey = `quest-${questId}-reward-${index}`;
       if (!awardedRewards.current.has(rewardKey)) {
         awardedRewards.current.add(rewardKey);
-        awardObjectiveReward(reward);
-        // Clean up after 5 seconds
-        setTimeout(() => {
-          awardedRewards.current.delete(rewardKey);
-        }, 5000);
+        // Pass context key to awardObjectiveReward for better duplicate prevention
+        awardObjectiveReward(reward, rewardKey);
       }
     });
   };
@@ -1039,12 +1257,8 @@ const App: React.FC = () => {
     if (objective.reward && !rewardAlreadyAwarded && !awardedRewards.current.has(rewardKey)) {
       // Mark as awarded immediately to prevent duplicates
       awardedRewards.current.add(rewardKey);
-      awardObjectiveReward(objective.reward);
-      
-      // Clean up after 5 seconds to allow same reward to be awarded again if needed (unlikely but safe)
-      setTimeout(() => {
-        awardedRewards.current.delete(rewardKey);
-      }, 5000);
+      // Pass context key to awardObjectiveReward for better duplicate prevention
+      awardObjectiveReward(objective.reward, rewardKey);
     }
 
     setQuestsState(prevQuests =>
@@ -1189,13 +1403,9 @@ const App: React.FC = () => {
         if (!awardedRewards.current.has(rewardKey)) {
           // Mark as awarded immediately to prevent duplicates
           awardedRewards.current.add(rewardKey);
-          awardObjectiveReward(rewardRef.value);
+          // Pass context key to awardObjectiveReward for better duplicate prevention
+          awardObjectiveReward(rewardRef.value, rewardKey);
           console.log('Reward awarded for objective:', objectiveIndex);
-          
-          // Clean up after 5 seconds to allow same reward to be awarded again if needed (unlikely but safe)
-          setTimeout(() => {
-            awardedRewards.current.delete(rewardKey);
-          }, 5000);
         } else {
           console.log('Reward already awarded, skipping duplicate:', rewardKey);
         }
@@ -1792,13 +2002,39 @@ const App: React.FC = () => {
     return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
   };
 
-  const ItemsListOverlay: React.FC = () => {
-    // Sort items by date (newest first)
-    const sortedItems = [...backpackItems].sort((a, b) => {
+  // Sort items: first by usage (used -> not used -> expired), then by time
+  const sortItems = (items: BackpackItem[]): BackpackItem[] => {
+    return [...items].sort((a, b) => {
+      const expiredA = isItemExpired(a.date);
+      const expiredB = isItemExpired(b.date);
+      const usedA = a.used;
+      const usedB = b.used;
+      
+      // Determine priority: used = 0, not used = 1, expired = 2
+      const getPriority = (used: boolean, expired: boolean): number => {
+        if (used) return 0;
+        if (expired) return 2;
+        return 1;
+      };
+      
+      const priorityA = getPriority(usedA, expiredA);
+      const priorityB = getPriority(usedB, expiredB);
+      
+      // First sort by usage status
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
+      // If same priority, sort by time (nearest/soonest first)
       const dateA = parseDate(a.date);
       const dateB = parseDate(b.date);
-      return dateB.getTime() - dateA.getTime(); // Newest first
+      return dateA.getTime() - dateB.getTime();
     });
+  };
+
+  const ItemsListOverlay: React.FC = () => {
+    // Sort items by usage status, then by time
+    const sortedItems = sortItems(backpackItems);
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center animate-fade-in">
@@ -1813,26 +2049,62 @@ const App: React.FC = () => {
             >
               <X size={20} />
             </button>
-              </div>
+          </div>
 
           {/* Items List */}
           <div className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-            {sortedItems.map((item) => (
-              <div 
-                key={item.id}
-                className="flex items-center gap-3 p-4 bg-white rounded-xl mb-3 shadow-sm border border-gray-100"
-              >
-                <img src={item.image} alt={item.name} className="w-16 h-12 object-contain rounded-lg" />
-                <div className="flex-1">
-                  <div className="font-semibold text-base mb-1">{item.name}</div>
-                  <div className="text-sm text-gray-600 mb-1">{item.description}</div>
-                  <div className="text-xs text-gray-500">{item.date}</div>
+            {sortedItems.map((item) => {
+              const isUsed = item.used;
+              const timePassed = hasItemTimePassed(item.date);
+              const expired = isItemExpired(item.date);
+              
+              // Determine background color
+              let backgroundColor = 'white';
+              if (isUsed) {
+                backgroundColor = '#e3cd0b'; // Yellow for used
+              } else if (expired) {
+                backgroundColor = '#ef4444'; // Red for expired
+              }
+              
+              return (
+                <div 
+                  key={item.id}
+                  className="flex items-center gap-3 p-4 rounded-xl mb-3 shadow-sm border border-gray-100"
+                  style={{ backgroundColor }}
+                >
+                  <img src={item.image} alt={item.name} className="w-16 h-12 object-contain rounded-lg" />
+                  <div className="flex-1">
+                    <div className="font-semibold text-base mb-1">{item.name}</div>
+                    <div className="text-sm text-gray-600 mb-1">{item.description}</div>
+                    <div className="text-xs text-gray-500">{item.date}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-sm bg-gray-100 px-3 py-1 rounded-full font-semibold">
+                      x{item.quantity}
+                    </div>
+                    {expired && !isUsed && (
+                      <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600 transition-colors"
+                      >
+                        Delete
+                      </button>
+                    )}
+                    {!expired && !isUsed && (
+                      <button
+                        onClick={() => handleUseItem(item.id)}
+                        className="px-3 py-1.5 bg-blue-500 text-white text-xs font-semibold rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Use
+                      </button>
+                    )}
+                    {isUsed && (
+                      <span className="text-xs text-gray-600 font-semibold">Used</span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-sm bg-gray-100 px-3 py-1 rounded-full font-semibold">
-                  x{item.quantity}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -2149,8 +2421,8 @@ const App: React.FC = () => {
       {/* Backpack Section */}
       <div className="px-4 mb-4">
         <h2 className="font-bold text-lg mb-3">Items in Backpack</h2>
-        {backpackItems.map((item, index) => (
-          <BackpackItemComponent key={index} item={item} />
+        {sortItems(backpackItems).slice(0, 3).map((item) => (
+          <BackpackItemComponent key={item.id} item={item} onUse={handleUseItem} onDelete={handleDeleteItem} />
         ))}
         <button 
           className="w-full bg-blue-500 text-white py-3 rounded-xl font-medium hover:bg-blue-600 transition-colors"
