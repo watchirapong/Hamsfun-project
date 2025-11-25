@@ -2365,14 +2365,14 @@ const App: React.FC = () => {
                 {/* Front of Card */}
                 <div className="flip-card-front bg-white rounded-xl p-3 sm:p-4 shadow-md border border-gray-200 flex flex-col w-full h-full">
                   {/* Rank Icon/Badge */}
-                  <div className="flex justify-center mb-2">
+                  <div className="flex justify-center mb-3">
                     <img 
                       src={user.badge} 
                       alt="Rank Badge" 
-                      className="w-16 h-16 sm:w-20 sm:h-20 object-contain" 
+                      className="w-20 h-20 sm:w-24 sm:h-24 object-contain" 
                     />
                   </div>
-                  <h3 className="font-bold text-lg sm:text-xl text-center mb-2 sm:mb-3 truncate">{user.rankName}</h3>
+                  <h3 className="font-bold text-lg sm:text-xl text-center mb-3 sm:mb-4 truncate">{user.rankName}</h3>
                   <div className="flex-1 flex flex-col justify-center">
                     <div className="w-full bg-gray-200 rounded-full h-2 mb-1.5">
                       <div 
@@ -2381,7 +2381,7 @@ const App: React.FC = () => {
                       ></div>
                     </div>
                     <div className="text-xs sm:text-sm text-gray-700 text-center">
-                      {user.rankPoints}/100 rp
+                      {user.rankPoints}/100 RP
                     </div>
                   </div>
                 </div>
@@ -2421,7 +2421,7 @@ const App: React.FC = () => {
                             </span>
                             {showProgress && !isCompleted && (
                               <div className="text-xs text-gray-500 mt-1">
-                                Progress: {user.rankPoints}/100 rp
+                                Progress: {user.rankPoints}/100 RP
                               </div>
                             )}
                             {objective.coinCost && !isCompleted && (
