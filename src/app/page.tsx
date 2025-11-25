@@ -632,8 +632,8 @@ const App: React.FC = () => {
     // Use objectives count instead of steps
     const totalObjectives = quest.objectives.length;
     const completedObjectives = quest.objectiveCompleted.filter(completed => completed).length;
-    
-    return (
+
+  return (
       <div 
         className={`bg-white rounded-xl p-4 mb-3 shadow-sm border border-gray-100 cursor-pointer transition-all ${
           isCompleted 
@@ -672,7 +672,7 @@ const App: React.FC = () => {
                       : 'bg-gray-200 text-gray-600'
                   }`}>
                     {index + 1}
-                  </div>
+          </div>
                   {index < totalObjectives - 1 && (
                     <div className={`h-0.5 flex-1 ${isStepCompleted ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
                   )}
@@ -723,7 +723,7 @@ const App: React.FC = () => {
           }}
         >
           <skill.icon size={24} style={{ color: currentLevelColor }} />
-        </div>
+              </div>
         <span className="text-xs text-center">{skill.name}</span>
         
         {/* XP Progress Bar */}
@@ -892,8 +892,8 @@ const App: React.FC = () => {
           )}
           {isUsed && (
             <span className="text-xs text-gray-600 font-semibold">Used</span>
-          )}
-        </div>
+            )}
+          </div>
       </div>
     );
   };
@@ -2114,7 +2114,7 @@ const App: React.FC = () => {
             >
               <X size={20} />
             </button>
-          </div>
+              </div>
 
           {/* Items List */}
           <div className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -2153,8 +2153,8 @@ const App: React.FC = () => {
                         className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600 transition-colors"
                       >
                         Delete
-                      </button>
-                    )}
+            </button>
+          )}
                     {!expired && !isUsed && (
                       <button
                         onClick={() => handleUseItem(item.id)}
@@ -2165,9 +2165,9 @@ const App: React.FC = () => {
                     )}
                     {isUsed && (
                       <span className="text-xs text-gray-600 font-semibold">Used</span>
-                    )}
-                  </div>
-                </div>
+          )}
+        </div>
+      </div>
               );
             })}
           </div>
@@ -2312,7 +2312,7 @@ const App: React.FC = () => {
                     setIsEditingDescription(false);
                   }
                 }}
-                className="text-sm font-medium bg-transparent border-b-2 border-blue-500 outline-none focus:border-blue-600 px-1 min-w-[200px]"
+                className="text-sm font-medium text-black bg-white border-b-2 border-blue-500 outline-none focus:border-blue-600 px-2 py-1 rounded shadow-sm min-w-[200px]"
                 autoFocus
               />
             ) : (
@@ -2320,14 +2320,14 @@ const App: React.FC = () => {
                 className="flex items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity group"
                 onClick={() => setIsEditingDescription(true)}
               >
-                <span className="text-sm font-medium">{description}</span>
+                <span className="text-sm font-medium text-black bg-white px-2 py-1 rounded shadow-sm">{description}</span>
                 <Edit2 size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             )}
           </div>
           <div className="flex items-center gap-1">
             <span className="text-yellow-500">💰</span>
-            <span className="font-bold">{user.coins}</span>
+            <span className="font-bold text-black bg-white px-2 py-1 rounded shadow-sm">{user.coins}</span>
           </div>
         </div>
       </div>
@@ -2340,7 +2340,7 @@ const App: React.FC = () => {
             <img src={user.avatar} alt="Pet" className="w-32 h-32 sm:w-40 sm:h-40 object-contain" />
             <div className="mt-3 w-full max-w-[200px]">
               <div className="text-center mb-1">
-                <span className="text-base font-bold">Lv {user.petLevel}</span>
+                <span className="text-base font-bold text-black">Lv {user.petLevel}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
                 <div 
@@ -2369,7 +2369,7 @@ const App: React.FC = () => {
                     <img 
                       src={user.badge} 
                       alt="Rank Badge" 
-                      className="w-20 h-20 sm:w-24 sm:h-24 object-contain" 
+                      className="w-32 h-32 sm:w-36 sm:h-36 object-contain" 
                     />
                   </div>
                   <h3 className="font-bold text-lg sm:text-xl text-center mb-3 sm:mb-4 truncate">{user.rankName}</h3>
