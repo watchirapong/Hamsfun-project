@@ -647,10 +647,11 @@ const App: React.FC = () => {
       >
         <div className="flex justify-between items-start mb-2">
           <div>
-            <span className="text-xs font-semibold text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
+            <span className="text-xs font-semibold text-[#BF5475] py-1 rounded-full flex items-center gap-1">
+              <img src="/Asset/check-circle.png" alt="" className="w-3 h-3" />
               {quest.type}
             </span>
-            <h3 className="font-bold text-lg mt-1">{quest.title}</h3>
+            <h3 className="font-bold text-black text-lg mt-1">{quest.title}</h3>
             <p className="text-gray-600 text-sm">{quest.description}</p>
           </div>
         </div>
@@ -667,12 +668,12 @@ const App: React.FC = () => {
                 <React.Fragment key={index}>
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
                     isStepCompleted
-                      ? 'bg-blue-500 text-white' 
+                      ? 'bg-[#4CCC51] text-white' 
                       : 'bg-gray-200 text-gray-600'
                   }`}>
                     {index + 1}
           </div>
-                  <div className={`h-0.5 flex-1 ${isStepCompleted ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
+                  <div className={`h-0.5 flex-1 ${isStepCompleted ? 'bg-[#4CCC51]' : 'bg-gray-200'}`}></div>
                 </React.Fragment>
               );
             })}
@@ -845,10 +846,10 @@ const App: React.FC = () => {
           </div>
       <img src={item.avatar} alt={item.name} className="w-8 h-8 rounded-full" />
       <div className="flex-1">
-        <div className="font-semibold text-sm">{item.name}</div>
+        <div className="font-semibold text-sm text-black">{item.name}</div>
         <div className="text-xs text-gray-500">Dogv Lv{item.level}</div>
       </div>
-      <div className="font-bold text-sm">{item.score}</div>
+      <div className="font-bold text-sm text-black">{item.score}</div>
     </div>
   );
 
@@ -872,7 +873,7 @@ const App: React.FC = () => {
       >
         <img src={item.image} alt={item.name} className="w-20 h-14 object-contain" />
         <div className="flex-1">
-          <div className="font-semibold text-sm">{item.name}</div>
+          <div className="font-semibold text-sm text-black">{item.name}</div>
           <div className="text-xs text-gray-500">{item.description}</div>
           <div className="text-xs text-gray-500">{item.date}</div>
         </div>
@@ -2380,7 +2381,7 @@ const App: React.FC = () => {
                       className="w-56 h-56 sm:w-56 sm:h-56 object-contain" 
                     />
                   </div>
-                  <h2 className="font-bold text-2xl sm:text-3xl text-center truncate -mt-8">{user.rankName}</h2>
+                  <h2 className="font-bold text-2xl sm:text-3xl text-center text-black truncate -mt-8">{user.rankName}</h2>
                   <div className="flex flex-col">
                     <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                       <div 
@@ -2470,7 +2471,7 @@ const App: React.FC = () => {
 
       {/* Skills Section */}
       <div className="px-4 mb-4">
-        <h2 className="font-bold text-lg mb-3">Complete tasks and Badge</h2>
+        <h2 className="font-bold text-black text-lg mb-3">Complete tasks and Badge</h2>
         <div className="grid grid-cols-4 gap-4">
           {skills.map((skill, index) => (
             <SkillCard key={index} skill={skill} />
@@ -2480,9 +2481,6 @@ const App: React.FC = () => {
 
       {/* Quests Section */}
       <div className="px-4 mb-4">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="font-bold text-lg">Quests</h2>
-        </div>
         {/* Show first 2 uncompleted quests on main page (including those with all objectives done but reward not claimed) */}
         {questsState
           .filter(quest => !isQuestTrulyCompleted(quest))
@@ -2503,7 +2501,7 @@ const App: React.FC = () => {
 
       {/* Leaderboard Section */}
       <div className="px-4 mb-4">
-        <h2 className="font-bold text-lg mb-3">Leader Board</h2>
+        <h2 className="font-bold text-lg mb-3 text-black">Leader Board</h2>
         {leaderboard.map((item, index) => (
           <LeaderboardItemComponent key={index} item={item} />
         ))}
@@ -2511,7 +2509,7 @@ const App: React.FC = () => {
 
       {/* Backpack Section */}
       <div className="px-4 mb-4">
-        <h2 className="font-bold text-lg mb-3">Items in Backpack</h2>
+        <h2 className="font-bold text-lg mb-3 text-black">Items in Backpack</h2>
         {sortItems(backpackItems).slice(0, 3).map((item) => (
           <BackpackItemComponent key={item.id} item={item} onUse={handleUseItem} onDelete={handleDeleteItem} />
         ))}
