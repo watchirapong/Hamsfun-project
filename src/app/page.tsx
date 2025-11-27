@@ -223,15 +223,14 @@ const App: React.FC = () => {
       currentStep: 0,
       completed: false,
       rewards: [
-        { type: 'exp', value: 5000 },
-        { type: 'animal', value: 'ANIMAL APPEAR!' },
+        { type: 'rank', value: 5000 },
         { type: 'coins', value: 300 }
       ],
       objectives: [
         { text: "Map Layout", reward: { type: 'coins', value: 30 } },
-        { text: "Enemy Script", reward: { type: 'exp', value: 5000 } },
+        { text: "Enemy Script", reward: { type: 'rank', value: 5000 } },
         { text: "Map Layout", reward: { type: 'coins', value: 50 } },
-        { text: "Sound Effect", reward: { type: 'animal', value: 'ANIMAL APPEAR!' } }
+        { text: "Sound Effect", reward: { type: 'coins', value: 30 } }
       ],
       objectiveCompleted: [false, false, false, false],
       objectiveSubmissions: [
@@ -253,12 +252,12 @@ const App: React.FC = () => {
       description: "Light in the cave",
       rewards: [
         { type: 'coins', value: 50 },
-        { type: 'exp', value: 500 }
+        { type: 'rank', value: 500 }
       ],
       completed: false,
       objectives: [
         { text: "Set up basic lighting", reward: { type: 'coins', value: 30 } },
-        { text: "Adjust light intensity", reward: { type: 'exp', value: 2500 } },
+        { text: "Adjust light intensity", reward: { type: 'rank', value: 2500 } },
         { text: "Create ambient occlusion", reward: { type: 'skill', value: 150, skillName: 'Drawing' } },
         { text: "Test in different scenes", reward: { type: 'coins', value: 25 } }
       ],
@@ -282,15 +281,15 @@ const App: React.FC = () => {
       description: "1 cutscene (Demo)",
       rewards: [
         { type: 'coins', value: 100 },
-        { type: 'exp', value: 800 },
+        { type: 'rank', value: 800 },
         { type: 'skill', value: 300, skillName: 'Level Design' }
       ],
       completed: false,
       objectives: [
-        { text: "Create timeline asset", reward: { type: 'exp', value: 4000 } },
+        { text: "Create timeline asset", reward: { type: 'rank', value: 4000 } },
         { text: "Add camera movements", reward: { type: 'coins', value: 40 } },
         { text: "Add character animations", reward: { type: 'skill', value: 200, skillName: 'Level Design' } },
-        { text: "Add audio cues", reward: { type: 'exp', value: 3000 } }
+        { text: "Add audio cues", reward: { type: 'rank', value: 3000 } }
       ],
       objectiveCompleted: [false, false, false, false],
       objectiveSubmissions: [
@@ -315,13 +314,13 @@ const App: React.FC = () => {
       completed: false,
       rewards: [
         { type: 'coins', value: 150 },
-        { type: 'exp', value: 1200 },
+        { type: 'rank', value: 1200 },
         { type: 'rank', value: 25 },
         { type: 'skill', value: 400, skillName: 'C# Programming' }
       ],
       objectives: [
         { text: "Create enemy prefab", reward: { type: 'coins', value: 30 } },
-        { text: "Implement patrol behavior", reward: { type: 'exp', value: 5000 } },
+        { text: "Implement patrol behavior", reward: { type: 'rank', value: 5000 } },
         { text: "Add chase logic", reward: { type: 'coins', value: 50 } },
         { text: "Test against player", reward: { type: 'skill', value: 250, skillName: 'C# Programming' } }
       ],
@@ -345,13 +344,13 @@ const App: React.FC = () => {
       description: "Create game menu",
       rewards: [
         { type: 'coins', value: 75 },
-        { type: 'exp', value: 600 },
+        { type: 'rank', value: 600 },
         { type: 'skill', value: 250, skillName: 'Game Design' }
       ],
       completed: false,
       objectives: [
         { text: "Design main menu layout", reward: { type: 'coins', value: 30 } },
-        { text: "Add button functionality", reward: { type: 'exp', value: 3500 } },
+        { text: "Add button functionality", reward: { type: 'rank', value: 3500 } },
         { text: "Implement settings panel", reward: { type: 'coins', value: 50 } },
         { text: "Test usability", reward: { type: 'skill', value: 180, skillName: 'Game Design' } }
       ],
@@ -375,13 +374,13 @@ const App: React.FC = () => {
       description: "Add ambient sounds",
       rewards: [
         { type: 'coins', value: 60 },
-        { type: 'exp', value: 550 },
+        { type: 'rank', value: 550 },
         { type: 'rank', value: 15 }
       ],
       completed: false,
       objectives: [
         { text: "Import sound assets", reward: { type: 'coins', value: 20 } },
-        { text: "Set up audio sources", reward: { type: 'exp', value: 2500 } },
+        { text: "Set up audio sources", reward: { type: 'rank', value: 2500 } },
         { text: "Configure spatial audio", reward: { type: 'skill', value: 120, skillName: 'Drawing' } },
         { text: "Test in different environments", reward: { type: 'coins', value: 30 } }
       ],
