@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Trophy, Gamepad2, Monitor, Paintbrush, Code, ChevronRight, Star, Crown, Users, Ticket, Coins, X, Check, Edit2 } from 'lucide-react';
+import { Trophy, Gamepad2, Monitor, Paintbrush, Code, ChevronRight, Star, Crown, Users, Ticket, Coins, X, Check, Edit2, Gift } from 'lucide-react';
 
 interface RankObjective {
   text: string;
@@ -70,7 +70,7 @@ interface User {
 interface Skill {
   name: string;
   icon: React.ComponentType<any>;
-  currentLevel: number; // 1=Bronze, 2=Silver, 3=Gold, 4=Diamond
+  currentLevel: number; // 1=Unranked, 2=Bronze, 3=Silver, 4=Gold, 5=Diamond
   points: number;
   maxPoints: number;
   description: string;
@@ -515,7 +515,7 @@ const App: React.FC = () => {
       description: "Dojo Basic Lighting",
       date: "20/11/2025 (19:00-21:00)",
       quantity: 1,
-      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      image: "/Asset/item/classTicket.png",
       used: false,
       active: false
     },
@@ -525,7 +525,7 @@ const App: React.FC = () => {
       description: "Dojo Basic Programming",
       date: "21/11/2025 (19:00-21:00)",
       quantity: 1,
-      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      image: "/Asset/item/classTicket.png",
       used: false,
       active: false
     },
@@ -535,7 +535,7 @@ const App: React.FC = () => {
       description: "Advanced Game Mechanics",
       date: "30/11/2025 (14:00-16:00)",
       quantity: 1,
-      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      image: "/Asset/item/classTicket.png",
       used: false,
       active: false
     },
@@ -545,7 +545,7 @@ const App: React.FC = () => {
       description: "Environment Creation Workshop",
       date: "01/12/2025 (10:00-12:00)",
       quantity: 1,
-      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      image: "/Asset/item/classTicket.png",
       used: false,
       active: false
     },
@@ -555,7 +555,7 @@ const App: React.FC = () => {
       description: "Character Design Masterclass",
       date: "05/12/2025 (15:00-17:00)",
       quantity: 1,
-      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      image: "/Asset/item/classTicket.png",
       used: false,
       active: false
     },
@@ -565,7 +565,7 @@ const App: React.FC = () => {
       description: "Unity Basics Workshop",
       date: "10/12/2025 (18:00-20:00)",
       quantity: 1,
-      image: "https://placehold.co/60x40/FFD700/000000?text=TICKET",
+      image: "/Asset/item/classTicket.png",
       used: false,
       active: false
     }
@@ -656,7 +656,7 @@ const App: React.FC = () => {
           </div>
         </div>
         
-        {/* Step indicators based on objectives */}
+        {/* Step indicators based on objectives + reward step */}
         {totalObjectives > 0 && (
           <div className="flex items-center gap-1 mt-3">
             {Array.from({ length: totalObjectives }).map((_, index) => {
@@ -673,12 +673,18 @@ const App: React.FC = () => {
                   }`}>
                     {index + 1}
           </div>
-                  {index < totalObjectives - 1 && (
-                    <div className={`h-0.5 flex-1 ${isStepCompleted ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
-                  )}
+                  <div className={`h-0.5 flex-1 ${isStepCompleted ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
                 </React.Fragment>
               );
             })}
+            {/* Reward step at the end */}
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+              quest.rewardClaimed
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-200 text-gray-600'
+            }`}>
+              <Gift size={14} />
+            </div>
           </div>
         )}
       </div>
@@ -686,11 +692,12 @@ const App: React.FC = () => {
   };
 
   const SkillCard: React.FC<{ skill: Skill }> = ({ skill }) => {
-    // Define level colors to match BadgeOverlay
-    const levelColors = ["#CD7F32", "#C0C0C0", "#FFD700", "#B9F2FF"];
+    // Define level colors to match BadgeOverlay: Unranked, Bronze, Silver, Gold, Diamond
+    const levelColors = ["#9CA3AF", "#CD7F32", "#C0C0C0", "#FFD700", "#B9F2FF"];
     const currentLevelColor = levelColors[skill.currentLevel - 1];
     const xpPercentage = (skill.points / skill.maxPoints) * 100;
     const isLevelingUp = levelUpAnimations.has(skill.name);
+    const isDiamond = skill.currentLevel === 5; // Diamond has no progression
 
   return (
       <div 
@@ -713,7 +720,7 @@ const App: React.FC = () => {
         
         {/* Circular icon with colored border */}
         <div 
-          className={`w-12 h-12 rounded-full flex items-center justify-center border-4 transition-all duration-500 ${
+          className={`w-16 h-16 rounded-full flex items-center justify-center border-4 transition-all duration-500 ${
             isLevelingUp ? 'scale-125 shadow-lg' : ''
           }`}
           style={{ 
@@ -722,23 +729,21 @@ const App: React.FC = () => {
             boxShadow: isLevelingUp ? `0 0 20px ${currentLevelColor}` : 'none'
           }}
         >
-          <skill.icon size={24} style={{ color: currentLevelColor }} />
-              </div>
-        <span className="text-xs text-center">{skill.name}</span>
-        
-        {/* XP Progress Bar */}
-        <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1">
-          <div 
-            className="h-full bg-green-500 transition-all duration-500 ease-out"
-            style={{ 
-              width: `${Math.min(100, xpPercentage)}%`,
-              boxShadow: isLevelingUp ? '0 0 10px #10b981' : 'none'
-            }}
-          />
+          <skill.icon size={32} style={{ color: currentLevelColor }} />
         </div>
-        <span className="text-[10px] text-gray-500 mt-0.5">
-          {skill.points.toLocaleString()} / {skill.maxPoints.toLocaleString()}
-        </span>
+        
+        {/* XP Progress Bar - Hidden for Diamond level */}
+        {!isDiamond && (
+          <div className="w-3/4 h-1.5 bg-gray-200 rounded-full overflow-hidden mt-1">
+            <div 
+              className="h-full bg-green-500 transition-all duration-500 ease-out"
+              style={{ 
+                width: `${Math.min(100, xpPercentage)}%`,
+                boxShadow: isLevelingUp ? '0 0 10px #10b981' : 'none'
+              }}
+            />
+          </div>
+        )}
       </div>
     );
   };
@@ -866,7 +871,7 @@ const App: React.FC = () => {
         className={`flex items-center gap-3 p-3 rounded-xl mb-2 shadow-sm border border-gray-100`}
         style={{ backgroundColor }}
       >
-        <img src={item.image} alt={item.name} className="w-12 h-8 object-contain" />
+        <img src={item.image} alt={item.name} className="w-20 h-14 object-contain" />
         <div className="flex-1">
           <div className="font-semibold text-sm">{item.name}</div>
           <div className="text-xs text-gray-500">{item.description}</div>
@@ -1197,7 +1202,8 @@ const App: React.FC = () => {
             let newMaxPoints = oldMaxPoints;
             
             // Check if skill should level up (points reached maxPoints)
-            if (newPoints >= oldMaxPoints && oldLevel < 4) {
+            // Cap at level 5 (Diamond) - no progression after Diamond
+            if (newPoints >= oldMaxPoints && oldLevel < 5) {
               newLevel = oldLevel + 1;
               newMaxPoints = 10000 * newLevel;
               
@@ -1208,7 +1214,8 @@ const App: React.FC = () => {
             }
             
             // Cap points at maxPoints for current level (don't exceed until level up)
-            const cappedPoints = newPoints >= newMaxPoints ? newMaxPoints : newPoints;
+            // Diamond (level 5) doesn't accumulate points
+            const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
             
             return {
               ...skill,
@@ -1695,7 +1702,7 @@ const App: React.FC = () => {
                       } else if (reward.type === 'coins' && typeof reward.value === 'number') {
                         return (
                           <div className="flex flex-col items-center">
-                            <div className="text-2xl">💰</div>
+                            <img src="/Asset/item/coin.png" alt="Coins" className="w-8 h-8 object-contain" />
                             <div className="text-xs font-semibold">x{reward.value}</div>
                           </div>
                         );
@@ -1827,7 +1834,7 @@ const App: React.FC = () => {
                               </div>
                             ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
                               <>
-                                <div className="text-3xl mb-2">💰</div>
+                                <img src="/Asset/item/coin.png" alt="Coins" className="w-10 h-10 object-contain mb-2" />
                                 <div className="text-sm font-semibold">x{reward.value}</div>
                               </>
                             ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
@@ -1927,7 +1934,7 @@ const App: React.FC = () => {
                       } else if (reward.type === 'coins' && typeof reward.value === 'number') {
                         return (
                           <div className="flex flex-col items-center">
-                            <div className="text-2xl">💰</div>
+                            <img src="/Asset/item/coin.png" alt="Coins" className="w-8 h-8 object-contain" />
                             <div className="text-xs font-semibold">x{reward.value}</div>
                           </div>
                         );
@@ -2010,7 +2017,7 @@ const App: React.FC = () => {
                               </div>
                             ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
                               <>
-                                <div className="text-3xl mb-2">💰</div>
+                                <img src="/Asset/item/coin.png" alt="Coins" className="w-10 h-10 object-contain mb-2" />
                                 <div className="text-sm font-semibold">x{reward.value}</div>
                               </>
                             ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
@@ -2137,7 +2144,7 @@ const App: React.FC = () => {
                   className="flex items-center gap-3 p-4 rounded-xl mb-3 shadow-sm border border-gray-100"
                   style={{ backgroundColor }}
                 >
-                  <img src={item.image} alt={item.name} className="w-16 h-12 object-contain rounded-lg" />
+                  <img src={item.image} alt={item.name} className="w-24 h-18 object-contain rounded-lg" />
                   <div className="flex-1">
                     <div className="font-semibold text-base mb-1">{item.name}</div>
                     <div className="text-sm text-gray-600 mb-1">{item.description}</div>
@@ -2183,11 +2190,14 @@ const App: React.FC = () => {
   const BadgeOverlay: React.FC = () => {
     if (!selectedSkill) return null;
 
-    // Define level names and colors
+    // Define level names and colors: Bronze, Silver, Gold, Diamond (Unranked has no badge)
     const levelNames = ["Bronze", "Silver", "Gold", "Diamond"];
     const levelColors = ["#CD7F32", "#C0C0C0", "#FFD700", "#B9F2FF"];
-    const currentLevelName = levelNames[selectedSkill.currentLevel - 1];
-    const currentLevelColor = levelColors[selectedSkill.currentLevel - 1];
+    // Map skill level to badge index: level 1=Unranked (no badge), level 2=Bronze (index 0), etc.
+    const badgeIndex = selectedSkill.currentLevel - 2; // -1 for Unranked, 0 for Bronze, etc.
+    const currentLevelName = badgeIndex >= 0 ? levelNames[badgeIndex] : "Unranked";
+    const currentLevelColor = badgeIndex >= 0 ? levelColors[badgeIndex] : "#9CA3AF";
+    const isDiamond = selectedSkill.currentLevel === 5; // Diamond has no progression
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center animate-fade-in">
@@ -2211,41 +2221,51 @@ const App: React.FC = () => {
               <p className="text-gray-600 text-sm">{selectedSkill.description}</p>
             </div>
 
-            {/* Progress Circle */}
-            <div className="flex justify-center mb-6">
-              <div className="relative w-40 h-40">
-                {/* Outer circle */}
-                <div className="absolute inset-0 rounded-full border-8 border-blue-100"></div>
-                {/* Inner circle with progress */}
-                <div className="absolute inset-0 rounded-full flex items-center justify-center">
-                  <div className="w-32 h-32 rounded-full bg-white flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold">{selectedSkill.points.toLocaleString()}</div>
-                      <div className="text-gray-600">/ {selectedSkill.maxPoints.toLocaleString()}</div>
+            {/* Progress Circle - Hidden for Diamond level */}
+            {!isDiamond && (
+              <div className="flex justify-center mb-6">
+                <div className="relative w-40 h-40">
+                  {/* Outer circle */}
+                  <div className="absolute inset-0 rounded-full border-8 border-blue-100"></div>
+                  {/* Inner circle with progress */}
+                  <div className="absolute inset-0 rounded-full flex items-center justify-center">
+                    <div className="w-32 h-32 rounded-full bg-white flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold">{selectedSkill.points.toLocaleString()}</div>
+                        <div className="text-gray-600">/ {selectedSkill.maxPoints.toLocaleString()}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Level Badges */}
+            {/* Level Badges - Only show Bronze, Silver, Gold, Diamond (no Unranked badge) */}
             <div className="flex justify-center gap-2 mb-6">
-              {levelNames.map((levelName, index) => (
-                <div 
-                  key={index} 
-                  className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                    index + 1 <= selectedSkill.currentLevel 
-                      ? `border-4 border-${index === 0 ? 'amber' : index === 1 ? 'gray' : index === 2 ? 'yellow' : 'blue'}-500`
-                      : 'border-2 border-gray-300'
-                  }`}
-                  style={{ 
-                    backgroundColor: index + 1 <= selectedSkill.currentLevel ? levelColors[index] : '#f3f4f6',
-                    color: index + 1 <= selectedSkill.currentLevel ? 'white' : 'black'
-                  }}
-                >
-                  <span className="text-xs font-bold">{levelName[0]}</span>
-                </div>
-              ))}
+              {levelNames.map((levelName, index) => {
+                // Badge index corresponds to skill level - 2 (Bronze = level 2 = index 0)
+                const badgeLevel = index + 2; // Bronze is level 2, Silver is level 3, etc.
+                const isUnlocked = badgeLevel <= selectedSkill.currentLevel;
+                // Color mapping: Bronze=amber, Silver=gray, Gold=yellow, Diamond=blue
+                const borderColorClass = index === 0 ? 'amber' : index === 1 ? 'gray' : index === 2 ? 'yellow' : 'blue';
+                
+                return (
+                  <div 
+                    key={index} 
+                    className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                      isUnlocked 
+                        ? `border-4 border-${borderColorClass}-500`
+                        : 'border-2 border-gray-300'
+                    }`}
+                    style={{ 
+                      backgroundColor: isUnlocked ? levelColors[index] : '#f3f4f6',
+                      color: isUnlocked ? 'white' : 'black'
+                    }}
+                  >
+                    <span className="text-xs font-bold">{levelName[0]}</span>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Rewards Section */}
@@ -2267,7 +2287,7 @@ const App: React.FC = () => {
                       </div>
                     ) : (
                       <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-2">
-                        <Coins size={24} className="text-yellow-500" />
+                        <img src="/Asset/item/coin.png" alt="Coins" className="w-6 h-6 object-contain" />
                       </div>
                     )}
                     <div className="text-center text-sm font-medium">
@@ -2326,31 +2346,20 @@ const App: React.FC = () => {
             )}
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-yellow-500">💰</span>
-            <span className="font-bold text-black bg-white px-2 py-1 rounded shadow-sm">{user.coins}</span>
+            <img src="/Asset/item/coin.png" alt="Coins" className="w-6 h-6 object-contain" />
+            <span className="font-bold text-black bg-white px-4 py-2 rounded shadow-sm">{user.coins}</span>
           </div>
         </div>
       </div>
 
       {/* User Profile Section with Rank Card */}
       <div className="p-4 bg-white shadow-sm mb-4">
-        <div className="flex items-start gap-4">
+        <div className="flex items-center gap-6">
           {/* Pet Display on Left */}
-          <div className="flex flex-col items-center flex-1">
-            <img src={user.avatar} alt="Pet" className="w-32 h-32 sm:w-40 sm:h-40 object-contain" />
-            <div className="mt-3 w-full max-w-[200px]">
-              <div className="text-center mb-1">
-                <span className="text-base font-bold text-black">Lv {user.petLevel}</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1">
-                <div 
-                  className="bg-blue-500 h-2.5 rounded-full transition-all duration-300" 
-                  style={{ width: `${Math.min((user.petXp / user.petMaxXp) * 100, 100)}%` }}
-                ></div>
-              </div>
-              <div className="text-xs text-gray-600 text-center">
-                {user.petXp.toLocaleString()}/{user.petMaxXp.toLocaleString()} XP
-              </div>
+          <div className="flex flex-col items-center flex-shrink-0">
+            <img src={user.avatar} alt="Pet" className="w-42 h-42 sm:w-48 sm:h-48 object-contain" />
+            <div className="text-center mt-1">
+              <span className="text-xl font-bold text-black">{user.petLevel}</span>
             </div>
           </div>
           
@@ -2359,24 +2368,24 @@ const App: React.FC = () => {
             <div 
               className={`flip-card cursor-pointer w-full ${rankCardFlipped ? 'flipped' : ''}`}
               onClick={() => setRankCardFlipped(!rankCardFlipped)}
-              style={{ minHeight: '180px' }}
+              style={{ minHeight: '280px' }}
             >
-              <div className="flip-card-inner" style={{ minHeight: '180px' }}>
+              <div className="flip-card-inner" style={{ minHeight: '280px' }}>
                 {/* Front of Card */}
-                <div className="flip-card-front bg-white rounded-xl p-3 sm:p-4 shadow-md border border-gray-200 flex flex-col w-full h-full">
+                <div className="flip-card-front bg-white rounded-xl p-4 shadow-md border border-gray-200 flex flex-col w-full h-full justify-between">
                   {/* Rank Icon/Badge */}
-                  <div className="flex justify-center mb-3">
+                  <div className="flex justify-center -mt-10">
                     <img 
                       src={user.badge} 
                       alt="Rank Badge" 
-                      className="w-32 h-32 sm:w-36 sm:h-36 object-contain" 
+                      className="w-56 h-56 sm:w-56 sm:h-56 object-contain" 
                     />
                   </div>
-                  <h3 className="font-bold text-lg sm:text-xl text-center mb-3 sm:mb-4 truncate">{user.rankName}</h3>
-                  <div className="flex-1 flex flex-col justify-center">
-                    <div className="w-full bg-gray-200 rounded-full h-2 mb-1.5">
+                  <h2 className="font-bold text-2xl sm:text-3xl text-center truncate -mt-8">{user.rankName}</h2>
+                  <div className="flex flex-col">
+                    <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                       <div 
-                        className="bg-gray-500 h-2 rounded-full transition-all duration-300" 
+                        className="bg-green-500 h-2 rounded-full transition-all duration-300" 
                         style={{ width: `${Math.min((user.rankPoints / 100) * 100, 100)}%` }}
                       ></div>
                     </div>
@@ -2463,7 +2472,7 @@ const App: React.FC = () => {
       {/* Skills Section */}
       <div className="px-4 mb-4">
         <h2 className="font-bold text-lg mb-3">Complete tasks and Badge</h2>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-4">
           {skills.map((skill, index) => (
             <SkillCard key={index} skill={skill} />
           ))}
