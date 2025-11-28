@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Trophy, Gamepad2, Monitor, Paintbrush, Code, ChevronRight, Star, Crown, Users, Ticket, Coins, X, Check, Edit2, Gift } from 'lucide-react';
+import { userAPI, questAPI, authAPI, getToken, setToken } from '@/lib/api';
 
 interface RankObjective {
   text: string;
@@ -29,13 +30,26 @@ type RankName = typeof RANKS[number];
 
 // Function to get badge icon path based on skill name and level
 const getBadgeIconPath = (skillName: string, level: number): string => {
-  // Map skill names to folder names
-  const skillFolderMap: { [key: string]: string } = {
-    "Game Design": "gameDesign",
-    "Level Design": "levelDesign",
-    "Drawing": "art",
-    "C# Programming": "programming"
-  };
+  // Normalize skill name (handle variations from API)
+  const normalizedName = skillName.toLowerCase().trim();
+  
+  // Map skill names to folder names (handle various formats from API)
+  let folder = "art"; // default
+  let skillAbbr = "art"; // default
+  
+  if (normalizedName.includes("game") || normalizedName === "gamedesign") {
+    folder = "gameDesign";
+    skillAbbr = "game";
+  } else if (normalizedName.includes("level") || normalizedName === "leveldesign") {
+    folder = "levelDesign";
+    skillAbbr = "level";
+  } else if (normalizedName.includes("art") || normalizedName.includes("drawing")) {
+    folder = "art";
+    skillAbbr = "art";
+  } else if (normalizedName.includes("programming") || normalizedName.includes("program") || normalizedName.includes("prog")) {
+    folder = "programming";
+    skillAbbr = "prog";
+  }
   
   // Map level to tier: 1=u, 2=b, 3=s, 4=g, 5=d
   const tierMap: { [key: number]: string } = {
@@ -46,16 +60,13 @@ const getBadgeIconPath = (skillName: string, level: number): string => {
     5: "d"
   };
   
-  const folder = skillFolderMap[skillName] || "art";
-  const tier = tierMap[level] || "u";
+  // Ensure level is valid (1-5)
+  const validLevel = Math.max(1, Math.min(5, level));
+  const tier = tierMap[validLevel] || "u";
   
-  // Get the skill abbreviation from folder name
-  const skillAbbr = folder === "gameDesign" ? "game" : 
-                    folder === "levelDesign" ? "level" : 
-                    folder === "art" ? "art" : 
-                    "prog";
-  
-  return `/Asset/badge/${folder}/${skillAbbr}_${tier}.png`;
+  const path = `/Asset/badge/${folder}/${skillAbbr}_${tier}.png`;
+  console.log(`getBadgeIconPath: "${skillName}" (normalized: "${normalizedName}") -> folder: "${folder}", abbr: "${skillAbbr}", level: ${level} (tier: "${tier}") -> path: "${path}"`);
+  return path;
 };
 
 // Function to get rank icon path
@@ -204,6 +215,231 @@ const App: React.FC = () => {
   // Ref to track awarded rewards to prevent duplicates when overlay closes
   const awardedRewards = useRef<Set<string>>(new Set());
   
+  // Loading states
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Handle authentication and fetch initial data
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Check for token in URL (from Discord OAuth redirect)
+        const urlParams = new URLSearchParams(window.location.search);
+        const tokenFromUrl = urlParams.get('token');
+        
+        if (tokenFromUrl) {
+          setToken(tokenFromUrl);
+          // Remove token from URL
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+
+        const token = getToken();
+        if (!token) {
+          // No token - redirect to login or show login button
+          setIsLoading(false);
+          return;
+        }
+
+        setIsAuthenticated(true);
+
+        // Fetch user profile
+        try {
+          const profile = await userAPI.getMyProfile();
+          // Map backend profile to frontend User interface
+          setUser({
+            name: profile.username || profile.name || 'User',
+            avatar: profile.avatar || "/Asset/pets/dog.png",
+            badge: getRankIconPath(profile.rank?.currentTier || "Meteor I"),
+            coins: profile.coins || 0,
+            rankPoints: profile.rank?.points || 0,
+            rankName: profile.rank?.currentTier || "Meteor I",
+            gameDemos: profile.gameDemos || 0,
+            petLevel: profile.petLevel || 1,
+            petXp: profile.petXp || 0,
+            petMaxXp: profile.petMaxXp || 1000,
+            rankObjectives: profile.rankObjectives || []
+          });
+
+          // Map badges/skills from backend
+          if (profile.badges) {
+            const skillsMap: { [key: string]: Skill } = {};
+            
+            // Map API skill names to display names and icons
+            const skillNameMap: { [key: string]: { displayName: string; icon: any } } = {
+              "GameDesign": { displayName: "Game Design", icon: Gamepad2 },
+              "gamedesign": { displayName: "Game Design", icon: Gamepad2 },
+              "Game Design": { displayName: "Game Design", icon: Gamepad2 },
+              "LevelDesign": { displayName: "Level Design", icon: Monitor },
+              "leveldesign": { displayName: "Level Design", icon: Monitor },
+              "Level Design": { displayName: "Level Design", icon: Monitor },
+              "Art": { displayName: "Drawing", icon: Paintbrush },
+              "art": { displayName: "Drawing", icon: Paintbrush },
+              "Drawing": { displayName: "Drawing", icon: Paintbrush },
+              "Programming": { displayName: "C# Programming", icon: Code },
+              "programming": { displayName: "C# Programming", icon: Code },
+              "C# Programming": { displayName: "C# Programming", icon: Code },
+              "CSharp": { displayName: "C# Programming", icon: Code },
+              "csharp": { displayName: "C# Programming", icon: Code }
+            };
+            
+            Object.keys(profile.badges).forEach(apiSkillName => {
+              const badgeData = profile.badges[apiSkillName];
+              const skillInfo = skillNameMap[apiSkillName] || { displayName: apiSkillName, icon: Gamepad2 };
+              
+              // Map backend level to frontend level (backend might use 0-based or different system)
+              // Try multiple possible field names from backend
+              let mappedLevel = badgeData.level || 
+                               badgeData.currentLevel || 
+                               badgeData.tier || 
+                               badgeData.rank ||
+                               (badgeData.currentTier ? 
+                                 (badgeData.currentTier === 'Unranked' ? 1 :
+                                  badgeData.currentTier === 'Bronze' ? 2 :
+                                  badgeData.currentTier === 'Silver' ? 3 :
+                                  badgeData.currentTier === 'Gold' ? 4 :
+                                  badgeData.currentTier === 'Diamond' ? 5 : 1) : 1);
+              
+              // Ensure level is between 1-5
+              if (mappedLevel < 1) mappedLevel = 1;
+              if (mappedLevel > 5) mappedLevel = 5;
+              
+              // If backend doesn't provide level, keep the initial level from state
+              // This prevents API from resetting all badges to level 1
+              const existingSkill = skills.find(s => {
+                const normalizedExisting = s.name.toLowerCase().trim();
+                const normalizedNew = skillInfo.displayName.toLowerCase().trim();
+                return normalizedExisting === normalizedNew || 
+                       normalizedExisting.includes(normalizedNew) || 
+                       normalizedNew.includes(normalizedExisting);
+              });
+              if (!badgeData.level && !badgeData.currentLevel && !badgeData.tier && !badgeData.rank && !badgeData.currentTier) {
+                mappedLevel = existingSkill?.currentLevel || mappedLevel;
+              }
+              
+              skillsMap[skillInfo.displayName] = {
+                name: skillInfo.displayName, // Use display name for consistency
+                icon: skillInfo.icon,
+                currentLevel: mappedLevel,
+                points: badgeData.points || 0,
+                maxPoints: badgeData.maxPoints || 10000,
+                description: badgeData.description || "",
+                rewards: badgeData.rewards || []
+              };
+              
+              console.log(`Badge mapping: API name "${apiSkillName}" -> Display name "${skillInfo.displayName}", level ${mappedLevel} (from: ${JSON.stringify(badgeData)}), path: ${getBadgeIconPath(skillInfo.displayName, mappedLevel)}`);
+            });
+            // Update skills state if we have badge data
+            if (Object.keys(skillsMap).length > 0) {
+              setSkills(Object.values(skillsMap));
+            }
+          } else {
+            console.log('No badge data in profile:', profile);
+          }
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+        }
+
+        // Fetch active quests
+        try {
+          const activeQuests = await userAPI.getActiveQuests();
+          // Map backend quests to frontend Quest interface
+          const mappedQuests = activeQuests.map((aq: any) => {
+            const quest = aq.questId;
+            return {
+              id: quest._id,
+              type: quest.type || "Main Quest",
+              title: quest.title,
+              description: quest.description,
+              steps: quest.subQuests?.map((_: any, i: number) => i + 1) || [],
+              currentStep: aq.subQuestsProgress?.filter((p: any) => p.status === 'Completed').length || 0,
+              rewards: quest.completionRewards || [],
+              completed: aq.isCompleted || false,
+              objectives: quest.subQuests?.map((sq: any, idx: number) => ({
+                text: sq.title || sq.description,
+                reward: sq.reward || { type: 'coins', value: 0 }
+              })) || [],
+              objectiveCompleted: aq.subQuestsProgress?.map((p: any) => p.status === 'Completed') || [],
+              objectiveSubmissions: aq.subQuestsProgress?.map((p: any) => ({
+                imageUrl: p.imageProof || null,
+                status: p.status === 'Completed' ? 'approved' : p.status === 'Pending' ? 'pending' : 'none'
+              })) || [],
+              objectiveRewardsAwarded: aq.subQuestsProgress?.map((p: any) => p.rewardAwarded || false) || [],
+              rewardClaimed: aq.submissionStatus === 'Completed',
+              rewardSubmissionStatus: (aq.submissionStatus === 'Pending' ? 'pending' : aq.submissionStatus === 'Completed' ? 'approved' : 'none') as ApprovalStatus,
+              questRewardsAwarded: aq.isCompleted || false,
+              category: quest.category || "General"
+            };
+          });
+          setQuestsState(mappedQuests);
+        } catch (error) {
+          console.error('Error fetching active quests:', error);
+        }
+
+        // Fetch completed quests
+        try {
+          const completedQuests = await userAPI.getCompletedQuests();
+          // Similar mapping as active quests
+          const mappedCompleted = completedQuests.map((cq: any) => {
+            const quest = cq.questId;
+            return {
+              id: quest._id,
+              type: quest.type || "Main Quest",
+              title: quest.title,
+              description: quest.description,
+              steps: quest.subQuests?.map((_: any, i: number) => i + 1) || [],
+              currentStep: quest.subQuests?.length || 0,
+              rewards: quest.completionRewards || [],
+              completed: true,
+              objectives: quest.subQuests?.map((sq: any) => ({
+                text: sq.title || sq.description,
+                reward: sq.reward || { type: 'coins', value: 0 }
+              })) || [],
+              objectiveCompleted: cq.subQuestsProgress?.map(() => true) || [],
+              objectiveSubmissions: cq.subQuestsProgress?.map((p: any) => ({
+                imageUrl: p.imageProof || null,
+                status: 'approved'
+              })) || [],
+              objectiveRewardsAwarded: cq.subQuestsProgress?.map(() => true) || [],
+              rewardClaimed: true,
+              rewardSubmissionStatus: 'approved' as ApprovalStatus,
+              questRewardsAwarded: true,
+              category: quest.category || "General"
+            };
+          });
+          setQuestsState(prev => [...prev, ...mappedCompleted]);
+        } catch (error) {
+          console.error('Error fetching completed quests:', error);
+        }
+
+        // Fetch inventory
+        try {
+          const inventory = await userAPI.getMyInventory();
+          // Map backend inventory to frontend BackpackItem interface
+          const mappedItems = inventory.map((inv: any, idx: number) => ({
+            id: idx + 1,
+            name: inv.itemId?.name || 'Item',
+            description: inv.itemId?.description || '',
+            date: inv.itemId?.date || '',
+            quantity: inv.quantity || 1,
+            image: inv.itemId?.image || "/Asset/item/classTicket.png",
+            used: inv.used || false,
+            active: inv.active || false
+          }));
+          setBackpackItems(mappedItems);
+        } catch (error) {
+          console.error('Error fetching inventory:', error);
+        }
+
+      } catch (error) {
+        console.error('Error initializing app:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeApp();
+  }, []);
+
   // Cancel reward animations when quest overlay closes
   useEffect(() => {
     if (!showQuestOverlay) {
@@ -453,7 +689,7 @@ const App: React.FC = () => {
     { 
       name: "Game Design", 
       icon: Gamepad2,
-      currentLevel: 1, // Bronze
+      currentLevel: 2, // Bronze (1=Unranked, 2=Bronze, 3=Silver, 4=Gold, 5=Diamond)
       points: 0,
       maxPoints: 10000,
       description: "Basic Game Designer. Can Create Simple Games",
@@ -465,7 +701,7 @@ const App: React.FC = () => {
     { 
       name: "Level Design", 
       icon: Monitor,
-      currentLevel: 1, // Bronze
+      currentLevel: 3, // Silver
       points: 0,
       maxPoints: 10000,
       description: "Basic Level Designer. Can Create Simple Levels",
@@ -477,7 +713,7 @@ const App: React.FC = () => {
     { 
       name: "Drawing", 
       icon: Paintbrush,
-      currentLevel: 1, // Bronze
+      currentLevel: 4, // Gold
       points: 0,
       maxPoints: 10000,
       description: "Master Artist. Can Create Professional Art",
@@ -489,7 +725,7 @@ const App: React.FC = () => {
     { 
       name: "C# Programming", 
       icon: Code,
-      currentLevel: 1, // Bronze
+      currentLevel: 5, // Diamond
       points: 0,
       maxPoints: 10000,
       description: "Basic Programmer. Can Create Simple System",
@@ -602,17 +838,44 @@ const App: React.FC = () => {
   ]);
 
   // Handle item usage - only 1 used item at a time across all types
-  const handleUseItem = (itemId: number) => {
-    setBackpackItems(prevItems => {
-      return prevItems.map(item => {
-        if (item.id === itemId) {
-          return { ...item, used: true, active: true };
-        } else {
-          // Un-use and deactivate all other items (only 1 used at a time across all types)
-          return { ...item, used: false, active: false };
-        }
+  const handleUseItem = async (itemId: number) => {
+    const item = backpackItems.find(i => i.id === itemId);
+    if (!item) return;
+
+    try {
+      // Find the inventory item ID (you may need to store this when fetching inventory)
+      // For now, assuming itemId maps to inventory item
+      await userAPI.useItem(itemId.toString());
+      
+      // Update local state
+      setBackpackItems(prevItems => {
+        return prevItems.map(i => {
+          if (i.id === itemId) {
+            return { ...i, used: true, active: true };
+          } else {
+            // Un-use and deactivate all other items (only 1 used at a time across all types)
+            return { ...i, used: false, active: false };
+          }
+        });
       });
-    });
+
+      // Refresh inventory from API
+      const inventory = await userAPI.getMyInventory();
+      const mappedItems = inventory.map((inv: any, idx: number) => ({
+        id: idx + 1,
+        name: inv.itemId?.name || 'Item',
+        description: inv.itemId?.description || '',
+        date: inv.itemId?.date || '',
+        quantity: inv.quantity || 1,
+        image: inv.itemId?.image || "/Asset/item/classTicket.png",
+        used: inv.used || false,
+        active: inv.active || false
+      }));
+      setBackpackItems(mappedItems);
+    } catch (error) {
+      console.error('Error using item:', error);
+      alert('Failed to use item. Please try again.');
+    }
   };
 
   // Handle item deletion
@@ -760,8 +1023,15 @@ const App: React.FC = () => {
         >
           <img 
             src={getBadgeIconPath(skill.name, skill.currentLevel)} 
-            alt={skill.name}
+            alt={`${skill.name} - Level ${skill.currentLevel}`}
             className="w-16 h-16 object-contain"
+            onError={(e) => {
+              console.error(`Failed to load badge image for ${skill.name} level ${skill.currentLevel}:`, getBadgeIconPath(skill.name, skill.currentLevel));
+              console.error('Image error:', e);
+            }}
+            onLoad={() => {
+              console.log(`Successfully loaded badge: ${skill.name} level ${skill.currentLevel} from ${getBadgeIconPath(skill.name, skill.currentLevel)}`);
+            }}
           />
         </div>
         
@@ -964,29 +1234,34 @@ const App: React.FC = () => {
   };
 
   // Handle rank up
-  const handleRankUp = () => {
+  const handleRankUp = async () => {
     if (!canRankUp()) return;
     
-    // Find current rank index
-    const currentRankIndex = RANKS.indexOf(user.rankName as RankName);
-    if (currentRankIndex === -1 || currentRankIndex === RANKS.length - 1) {
-      // Already at max rank or rank not found
-      return;
-    }
-    
-    // Get coin cost
-    const coinObjective = user.rankObjectives.find(obj => obj.coinCost);
-    const coinCost = coinObjective?.coinCost || 0;
-    
-    // Deduct coins
-    if (coinCost > 0 && user.coins >= coinCost) {
+    try {
+      const result = await userAPI.rankUp() as { message: string; newRank: string; points: number };
+      
+      // Update user state with new rank
       setUser(prev => ({
         ...prev,
-        coins: prev.coins - coinCost,
-        rankName: RANKS[currentRankIndex + 1] as RankName,
-        badge: getRankIconPath(RANKS[currentRankIndex + 1]),
-        rankPoints: 0 // Reset rank points after ranking up
+        rankName: result.newRank || prev.rankName,
+        badge: getRankIconPath(result.newRank || prev.rankName),
+        rankPoints: result.points || 0,
+        // Deduct coins (assuming backend handles this, but update local state)
+        coins: prev.coins - (user.rankObjectives.find(obj => obj.coinCost)?.coinCost || 0)
       }));
+
+      // Refresh profile to get latest data
+      const profile = await userAPI.getMyProfile();
+      setUser(prev => ({
+        ...prev,
+        coins: profile.coins || prev.coins,
+        rankPoints: profile.rank?.points || prev.rankPoints,
+        rankName: profile.rank?.currentTier || prev.rankName,
+        badge: getRankIconPath(profile.rank?.currentTier || prev.rankName)
+      }));
+    } catch (error) {
+      console.error('Error ranking up:', error);
+      alert('Failed to rank up. Please try again.');
     }
   };
 
@@ -1325,15 +1600,14 @@ const App: React.FC = () => {
   };
 
   // Handler to submit image
-  const handleSubmitImage = () => {
+  const handleSubmitImage = async () => {
     if (!selectedObjective || !uploadedImage) return;
 
     // Preserve scroll position before state updates
-    // Find the quest list container in the overlay (the scrollable div)
     const questListContainers = document.querySelectorAll('.overflow-y-auto');
     const questListContainer = Array.from(questListContainers).find(el => {
       const rect = el.getBoundingClientRect();
-      return rect.height > 200; // Likely the main quest list container
+      return rect.height > 200;
     }) as HTMLElement;
     
     if (questListContainer) {
@@ -1343,66 +1617,72 @@ const App: React.FC = () => {
       };
     }
 
-    // Get the quest and objective before updating state
     const quest = questsState.find(q => q.id === selectedObjective.questId);
     if (!quest) return;
     
     const objective = quest.objectives[selectedObjective.objectiveIndex];
     if (!objective) return;
 
-    // Award the objective reward immediately (no admin approval needed)
-    const existingRewardsAwarded = quest.objectiveRewardsAwarded || [];
-    const rewardAlreadyAwarded = existingRewardsAwarded.length > selectedObjective.objectiveIndex 
-      ? existingRewardsAwarded[selectedObjective.objectiveIndex] 
-      : false;
-    
-    // Create unique key for this reward to prevent duplicates
-    const rewardKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
-    
-    if (objective.reward && !rewardAlreadyAwarded && !awardedRewards.current.has(rewardKey)) {
-      // Mark as awarded immediately to prevent duplicates
-      awardedRewards.current.add(rewardKey);
-      // Pass context key to awardObjectiveReward for better duplicate prevention
-      awardObjectiveReward(objective.reward, rewardKey);
+    try {
+      // Convert base64 image to blob/file
+      const formData = new FormData();
+      
+      // If uploadedImage is a base64 string, convert it to a blob
+      if (typeof uploadedImage === 'string' && uploadedImage.startsWith('data:')) {
+        const response = await fetch(uploadedImage);
+        const blob = await response.blob();
+        formData.append('imageProof', blob, 'submission.png');
+      } else if (uploadedImage && typeof uploadedImage === 'object') {
+        // Try to append as File if it's a File object
+        try {
+          formData.append('imageProof', uploadedImage as any);
+        } catch (e) {
+          // If not a File, convert to blob
+          const blob = new Blob([uploadedImage as any], { type: 'image/png' });
+          formData.append('imageProof', blob, 'submission.png');
+        }
+      }
+      
+      if (description) {
+        formData.append('description', description);
+      }
+      
+      // Note: subQuestId would need to come from backend quest structure
+      // For now, we'll submit without it and let backend handle it
+
+      // Submit to API
+      await questAPI.submitQuest(quest.id.toString(), formData);
+
+      // Update local state optimistically
+      setQuestsState(prevQuests =>
+        prevQuests.map(q => {
+          if (q.id === selectedObjective.questId) {
+            const newSubmissions = [...q.objectiveSubmissions];
+            newSubmissions[selectedObjective.objectiveIndex] = {
+              imageUrl: uploadedImage,
+              status: 'pending' // Will be approved by admin
+            };
+            
+            return {
+              ...q,
+              objectiveSubmissions: newSubmissions
+            };
+          }
+          return q;
+        })
+      );
+
+      // Refresh quest data from API
+      const activeQuests = await userAPI.getActiveQuests();
+      // Update quests state with fresh data
+      // (You may want to refactor this into a helper function)
+
+    } catch (error) {
+      console.error('Error submitting quest:', error);
+      alert('Failed to submit quest. Please try again.');
     }
 
-    setQuestsState(prevQuests =>
-      prevQuests.map(quest => {
-        if (quest.id === selectedObjective.questId) {
-          const newSubmissions = [...quest.objectiveSubmissions];
-          // Mark as approved immediately since reward is given instantly
-          newSubmissions[selectedObjective.objectiveIndex] = {
-            imageUrl: uploadedImage,
-            status: 'approved'
-          };
-          
-          // Mark objective as completed and reward as awarded
-          const newCompleted = [...quest.objectiveCompleted];
-          newCompleted[selectedObjective.objectiveIndex] = true;
-          
-          const newRewardsAwarded = [...(quest.objectiveRewardsAwarded || [])];
-          while (newRewardsAwarded.length < quest.objectives.length) {
-            newRewardsAwarded.push(false);
-          }
-          newRewardsAwarded[selectedObjective.objectiveIndex] = true;
-          
-          const updatedQuest = {
-            ...quest,
-            objectiveSubmissions: newSubmissions,
-            objectiveCompleted: newCompleted,
-            objectiveRewardsAwarded: newRewardsAwarded
-          };
-          
-          // Update step progress (without triggering scroll)
-          setTimeout(() => updateQuestStep(selectedObjective.questId), 0);
-          
-          return updatedQuest;
-        }
-        return quest;
-      })
-    );
-
-    // Restore scroll position after state update
+    // Restore scroll position
     setTimeout(() => {
       if (scrollPositionRef.current.container) {
         scrollPositionRef.current.container.scrollTop = scrollPositionRef.current.scrollTop;
@@ -1413,6 +1693,7 @@ const App: React.FC = () => {
     setShowImageUploadModal(false);
     setSelectedObjective(null);
     setUploadedImage(null);
+    setDescription('');
   };
 
   // Handler for admin approval (instant confirm for testing)
@@ -2343,6 +2624,52 @@ const App: React.FC = () => {
     );
   };
 
+  // Show loading screen
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login screen if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
+          <h1 className="text-2xl font-bold text-center mb-6">Welcome to HamsterWorld</h1>
+          <p className="text-gray-600 text-center mb-6">Please login to continue</p>
+          <div className="space-y-4">
+            <button
+              onClick={() => authAPI.discordLogin(window.location.origin)}
+              className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              Login with Discord
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  await authAPI.devLogin('DevUser');
+                  setIsAuthenticated(true);
+                  window.location.reload(); // Reload to fetch data
+                } catch (error) {
+                  console.error('Dev login failed:', error);
+                }
+              }}
+              className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
+            >
+              Developer Login (Testing)
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Reward Animations */}
@@ -2389,19 +2716,19 @@ const App: React.FC = () => {
 
       {/* User Profile Section with Rank Card */}
       <div className="p-4 bg-white shadow-sm mb-4">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 sm:gap-6">
           {/* Pet Display on Left */}
           <div className="flex flex-col items-center flex-shrink-0">
-            <img src={user.avatar} alt="Pet" className="w-42 h-42 sm:w-48 sm:h-48 object-contain" />
+            <img src={user.avatar} alt="Pet" className="w-36 h-36 sm:w-48 sm:h-48 object-contain" />
             <div className="text-center mt-1">
               <span className="text-xl font-bold text-black">{user.petLevel}</span>
             </div>
           </div>
           
           {/* Rank Card on Right - Clickable with Flip Animation */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0" style={{ flex: '1 1 auto' }}>
             <div 
-              className={`flip-card cursor-pointer w-full ${rankCardFlipped ? 'flipped' : ''}`}
+              className={`flip-card cursor-pointer w-full sm:max-w-md ${rankCardFlipped ? 'flipped' : ''}`}
               onClick={() => setRankCardFlipped(!rankCardFlipped)}
               style={{ minHeight: '280px' }}
             >
