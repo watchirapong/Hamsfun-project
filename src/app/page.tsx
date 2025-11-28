@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Trophy, Gamepad2, Monitor, Paintbrush, Code, ChevronRight, Star, Crown, Users, Ticket, Coins, X, Check, Edit2, Gift } from 'lucide-react';
-import { userAPI, questAPI, authAPI, getToken, setToken } from '@/lib/api';
+import { Trophy, Gamepad2, Monitor, Paintbrush, Code, ChevronRight, Star, Crown, Users, Ticket, Coins, X, Check, Edit2, Gift, Settings, LogOut, Moon, Sun } from 'lucide-react';
+import { userAPI, questAPI, authAPI, getToken, setToken, removeToken } from '@/lib/api';
 
 interface RankObjective {
   text: string;
@@ -175,6 +175,22 @@ interface BackpackItem {
   active: boolean;
 }
 
+// Helper functions for Quest progress
+const calculateProgress = (quest: Quest): number => {
+  if (!quest.objectives || quest.objectives.length === 0) return 0;
+  const completedCount = quest.objectiveCompleted.filter(Boolean).length;
+  return (completedCount / quest.objectives.length) * 100;
+};
+
+const areAllObjectivesCompleted = (quest: Quest): boolean => {
+  if (!quest.objectives || quest.objectives.length === 0) return false;
+  return quest.objectiveCompleted.every(Boolean);
+};
+
+const isQuestTrulyCompleted = (quest: Quest): boolean => {
+  return areAllObjectivesCompleted(quest) && quest.rewardClaimed;
+};
+
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('quests');
   const [showQuestOverlay, setShowQuestOverlay] = useState<boolean>(false);
@@ -218,6 +234,37 @@ const App: React.FC = () => {
   // Loading states
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Settings & Theme State
+  const [showSettingsOverlay, setShowSettingsOverlay] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  // Initialize theme from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('app_theme') as 'light' | 'dark' | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setTheme('dark');
+    }
+  }, []);
+
+  // Save theme to localStorage
+  useEffect(() => {
+    localStorage.setItem('app_theme', theme);
+    // Apply theme class to body for global styles if needed
+    document.body.className = theme;
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  const handleLogout = () => {
+    removeToken();
+    setIsAuthenticated(false);
+    window.location.reload();
+  };
 
   // Handle authentication and fetch initial data
   useEffect(() => {
@@ -1899,6 +1946,11 @@ const App: React.FC = () => {
     }, 0);
   }, []);
 
+  // Handler to toggle quest expansion
+  const toggleQuestExpansion = (questId: number) => {
+    setSelectedQuestId(prev => prev === questId ? null : questId);
+  };
+
   const QuestListOverlay: React.FC = () => {
     // Sort quests: uncompleted first (including those with all objectives done but reward not claimed), completed at bottom
     const sortedQuests = [...questsState].sort((a, b) => {
@@ -1948,428 +2000,305 @@ const App: React.FC = () => {
       }
     }, [selectedQuestId, showQuestOverlay]);
 
-  return (
-      <div className={`fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center ${shouldAnimate ? 'animate-fade-in' : ''}`}>
-        <div className={`bg-white w-full max-w-md rounded-t-xl shadow-lg pb-20 ${shouldAnimate ? 'animate-slide-up' : ''}`}>
+    return (
+      <div className={`fixed inset-0 z-50 flex items-end justify-center animate-fade-in ${theme === 'dark' ? 'bg-black/80' : 'bg-black/50'}`}>
+        <div 
+          className={`w-full max-w-md rounded-t-xl shadow-lg h-[85vh] flex flex-col animate-slide-up transition-colors ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header */}
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <div className={`p-4 border-b flex justify-between items-center flex-shrink-0 ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
             <div></div>
-            <h2 className="font-bold text-lg">All Quests</h2>
-            <button 
-              onClick={() => {
-                setShowQuestOverlay(false);
-                setSelectedQuestId(null);
-              }}
-              className="p-2 rounded-full hover:bg-gray-100"
+            <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Active Quests</h2>
+            <button
+              onClick={() => setShowQuestOverlay(false)}
+              className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
             >
               <X size={20} />
             </button>
           </div>
 
-          {/* Quest List with Full Details */}
-          <div className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-            {/* Uncompleted Quests */}
-            {uncompletedQuests.length > 0 && (
+          {/* Quest List */}
+          <div className="flex-1 overflow-y-auto p-4" id="quest-list-container">
+            {sortedQuests.length === 0 ? (
+              <div className={`text-center py-10 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                No active quests found.
+              </div>
+            ) : (
               <>
-                {uncompletedQuests.map((quest) => (
+                {sortedQuests.map((quest) => (
                   <div 
                     key={quest.id}
                     id={`quest-${quest.id}`}
-                    className="bg-white rounded-xl p-4 mb-4 shadow-sm border border-gray-100 transition-all"
+                    className={`rounded-xl p-4 mb-4 shadow-sm border transition-all ${
+                      selectedQuestId === quest.id 
+                        ? theme === 'dark' ? 'bg-gray-800 border-blue-500 ring-2 ring-blue-500/50' : 'bg-white border-blue-500 ring-2 ring-blue-500/20'
+                        : theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
+                    }`}
                   >
-              {/* Quest Header */}
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Check size={16} className="text-purple-600" />
-                  <span className="text-xs font-semibold text-purple-600">
-                    {quest.type}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center">
-                    <span className="text-xs">🎮</span>
-                  </div>
-                  <h3 className="font-bold text-xl">{quest.title}</h3>
-                </div>
-          </div>
-          
-
-              {/* Objectives */}
-              <div className="mb-4">
-                <div className="space-y-1">
-                  {quest.objectives.map((objective, index) => {
-                    const isCompleted = quest.objectiveCompleted[index] || false;
-                    const submission = quest.objectiveSubmissions[index];
-                    const status = submission?.status || 'none';
-                    const reward = objective.reward;
-                    
-                    // Format reward display
-                    const getRewardDisplay = () => {
-                      if (reward.type === 'exp' && typeof reward.value === 'number') {
-                        return (
-                          <div className="flex flex-col items-center">
-                            <div className="w-10 h-10 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold">
-                              {reward.value.toLocaleString()} XP
-              </div>
-          </div>
-                        );
-                      } else if (reward.type === 'coins' && typeof reward.value === 'number') {
-                        return (
-                          <div className="flex flex-col items-center">
-                            <img src="/Asset/item/coin.png" alt="Coins" className="w-8 h-8 object-contain" />
-                            <div className="text-xs font-semibold">x{reward.value}</div>
-                          </div>
-                        );
-                      } else if (reward.type === 'skill' && typeof reward.value === 'number') {
-                        return (
-                          <div className="flex flex-col items-center">
-                            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                              {reward.value}
-                            </div>
-                            {reward.skillName && (
-                              <div className="text-xs font-semibold mt-1 text-center max-w-[80px]">
-                                {reward.skillName}
-        </div>
-      )}
-                          </div>
-                        );
-                      } else if (reward.type === 'rank' && typeof reward.value === 'number') {
-                        return (
-                          <div className="flex flex-col items-center">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center leading-tight whitespace-nowrap">
-                              {reward.value.toLocaleString()} RP
-                            </div>
-                          </div>
-                        );
-                      } else if (reward.type === 'animal') {
-                        return (
-                          <div className="flex flex-col items-center">
-                            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
-                              </svg>
-                            </div>
-                          </div>
-                        );
-                      }
-                    };
-
-                    // Determine visual state
-                    const isPending = status === 'pending';
-                    const isApproved = status === 'approved';
-                    const isClickable = status !== 'approved';
-
-                    return (
-                      <div 
-                        key={index} 
-                        className={`relative flex items-center justify-between py-2 border-b border-gray-200 last:border-b-0 transition-all ${
-                          isPending 
-                            ? 'bg-gray-800 opacity-70' 
-                            : isApproved 
-                            ? 'bg-green-50' 
-                            : isClickable 
-                            ? 'cursor-pointer hover:bg-gray-50' 
-                            : ''
-                        }`}
-                        onClick={() => isClickable && handleObjectiveClick(quest.id, index)}
-                      >
-                        {isPending && (
-                          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                            <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
-                          </div>
-                        )}
-                        <div className={`flex-1 flex items-center gap-2 ${isPending ? 'opacity-30' : ''}`}>
-                          <span className={`text-sm ${isApproved ? 'text-green-700 font-semibold' : ''}`}>
-                            {objective.text}
-                          </span>
-                          {isApproved && (
-                            <Check className="w-4 h-4 text-green-600" />
-                          )}
-                        </div>
-                        <div className={`flex items-center gap-2 ${isPending ? 'opacity-30' : ''}`}>
-                          <div className="flex-shrink-0">
-                            {getRewardDisplay()}
-                          </div>
-                          {/* Instant confirm button for testing */}
-                          {isPending && (
-          <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleApproveObjective(quest.id, index);
-                              }}
-                              className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors z-20 relative"
-                              title="Approve (Testing)"
-                            >
-                              ✓
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* REWARDS Section */}
-              {quest.rewards && quest.rewards.length > 0 && (
-                <div className="mb-4 relative">
-                  <div className="flex justify-center absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                    <div className="bg-[#F67BA4] text-white text-center py-2.5 px-16">
-                      <span className="text-m font-semibold uppercase">REWARDS</span>
-                    </div>
-                  </div>
-                  <div className="relative bg-gray-100 rounded-lg pt-8">
-                    <button
-                      onClick={() => {
-                        if (areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none') {
-                          handleClaimReward(quest.id);
-                        }
-                      }}
-                      disabled={quest.rewardClaimed || !areAllObjectivesCompleted(quest) || quest.rewardSubmissionStatus === 'pending'}
-                      className={`w-full p-8 rounded-lg transition-all relative ${
-                        quest.rewardClaimed
-                          ? 'bg-gray-100 cursor-not-allowed'
-                          : quest.rewardSubmissionStatus === 'pending'
-                          ? 'bg-gray-100 cursor-not-allowed opacity-70'
-                          : areAllObjectivesCompleted(quest)
-                          ? 'bg-gray-100 hover:bg-gray-200 cursor-pointer'
-                          : 'bg-gray-100 cursor-not-allowed opacity-50'
-                      }`}
+                    {/* Quest Header */}
+                    <div 
+                      className="mb-4 cursor-pointer"
+                      onClick={() => toggleQuestExpansion(quest.id)}
                     >
-                      {quest.rewardSubmissionStatus === 'pending' && (
-                        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                          <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                            quest.type === 'Main Quest' 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : 'bg-purple-100 text-purple-700'
+                          }`}>
+                            {quest.type}
+                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
+                            {quest.category}
+                          </span>
+                        </div>
+                        {quest.completed && (
+                          <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded flex items-center gap-1">
+                            <Check size={12} /> Completed
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                          <span className="text-lg">📜</span>
+                        </div>
+                        <h3 className={`font-bold text-lg leading-tight ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{quest.title}</h3>
+                      </div>
+                      <p className={`text-sm mb-3 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{quest.description}</p>
+                      
+                      {/* Progress Bar */}
+                      {!quest.completed && (
+                        <div className="flex items-center gap-2">
+                          <div className={`flex-1 h-2 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                            <div 
+                              className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                              style={{ width: `${calculateProgress(quest)}%` }}
+                            ></div>
+                          </div>
+                          <span className={`text-xs font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {Math.round(calculateProgress(quest))}%
+                          </span>
                         </div>
                       )}
-                      <div className={`flex justify-center gap-6 ${quest.rewardSubmissionStatus === 'pending' ? 'opacity-30' : ''}`}>
-                        {quest.rewards.map((reward, index) => (
-                          <div key={index} className="flex flex-col items-center">
-                            {reward.type === 'exp' && typeof reward.value === 'number' ? (
-                              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                {reward.value.toLocaleString()} XP
-                              </div>
-                            ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
-                              <>
-                                <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
-                                <div className="text-sm font-semibold text-black">x{reward.value}</div>
-                              </>
-                            ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
-                              <div className="flex flex-col items-center">
-                                <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                  {reward.value}
-                                </div>
-                                {reward.skillName && (
-                                  <div className="text-xs font-semibold text-center text-black max-w-[100px]">
-                                    {reward.skillName}
+                    </div>
+
+                    {/* Expandable Content */}
+                    <div className={`transition-all duration-300 overflow-hidden ${
+                      selectedQuestId === quest.id ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+                    }`}>
+                      {/* Objectives */}
+                      <div className="mb-4 mt-4">
+                        <div className={`text-xs font-semibold uppercase mb-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                          Objectives
+                        </div>
+                        <div className={`rounded-lg overflow-hidden ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-50'}`}>
+                          {quest.objectives.map((objective, index) => {
+                            const isCompleted = quest.objectiveCompleted[index] || false;
+                            const submission = quest.objectiveSubmissions[index];
+                            const status = submission?.status || 'none';
+                            const reward = objective.reward;
+                            
+                            // Format reward display
+                            const getRewardDisplay = () => {
+                              if (reward.type === 'exp' && typeof reward.value === 'number') {
+                                return (
+                                  <div className="flex flex-col items-center">
+                                    <div className="w-10 h-10 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold">
+                                      {reward.value.toLocaleString()} XP
+                                    </div>
+                                  </div>
+                                );
+                              } else if (reward.type === 'coins' && typeof reward.value === 'number') {
+                                return (
+                                  <div className="flex flex-col items-center">
+                                    <img src="/Asset/item/coin.png" alt="Coins" className="w-8 h-8 object-contain" />
+                                    <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
+                                  </div>
+                                );
+                              } else if (reward.type === 'skill' && typeof reward.value === 'number') {
+                                return (
+                                  <div className="flex flex-col items-center">
+                                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                                      {reward.value}
+                                    </div>
+                                    {reward.skillName && (
+                                      <div className={`text-xs font-semibold mt-1 text-center max-w-[80px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        {reward.skillName}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              } else if (reward.type === 'rank' && typeof reward.value === 'number') {
+                                return (
+                                  <div className="flex flex-col items-center">
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center leading-tight whitespace-nowrap">
+                                      {reward.value.toLocaleString()} RP
+                                    </div>
+                                  </div>
+                                );
+                              } else if (reward.type === 'animal') {
+                                return (
+                                  <div className="flex flex-col items-center">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                                        <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
+                                      </svg>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            };
+
+                            // Determine visual state
+                            const isPending = status === 'pending';
+                            const isApproved = status === 'approved';
+                            const isClickable = status !== 'approved';
+
+                            return (
+                              <div 
+                                key={index} 
+                                className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all ${
+                                  theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
+                                } ${
+                                  isPending 
+                                    ? theme === 'dark' ? 'bg-gray-800/50 opacity-70' : 'bg-gray-800 opacity-70' 
+                                    : isApproved 
+                                    ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' 
+                                    : isClickable 
+                                    ? theme === 'dark' ? 'cursor-pointer hover:bg-gray-800' : 'cursor-pointer hover:bg-gray-50' 
+                                    : ''
+                                }`}
+                                onClick={() => isClickable && handleObjectiveClick(quest.id, index)}
+                              >
+                                {isPending && (
+                                  <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                                    <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
                                   </div>
                                 )}
-                              </div>
-                            ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
-                              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                {reward.value.toLocaleString()} RP
-                              </div>
-                            ) : reward.type === 'animal' ? (
-                              <>
-                                <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mb-2 shadow-md">
-                                  <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className="text-gray-600">
-                                    <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
-                                  </svg>
+                                <div className={`flex-1 flex items-center gap-2 ${isPending ? 'opacity-30' : ''} px-3`}>
+                                  <span className={`text-sm ${
+                                    isApproved 
+                                      ? 'text-green-600 font-semibold' 
+                                      : theme === 'dark' ? 'text-gray-300' : 'text-black'
+                                  }`}>
+                                    {objective.text}
+                                  </span>
+                                  {isApproved && (
+                                    <Check className="w-4 h-4 text-green-600" />
+                                  )}
                                 </div>
-                                <div className="text-xs font-semibold text-center text-black">ANIMAL<br/>APPEAR!</div>
-                              </>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-          </button>
-                    {/* Instant confirm button for testing */}
-                    {quest.rewardSubmissionStatus === 'pending' && (
-                      <button
-                        onClick={() => handleApproveReward(quest.id)}
-                        className="absolute top-2 right-2 px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors z-20"
-                        title="Approve Reward (Testing)"
-                      >
-                        ✓ Confirm
-                      </button>
-                    )}
-                  </div>
-        </div>
-              )}
-            </div>
-          ))}
-            </>
-            )}
-            
-            {/* Completed Quests Section */}
-            {completedQuests.length > 0 && (
-              <>
-                <div className="text-xs font-semibold text-gray-500 uppercase mb-2 mt-6">
-                  Completed
-                </div>
-                {completedQuests.map((quest) => (
-                  <div 
-                    key={quest.id}
-                    id={`quest-${quest.id}`}
-                    className="bg-white rounded-xl p-4 mb-4 shadow-sm border border-gray-100 transition-all opacity-50"
-                  >
-              {/* Quest Header */}
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Check size={16} className="text-purple-600" />
-                  <span className="text-xs font-semibold text-purple-600">
-                    {quest.type}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 bg-gray-200 rounded flex items-center justify-center">
-                    <span className="text-xs">🎮</span>
-                  </div>
-                  <h3 className="font-bold text-xl">{quest.title}</h3>
-                </div>
-          </div>
-
-              {/* Objectives */}
-              <div className="mb-4">
-                <div className="space-y-1">
-                  {quest.objectives.map((objective, index) => {
-                    const isCompleted = quest.objectiveCompleted[index] || false;
-                    const submission = quest.objectiveSubmissions[index];
-                    const status = submission?.status || 'none';
-                    const reward = objective.reward;
-                    
-                    // Format reward display
-                    const getRewardDisplay = () => {
-                      if (reward.type === 'exp' && typeof reward.value === 'number') {
-                        return (
-                          <div className="flex flex-col items-center">
-                            <div className="w-10 h-10 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold">
-                              {reward.value.toLocaleString()} XP
-          </div>
-        </div>
-                        );
-                      } else if (reward.type === 'coins' && typeof reward.value === 'number') {
-                        return (
-                          <div className="flex flex-col items-center">
-                            <img src="/Asset/item/coin.png" alt="Coins" className="w-8 h-8 object-contain" />
-                            <div className="text-xs font-semibold">x{reward.value}</div>
-                          </div>
-                        );
-                      } else if (reward.type === 'skill' && typeof reward.value === 'number') {
-                        return (
-                          <div className="flex flex-col items-center">
-                            <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                              {reward.value}
-                            </div>
-                            {reward.skillName && (
-                              <div className="text-xs font-semibold mt-1 text-center max-w-[80px]">
-                                {reward.skillName}
+                                <div className={`flex items-center gap-2 ${isPending ? 'opacity-30' : ''} px-3`}>
+                                  <div className="flex-shrink-0">
+                                    {getRewardDisplay()}
+                                  </div>
+                                  {/* Instant confirm button for testing */}
+                                  {isPending && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleApproveObjective(quest.id, index);
+                                      }}
+                                      className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors z-20 relative"
+                                      title="Approve (Testing)"
+                                    >
+                                      ✓
+                                    </button>
+                                  )}
+                                </div>
                               </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* REWARDS Section */}
+                      {quest.rewards && quest.rewards.length > 0 && (
+                        <div className="mb-4 relative">
+                          <div className="flex justify-center absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                            <div className="bg-[#F67BA4] text-white text-center py-2.5 px-16">
+                              <span className="text-m font-semibold uppercase">REWARDS</span>
+                            </div>
+                          </div>
+                          <div className={`relative rounded-lg pt-8 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
+                            <button
+                              onClick={() => {
+                                if (areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none') {
+                                  handleClaimReward(quest.id);
+                                }
+                              }}
+                              disabled={quest.rewardClaimed || !areAllObjectivesCompleted(quest) || quest.rewardSubmissionStatus === 'pending'}
+                              className={`w-full p-8 rounded-lg transition-all relative ${
+                                quest.rewardClaimed
+                                  ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed' : 'bg-gray-100 cursor-not-allowed'
+                                  : quest.rewardSubmissionStatus === 'pending'
+                                  ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-70' : 'bg-gray-100 cursor-not-allowed opacity-70'
+                                  : areAllObjectivesCompleted(quest)
+                                  ? theme === 'dark' ? 'bg-gray-900/50 hover:bg-gray-800 cursor-pointer' : 'bg-gray-100 hover:bg-gray-200 cursor-pointer'
+                                  : theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-50' : 'bg-gray-100 cursor-not-allowed opacity-50'
+                              }`}
+                            >
+                              {quest.rewardSubmissionStatus === 'pending' && (
+                                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                                  <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
+                                  </div>
+                              )}
+                              <div className={`flex justify-center gap-6 ${quest.rewardSubmissionStatus === 'pending' ? 'opacity-30' : ''}`}>
+                                {quest.rewards.map((reward, index) => (
+                                  <div key={index} className="flex flex-col items-center">
+                                    {reward.type === 'exp' && typeof reward.value === 'number' ? (
+                                      <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                        {reward.value.toLocaleString()} XP
+                                      </div>
+                                    ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
+                                      <>
+                                        <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
+                                        <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
+                                      </>
+                                    ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
+                                      <div className="flex flex-col items-center">
+                                        <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                          {reward.value}
+                                        </div>
+                                        {reward.skillName && (
+                                          <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
+                                            {reward.skillName}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
+                                      <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                        {reward.value.toLocaleString()} RP
+                                      </div>
+                                    ) : reward.type === 'animal' ? (
+                                      <>
+                                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-2 shadow-md ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                                          <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                                            <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
+                                          </svg>
+                                        </div>
+                                        <div className={`text-xs font-semibold text-center ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>ANIMAL<br/>APPEAR!</div>
+                                      </>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+                            </button>
+                            {/* Instant confirm button for testing */}
+                            {quest.rewardSubmissionStatus === 'pending' && (
+                              <button
+                                onClick={() => handleApproveReward(quest.id)}
+                                className="absolute top-2 right-2 px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors z-20"
+                                title="Approve Reward (Testing)"
+                              >
+                                ✓ Confirm
+                              </button>
                             )}
                           </div>
-                        );
-                      } else if (reward.type === 'rank' && typeof reward.value === 'number') {
-                        return (
-                          <div className="flex flex-col items-center">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center leading-tight whitespace-nowrap">
-                              {reward.value.toLocaleString()} RP
-                            </div>
-                          </div>
-                        );
-                      } else if (reward.type === 'animal') {
-                        return (
-                          <div className="flex flex-col items-center">
-                            <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
-                              </svg>
-                            </div>
-                          </div>
-                        );
-                      }
-                    };
-
-                    const isApproved = status === 'approved';
-
-                    return (
-                      <div 
-                        key={index} 
-                        className={`relative flex items-center justify-between py-2 border-b border-gray-200 last:border-b-0 ${
-                          isApproved ? 'bg-green-50' : ''
-                        }`}
-                      >
-                        <div className="flex-1 flex items-center gap-2">
-                          <span className={`text-sm ${isApproved ? 'text-green-700 font-semibold' : ''}`}>
-                            {objective.text}
-                          </span>
-                          {isApproved && (
-                            <Check className="w-4 h-4 text-green-600" />
-                          )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-shrink-0">
-                            {getRewardDisplay()}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* REWARDS Section */}
-              {quest.rewards && quest.rewards.length > 0 && (
-                <div className="mb-4 relative">
-                  <div className="flex justify-center absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                    <div className="bg-[#BF5475] text-white text-center py-2 px-6 rounded-lg">
-                      <span className="text-sm font-semibold uppercase">REWARDS</span>
+                      )}
                     </div>
-                  </div>
-                  <div className="relative bg-gray-100 rounded-lg pt-2">
-                    <div className="w-full p-4 rounded-lg bg-gray-100 cursor-not-allowed">
-                      <div className="flex justify-center gap-6">
-                        {quest.rewards.map((reward, index) => (
-                          <div key={index} className="flex flex-col items-center">
-                            {reward.type === 'exp' && typeof reward.value === 'number' ? (
-                              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                {reward.value.toLocaleString()} XP
-                              </div>
-                            ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
-                              <>
-                                <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
-                                <div className="text-sm font-semibold text-black">x{reward.value}</div>
-                              </>
-                            ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
-                              <div className="flex flex-col items-center">
-                                <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                  {reward.value}
-                </div>
-                                {reward.skillName && (
-                                  <div className="text-xs font-semibold text-center text-black max-w-[100px]">
-                                    {reward.skillName}
-                </div>
-                                )}
-                              </div>
-                            ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
-                              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                {reward.value.toLocaleString()} RP
-                              </div>
-                            ) : reward.type === 'animal' ? (
-                              <>
-                                <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mb-2 shadow-md">
-                                  <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className="text-gray-600">
-                                    <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
-                                  </svg>
-                                </div>
-                                <div className="text-xs font-semibold text-center text-black">ANIMAL<br/>APPEAR!</div>
-                              </>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
                   </div>
                 ))}
               </>
@@ -2427,19 +2356,19 @@ const App: React.FC = () => {
     const sortedItems = sortItems(backpackItems);
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center animate-fade-in">
-        <div className="bg-white w-full max-w-md rounded-t-xl shadow-lg pb-20 animate-slide-up">
+      <div className={`fixed inset-0 z-50 flex items-end justify-center animate-fade-in ${theme === 'dark' ? 'bg-black/80' : 'bg-black/50'}`}>
+        <div className={`w-full max-w-md rounded-t-xl shadow-lg pb-20 animate-slide-up transition-colors ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}>
           {/* Header */}
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          <div className={`p-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
             <div></div>
-            <h2 className="font-bold text-lg">All Items</h2>
+            <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>All Items</h2>
             <button
               onClick={() => setShowItemsOverlay(false)}
-              className="p-2 rounded-full hover:bg-gray-100"
+              className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100'}`}
             >
               <X size={20} />
             </button>
-              </div>
+          </div>
 
           {/* Items List */}
           <div className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -2449,7 +2378,7 @@ const App: React.FC = () => {
               const expired = isItemExpired(item.date);
               
               // Determine background color
-              let backgroundColor = 'white';
+              let backgroundColor = theme === 'dark' ? '#1f2937' : 'white';
               if (isUsed) {
                 backgroundColor = '#e3cd0b'; // Yellow for used
               } else if (expired) {
@@ -2459,17 +2388,17 @@ const App: React.FC = () => {
               return (
                 <div 
                   key={item.id}
-                  className="flex items-center gap-3 p-4 rounded-xl mb-3 shadow-sm border border-gray-100"
+                  className={`flex items-center gap-3 p-4 rounded-xl mb-3 shadow-sm border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}
                   style={{ backgroundColor }}
                 >
                   <img src={item.image} alt={item.name} className="w-24 h-18 object-contain rounded-lg" />
                   <div className="flex-1">
-                    <div className="font-semibold text-base mb-1">{item.name}</div>
-                    <div className="text-sm text-gray-600 mb-1">{item.description}</div>
-                    <div className="text-xs text-gray-500">{item.date}</div>
+                    <div className={`font-semibold text-base mb-1 ${theme === 'dark' && !isUsed && !expired ? 'text-white' : 'text-black'}`}>{item.name}</div>
+                    <div className={`text-sm mb-1 ${theme === 'dark' && !isUsed && !expired ? 'text-gray-400' : 'text-gray-600'}`}>{item.description}</div>
+                    <div className={`text-xs ${theme === 'dark' && !isUsed && !expired ? 'text-gray-500' : 'text-gray-500'}`}>{item.date}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="text-sm bg-gray-100 px-3 py-1 rounded-full font-semibold">
+                    <div className={`text-sm px-3 py-1 rounded-full font-semibold ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-black'}`}>
                       x{item.quantity}
                     </div>
                     {expired && !isUsed && (
@@ -2478,8 +2407,8 @@ const App: React.FC = () => {
                         className="px-3 py-1.5 bg-red-500 text-white text-xs font-semibold rounded-lg hover:bg-red-600 transition-colors"
                       >
                         Delete
-            </button>
-          )}
+                      </button>
+                    )}
                     {!expired && !isUsed && (
                       <button
                         onClick={() => handleUseItem(item.id)}
@@ -2490,9 +2419,9 @@ const App: React.FC = () => {
                     )}
                     {isUsed && (
                       <span className="text-xs text-gray-600 font-semibold">Used</span>
-          )}
-        </div>
-      </div>
+                    )}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -2503,6 +2432,84 @@ const App: React.FC = () => {
 
   const ItemsOverlay: React.FC = () => {
     return <ItemsListOverlay />;
+  };
+
+  const SettingsOverlay: React.FC = () => {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in p-4">
+        <div className={`w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-100 ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}>
+          {/* Header */}
+          <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} flex justify-between items-center`}>
+            <h2 className="font-bold text-xl flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Settings
+            </h2>
+            <button 
+              onClick={() => setShowSettingsOverlay(false)}
+              className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="p-6 space-y-6">
+            {/* Theme Toggle */}
+            <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50'}`}>
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-semibold">Appearance</span>
+                <span className={`text-xs px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-indigo-900 text-indigo-200' : 'bg-indigo-100 text-indigo-700'}`}>
+                  {theme === 'light' ? 'Light Mode' : 'Dark Mode'}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTheme('light')}
+                  className={`flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                    theme === 'light' 
+                      ? 'bg-white shadow-md border-2 border-indigo-500 text-indigo-600' 
+                      : 'hover:bg-gray-200/50 text-gray-500'
+                  }`}
+                >
+                  <Sun size={18} />
+                  <span className="font-medium">Light</span>
+                </button>
+                <button
+                  onClick={() => setTheme('dark')}
+                  className={`flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-gray-700 shadow-md border-2 border-indigo-400 text-indigo-300' 
+                      : 'hover:bg-gray-200/50 text-gray-500'
+                  }`}
+                >
+                  <Moon size={18} />
+                  <span className="font-medium">Dark</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Account Actions */}
+            <div className="space-y-3">
+              <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                Account
+              </h3>
+              <button
+                onClick={handleLogout}
+                className="w-full py-3.5 px-4 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors flex items-center justify-center gap-2 font-semibold group"
+              >
+                <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+                Log Out
+              </button>
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className={`p-4 text-center text-xs ${theme === 'dark' ? 'text-gray-500 bg-gray-900/30' : 'text-gray-400 bg-gray-50'}`}>
+            HamsterWorld v1.0.0
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const BadgeOverlay: React.FC = () => {
@@ -2641,7 +2648,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
-          <h1 className="text-2xl font-bold text-center mb-6">Welcome to HamsterWorld</h1>
+          <h1 className="text-2xl font-bold text-center mb-6 text-gray-900">Welcome to HamsterWorld</h1>
           <p className="text-gray-600 text-center mb-6">Please login to continue</p>
           <div className="space-y-4">
             <button
@@ -2671,16 +2678,19 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-black'}`}>
+      {/* Settings Overlay */}
+      {showSettingsOverlay && <SettingsOverlay />}
+      
       {/* Reward Animations */}
       {rewardAnimations.map((animation) => (
         <RewardAnimation key={animation.id} animation={animation} />
       ))}
       {/* Header */}
-      <div className="bg-white shadow-sm p-4">
+      <div className={`shadow-sm p-4 transition-colors ${theme === 'dark' ? 'bg-gray-800 border-b border-gray-700' : 'bg-white'}`}>
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
               <Crown size={16} className="text-yellow-500" />
             </div>
             {isEditingDescription ? (
@@ -2694,7 +2704,7 @@ const App: React.FC = () => {
                     setIsEditingDescription(false);
                   }
                 }}
-                className="text-sm font-medium text-black bg-white border-b-2 border-blue-500 outline-none focus:border-blue-600 px-2 py-1 rounded shadow-sm min-w-[200px]"
+                className={`text-sm font-medium border-b-2 border-blue-500 outline-none focus:border-blue-600 px-2 py-1 rounded shadow-sm min-w-[200px] ${theme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-black'}`}
                 autoFocus
               />
             ) : (
@@ -2702,26 +2712,34 @@ const App: React.FC = () => {
                 className="flex items-center gap-2 cursor-pointer hover:opacity-70 transition-opacity group"
                 onClick={() => setIsEditingDescription(true)}
               >
-                <span className="text-sm font-medium text-black bg-white px-2 py-1 rounded shadow-sm">{description}</span>
+                <span className={`text-sm font-medium px-2 py-1 rounded shadow-sm ${theme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-black'}`}>{description}</span>
                 <Edit2 size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             )}
           </div>
-          <div className="flex items-center gap-1">
-            <img src="/Asset/item/coin.png" alt="Coins" className="w-6 h-6 object-contain" />
-            <span className="font-bold text-black bg-white px-4 py-2 rounded shadow-sm">{user.coins}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <img src="/Asset/item/coin.png" alt="Coins" className="w-6 h-6 object-contain" />
+              <span className={`font-bold px-4 py-2 rounded shadow-sm ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-black'}`}>{user.coins}</span>
+            </div>
+            <button 
+              onClick={() => setShowSettingsOverlay(true)}
+              className={`p-2 rounded-full shadow-sm transition-colors ${theme === 'dark' ? 'bg-gray-800 text-gray-200 hover:bg-gray-700' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+            >
+              <Settings size={20} />
+            </button>
           </div>
         </div>
       </div>
 
       {/* User Profile Section with Rank Card */}
-      <div className="p-4 bg-white shadow-sm mb-4">
+      <div className={`p-4 shadow-sm mb-4 transition-colors ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
         <div className="flex items-center gap-3 sm:gap-6">
           {/* Pet Display on Left */}
           <div className="flex flex-col items-center flex-shrink-0">
             <img src={user.avatar} alt="Pet" className="w-36 h-36 sm:w-48 sm:h-48 object-contain" />
             <div className="text-center mt-1">
-              <span className="text-xl font-bold text-black">{user.petLevel}</span>
+              <span className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{user.petLevel}</span>
             </div>
           </div>
           
@@ -2734,7 +2752,7 @@ const App: React.FC = () => {
             >
               <div className="flip-card-inner" style={{ minHeight: '280px' }}>
                 {/* Front of Card */}
-                <div className="flip-card-front bg-white rounded-xl p-4 shadow-md border border-gray-200 flex flex-col w-full h-full justify-between">
+                <div className={`flip-card-front rounded-xl p-4 shadow-md border flex flex-col w-full h-full justify-between ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
                   {/* Rank Icon/Badge */}
                   <div className="flex justify-center -mt-10">
                     <img 
@@ -2743,24 +2761,24 @@ const App: React.FC = () => {
                       className="w-56 h-56 sm:w-56 sm:h-56 object-contain" 
                     />
                   </div>
-                  <h2 className="font-bold text-2xl sm:text-3xl text-center text-black truncate -mt-8">{user.rankName}</h2>
+                  <h2 className={`font-bold text-2xl sm:text-3xl text-center truncate -mt-8 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{user.rankName}</h2>
                   <div className="flex flex-col">
-                    <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                    <div className={`w-full rounded-full h-3 mb-2 ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'}`}>
                       <div 
                         className="bg-green-500 h-2 rounded-full transition-all duration-300" 
                         style={{ width: `${Math.min((user.rankPoints / 100) * 100, 100)}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-700 text-center">
+                    <div className={`text-xs sm:text-sm text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
                       {user.rankPoints}/100 RP
                     </div>
                   </div>
                 </div>
                 
                 {/* Back of Card - Rank Objectives */}
-                <div className="flip-card-back bg-white rounded-xl p-3 sm:p-4 shadow-md border border-gray-200 flex flex-col w-full h-full">
-                  <h3 className="font-bold text-lg sm:text-xl text-center mb-2 sm:mb-3 truncate">{user.rankName}</h3>
-                  <div className="text-xs font-semibold mb-2 sm:mb-3 text-gray-600 text-center">Objectives to Rank Up</div>
+                <div className={`flip-card-back rounded-xl p-3 sm:p-4 shadow-md border flex flex-col w-full h-full ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'}`}>
+                  <h3 className={`font-bold text-lg sm:text-xl text-center mb-2 sm:mb-3 truncate ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{user.rankName}</h3>
+                  <div className={`text-xs font-semibold mb-2 sm:mb-3 text-center ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Objectives to Rank Up</div>
                   <div className="space-y-1.5 sm:space-y-2 text-xs mb-3">
                     {user.rankObjectives.map((objective, index) => {
                       // Check completion status based on objective type
@@ -2787,16 +2805,16 @@ const App: React.FC = () => {
                             className={`flex-shrink-0 mt-0.5 ${isCompleted ? 'text-green-500' : 'text-gray-400'}`} 
                           />
                           <div className="flex-1">
-                            <span className={`${isCompleted ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                            <span className={`${isCompleted ? 'line-through text-gray-500' : theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
                               {objective.text}
                             </span>
                             {showProgress && !isCompleted && (
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                                 Progress: {user.rankPoints}/100 RP
                               </div>
                             )}
                             {objective.coinCost && !isCompleted && (
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                                 Need: {objective.coinCost} coins (Have: {user.coins})
                               </div>
                             )}
