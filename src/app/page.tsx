@@ -27,6 +27,37 @@ const RANKS = [
 
 type RankName = typeof RANKS[number];
 
+// Function to get badge icon path based on skill name and level
+const getBadgeIconPath = (skillName: string, level: number): string => {
+  // Map skill names to folder names
+  const skillFolderMap: { [key: string]: string } = {
+    "Game Design": "gameDesign",
+    "Level Design": "levelDesign",
+    "Drawing": "art",
+    "C# Programming": "programming"
+  };
+  
+  // Map level to tier: 1=u, 2=b, 3=s, 4=g, 5=d
+  const tierMap: { [key: number]: string } = {
+    1: "u",
+    2: "b",
+    3: "s",
+    4: "g",
+    5: "d"
+  };
+  
+  const folder = skillFolderMap[skillName] || "art";
+  const tier = tierMap[level] || "u";
+  
+  // Get the skill abbreviation from folder name
+  const skillAbbr = folder === "gameDesign" ? "game" : 
+                    folder === "levelDesign" ? "level" : 
+                    folder === "art" ? "art" : 
+                    "prog";
+  
+  return `/Asset/badge/${folder}/${skillAbbr}_${tier}.png`;
+};
+
 // Function to get rank icon path
 const getRankIconPath = (rankName: string): string => {
   const rankLower = rankName.toLowerCase();
@@ -718,18 +749,20 @@ const App: React.FC = () => {
           />
         )}
         
-        {/* Circular icon with colored border */}
+        {/* Badge icon */}
         <div 
-          className={`w-16 h-16 rounded-full flex items-center justify-center border-4 transition-all duration-500 ${
+          className={`w-16 h-16 flex items-center justify-center transition-all duration-500 ${
             isLevelingUp ? 'scale-125 shadow-lg' : ''
           }`}
           style={{ 
-            borderColor: currentLevelColor,
-            backgroundColor: `${currentLevelColor}15`, // 15% opacity
             boxShadow: isLevelingUp ? `0 0 20px ${currentLevelColor}` : 'none'
           }}
         >
-          <skill.icon size={32} style={{ color: currentLevelColor }} />
+          <img 
+            src={getBadgeIconPath(skill.name, skill.currentLevel)} 
+            alt={skill.name}
+            className="w-16 h-16 object-contain"
+          />
         </div>
         
         {/* XP Progress Bar - Hidden for Diamond level */}
@@ -1722,8 +1755,8 @@ const App: React.FC = () => {
                       } else if (reward.type === 'rank' && typeof reward.value === 'number') {
                         return (
                           <div className="flex flex-col items-center">
-                            <div className="w-10 h-10 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs font-bold">
-                              {reward.value}rp
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center leading-tight whitespace-nowrap">
+                              {reward.value.toLocaleString()} RP
                             </div>
                           </div>
                         );
@@ -1798,11 +1831,13 @@ const App: React.FC = () => {
 
               {/* REWARDS Section */}
               {quest.rewards && quest.rewards.length > 0 && (
-                <div className="mb-4">
-                  <div className="bg-pink-500 text-white text-center py-2 mb-0 rounded-t-lg">
-                    <span className="text-sm font-semibold uppercase">REWARDS</span>
+                <div className="mb-4 relative">
+                  <div className="flex justify-center absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                    <div className="bg-[#F67BA4] text-white text-center py-2.5 px-16">
+                      <span className="text-m font-semibold uppercase">REWARDS</span>
+                    </div>
                   </div>
-                  <div className="relative">
+                  <div className="relative bg-gray-100 rounded-lg pt-8">
                     <button
                       onClick={() => {
                         if (areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none') {
@@ -1810,14 +1845,14 @@ const App: React.FC = () => {
                         }
                       }}
                       disabled={quest.rewardClaimed || !areAllObjectivesCompleted(quest) || quest.rewardSubmissionStatus === 'pending'}
-                      className={`w-full p-4 rounded-b-lg transition-all relative ${
+                      className={`w-full p-8 rounded-lg transition-all relative ${
                         quest.rewardClaimed
-                          ? 'bg-green-200 cursor-not-allowed'
+                          ? 'bg-gray-100 cursor-not-allowed'
                           : quest.rewardSubmissionStatus === 'pending'
-                          ? 'bg-gray-800 cursor-not-allowed opacity-70'
+                          ? 'bg-gray-100 cursor-not-allowed opacity-70'
                           : areAllObjectivesCompleted(quest)
-                          ? 'bg-green-500 hover:bg-green-600 cursor-pointer'
-                          : 'bg-red-500 cursor-not-allowed'
+                          ? 'bg-gray-100 hover:bg-gray-200 cursor-pointer'
+                          : 'bg-gray-100 cursor-not-allowed opacity-50'
                       }`}
                     >
                       {quest.rewardSubmissionStatus === 'pending' && (
@@ -1829,37 +1864,37 @@ const App: React.FC = () => {
                         {quest.rewards.map((reward, index) => (
                           <div key={index} className="flex flex-col items-center">
                             {reward.type === 'exp' && typeof reward.value === 'number' ? (
-                              <div className="w-16 h-16 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold mb-2">
+                              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
                                 {reward.value.toLocaleString()} XP
                               </div>
                             ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
                               <>
-                                <img src="/Asset/item/coin.png" alt="Coins" className="w-10 h-10 object-contain mb-2" />
-                                <div className="text-sm font-semibold">x{reward.value}</div>
+                                <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
+                                <div className="text-sm font-semibold text-black">x{reward.value}</div>
                               </>
                             ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
                               <div className="flex flex-col items-center">
-                                <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold mb-2">
+                                <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
                                   {reward.value}
                                 </div>
                                 {reward.skillName && (
-                                  <div className="text-xs font-semibold text-center max-w-[100px]">
+                                  <div className="text-xs font-semibold text-center text-black max-w-[100px]">
                                     {reward.skillName}
                                   </div>
                                 )}
                               </div>
                             ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
-                              <div className="w-16 h-16 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs font-bold mb-2">
-                                {reward.value}rp
+                              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                {reward.value.toLocaleString()} RP
                               </div>
                             ) : reward.type === 'animal' ? (
                               <>
-                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mb-2 shadow-md">
+                                  <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className="text-gray-600">
                                     <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
                                   </svg>
                                 </div>
-                                <div className="text-xs font-semibold text-center">ANIMAL<br/>APPEAR!</div>
+                                <div className="text-xs font-semibold text-center text-black">ANIMAL<br/>APPEAR!</div>
                               </>
                             ) : null}
                           </div>
@@ -1954,8 +1989,8 @@ const App: React.FC = () => {
                       } else if (reward.type === 'rank' && typeof reward.value === 'number') {
                         return (
                           <div className="flex flex-col items-center">
-                            <div className="w-10 h-10 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs font-bold">
-                              {reward.value}rp
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center leading-tight whitespace-nowrap">
+                              {reward.value.toLocaleString()} RP
                             </div>
                           </div>
                         );
@@ -2002,47 +2037,49 @@ const App: React.FC = () => {
 
               {/* REWARDS Section */}
               {quest.rewards && quest.rewards.length > 0 && (
-                <div className="mb-4">
-                  <div className="bg-pink-500 text-white text-center py-2 mb-0 rounded-t-lg">
-                    <span className="text-sm font-semibold uppercase">REWARDS</span>
+                <div className="mb-4 relative">
+                  <div className="flex justify-center absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                    <div className="bg-[#BF5475] text-white text-center py-2 px-6 rounded-lg">
+                      <span className="text-sm font-semibold uppercase">REWARDS</span>
+                    </div>
                   </div>
-                  <div className="relative">
-                    <div className="w-full p-4 rounded-b-lg bg-green-200 cursor-not-allowed">
+                  <div className="relative bg-gray-100 rounded-lg pt-2">
+                    <div className="w-full p-4 rounded-lg bg-gray-100 cursor-not-allowed">
                       <div className="flex justify-center gap-6">
                         {quest.rewards.map((reward, index) => (
                           <div key={index} className="flex flex-col items-center">
                             {reward.type === 'exp' && typeof reward.value === 'number' ? (
-                              <div className="w-16 h-16 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold mb-2">
+                              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
                                 {reward.value.toLocaleString()} XP
                               </div>
                             ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
                               <>
-                                <img src="/Asset/item/coin.png" alt="Coins" className="w-10 h-10 object-contain mb-2" />
-                                <div className="text-sm font-semibold">x{reward.value}</div>
+                                <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
+                                <div className="text-sm font-semibold text-black">x{reward.value}</div>
                               </>
                             ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
                               <div className="flex flex-col items-center">
-                                <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold mb-2">
+                                <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
                                   {reward.value}
                 </div>
                                 {reward.skillName && (
-                                  <div className="text-xs font-semibold text-center max-w-[100px]">
+                                  <div className="text-xs font-semibold text-center text-black max-w-[100px]">
                                     {reward.skillName}
                 </div>
                                 )}
                               </div>
                             ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
-                              <div className="w-16 h-16 rounded-full bg-gray-500 flex items-center justify-center text-white text-xs font-bold mb-2">
-                                {reward.value}rp
+                              <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                {reward.value.toLocaleString()} RP
                               </div>
                             ) : reward.type === 'animal' ? (
                               <>
-                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                                <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mb-2 shadow-md">
+                                  <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className="text-gray-600">
                                     <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
                                   </svg>
                                 </div>
-                                <div className="text-xs font-semibold text-center">ANIMAL<br/>APPEAR!</div>
+                                <div className="text-xs font-semibold text-center text-black">ANIMAL<br/>APPEAR!</div>
                               </>
                             ) : null}
                           </div>
@@ -2252,17 +2289,15 @@ const App: React.FC = () => {
                 return (
                   <div 
                     key={index} 
-                    className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      isUnlocked 
-                        ? `border-4 border-${borderColorClass}-500`
-                        : 'border-2 border-gray-300'
+                    className={`w-12 h-12 flex items-center justify-center ${
+                      !isUnlocked ? 'opacity-50' : ''
                     }`}
-                    style={{ 
-                      backgroundColor: isUnlocked ? levelColors[index] : '#f3f4f6',
-                      color: isUnlocked ? 'white' : 'black'
-                    }}
                   >
-                    <span className="text-xs font-bold">{levelName[0]}</span>
+                    <img 
+                      src={getBadgeIconPath(selectedSkill.name, badgeLevel)} 
+                      alt={levelName}
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                 );
               })}
