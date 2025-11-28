@@ -30,28 +30,42 @@ type RankName = typeof RANKS[number];
 
 // Function to get badge icon path based on skill name and level
 const getBadgeIconPath = (skillName: string, level: number): string => {
-  // Normalize skill name (handle variations from API)
+  // Normalize skill name (handle variations from API and display names)
   const normalizedName = skillName.toLowerCase().trim();
   
-  // Map skill names to folder names (handle various formats from API)
+  // Map skill names to folder names and abbreviations
+  // Handle both API badge names and display names
   let folder = "art"; // default
   let skillAbbr = "art"; // default
   
-  if (normalizedName.includes("game") || normalizedName === "gamedesign") {
+  // Game Design (including "Explorer" badge name)
+  if (normalizedName.includes("game") || 
+      normalizedName === "gamedesign" || 
+      normalizedName === "explorer") {
     folder = "gameDesign";
     skillAbbr = "game";
-  } else if (normalizedName.includes("level") || normalizedName === "leveldesign") {
+  } 
+  // Level Design
+  else if (normalizedName.includes("level") || normalizedName === "leveldesign") {
     folder = "levelDesign";
     skillAbbr = "level";
-  } else if (normalizedName.includes("art") || normalizedName.includes("drawing")) {
+  } 
+  // Art/Drawing
+  else if (normalizedName.includes("art") || normalizedName.includes("drawing")) {
     folder = "art";
     skillAbbr = "art";
-  } else if (normalizedName.includes("programming") || normalizedName.includes("program") || normalizedName.includes("prog")) {
+  } 
+  // Programming (including "C# Programming" with special character)
+  else if (normalizedName.includes("programming") || 
+           normalizedName.includes("program") || 
+           normalizedName.includes("prog") ||
+           normalizedName.includes("c#") ||
+           normalizedName.includes("csharp")) {
     folder = "programming";
     skillAbbr = "prog";
   }
   
-  // Map level to tier: 1=u, 2=b, 3=s, 4=g, 5=d
+  // Map level to tier: 1=u (Unranked), 2=b (Bronze), 3=s (Silver), 4=g (Gold), 5=d (Diamond)
   const tierMap: { [key: number]: string } = {
     1: "u",
     2: "b",
@@ -65,7 +79,6 @@ const getBadgeIconPath = (skillName: string, level: number): string => {
   const tier = tierMap[validLevel] || "u";
   
   const path = `/Asset/badge/${folder}/${skillAbbr}_${tier}.png`;
-  console.log(`getBadgeIconPath: "${skillName}" (normalized: "${normalizedName}") -> folder: "${folder}", abbr: "${skillAbbr}", level: ${level} (tier: "${tier}") -> path: "${path}"`);
   return path;
 };
 
@@ -125,11 +138,12 @@ interface ObjectiveReward {
   skillName?: string; // Required for skill type to indicate which skill
 }
 
-type ApprovalStatus = 'none' | 'pending' | 'approved';
+type ApprovalStatus = 'none' | 'pending' | 'approved' | 'rejected';
 
 interface QuestObjective {
   text: string;
   reward: ObjectiveReward; // Single reward per objective
+  subQuestId?: string; // ID from backend to identify the subQuest
 }
 
 interface ObjectiveSubmission {
@@ -308,10 +322,30 @@ const App: React.FC = () => {
           });
 
           // Map badges/skills from backend
+          console.log('Full profile from API:', profile);
+          console.log('Profile badges from API:', profile.badges);
+          console.log('Badges type:', typeof profile.badges);
+          console.log('Badges is array?', Array.isArray(profile.badges));
+          
+          // Handle badges - could be object or array
+          let badgesObject: { [key: string]: any } = {};
           if (profile.badges) {
+            if (Array.isArray(profile.badges)) {
+              // If badges is an array, convert to object keyed by skill name
+              profile.badges.forEach((badge: any) => {
+                const key = badge.skill || badge.name || badge.skillName || 'Unknown';
+                badgesObject[key] = badge;
+              });
+            } else if (typeof profile.badges === 'object') {
+              badgesObject = profile.badges;
+            }
+          }
+          
+          if (badgesObject && Object.keys(badgesObject).length > 0) {
             const skillsMap: { [key: string]: Skill } = {};
             
             // Map API skill names to display names and icons
+            // Note: API returns badge names like "Explorer", "Programming", "Art", "LevelDesign", "GameDesign"
             const skillNameMap: { [key: string]: { displayName: string; icon: any } } = {
               "GameDesign": { displayName: "Game Design", icon: Gamepad2 },
               "gamedesign": { displayName: "Game Design", icon: Gamepad2 },
@@ -326,61 +360,150 @@ const App: React.FC = () => {
               "programming": { displayName: "C# Programming", icon: Code },
               "C# Programming": { displayName: "C# Programming", icon: Code },
               "CSharp": { displayName: "C# Programming", icon: Code },
-              "csharp": { displayName: "C# Programming", icon: Code }
+              "csharp": { displayName: "C# Programming", icon: Code },
+              // Common badge names from API
+              "Explorer": { displayName: "Game Design", icon: Gamepad2 }, // Map Explorer to Game Design
+              "explorer": { displayName: "Game Design", icon: Gamepad2 }
             };
             
-            Object.keys(profile.badges).forEach(apiSkillName => {
-              const badgeData = profile.badges[apiSkillName];
+            Object.keys(badgesObject).forEach(apiSkillName => {
+              const badgeData = badgesObject[apiSkillName];
+              console.log(`Processing badge: ${apiSkillName}`, badgeData);
               const skillInfo = skillNameMap[apiSkillName] || { displayName: apiSkillName, icon: Gamepad2 };
               
-              // Map backend level to frontend level (backend might use 0-based or different system)
-              // Try multiple possible field names from backend
-              let mappedLevel = badgeData.level || 
-                               badgeData.currentLevel || 
-                               badgeData.tier || 
-                               badgeData.rank ||
-                               (badgeData.currentTier ? 
-                                 (badgeData.currentTier === 'Unranked' ? 1 :
-                                  badgeData.currentTier === 'Bronze' ? 2 :
-                                  badgeData.currentTier === 'Silver' ? 3 :
-                                  badgeData.currentTier === 'Gold' ? 4 :
-                                  badgeData.currentTier === 'Diamond' ? 5 : 1) : 1);
+              // According to API document, badges have:
+              // - rank: "Bronze", "Silver", "Gold", "Diamond" (or missing for Unranked)
+              // - points: current points
+              // - nextRank: next rank to achieve
+              // - nextRankPoints: points needed for next rank
               
-              // Ensure level is between 1-5
-              if (mappedLevel < 1) mappedLevel = 1;
-              if (mappedLevel > 5) mappedLevel = 5;
-              
-              // If backend doesn't provide level, keep the initial level from state
-              // This prevents API from resetting all badges to level 1
-              const existingSkill = skills.find(s => {
-                const normalizedExisting = s.name.toLowerCase().trim();
-                const normalizedNew = skillInfo.displayName.toLowerCase().trim();
-                return normalizedExisting === normalizedNew || 
-                       normalizedExisting.includes(normalizedNew) || 
-                       normalizedNew.includes(normalizedExisting);
-              });
-              if (!badgeData.level && !badgeData.currentLevel && !badgeData.tier && !badgeData.rank && !badgeData.currentTier) {
-                mappedLevel = existingSkill?.currentLevel || mappedLevel;
+              // Map rank string to level number
+              // Unranked = 1, Bronze = 2, Silver = 3, Gold = 4, Diamond = 5
+              let mappedLevel = 1; // Default to Unranked
+              const rankString = badgeData.rank || badgeData.currentTier || '';
+              if (rankString) {
+                const normalizedRank = rankString.toLowerCase().trim();
+                if (normalizedRank === 'bronze') {
+                  mappedLevel = 2;
+                } else if (normalizedRank === 'silver') {
+                  mappedLevel = 3;
+                } else if (normalizedRank === 'gold') {
+                  mappedLevel = 4;
+                } else if (normalizedRank === 'diamond') {
+                  mappedLevel = 5;
+                } else if (normalizedRank === 'unranked') {
+                  mappedLevel = 1;
+                }
               }
+              
+              // Use points from badgeData
+              const currentPoints = badgeData.points || 0;
+              
+              // Use nextRankPoints as maxPoints (points needed to reach next rank)
+              // If at Diamond (level 5), there's no next rank, so use a high number
+              const maxPoints = mappedLevel >= 5 ? 10000 : (badgeData.nextRankPoints || 10000);
+              
               
               skillsMap[skillInfo.displayName] = {
                 name: skillInfo.displayName, // Use display name for consistency
                 icon: skillInfo.icon,
                 currentLevel: mappedLevel,
-                points: badgeData.points || 0,
-                maxPoints: badgeData.maxPoints || 10000,
+                points: currentPoints,
+                maxPoints: maxPoints,
                 description: badgeData.description || "",
                 rewards: badgeData.rewards || []
               };
               
-              console.log(`Badge mapping: API name "${apiSkillName}" -> Display name "${skillInfo.displayName}", level ${mappedLevel} (from: ${JSON.stringify(badgeData)}), path: ${getBadgeIconPath(skillInfo.displayName, mappedLevel)}`);
             });
-            // Update skills state if we have badge data
+            // Update skills state if we have badge data from API
             if (Object.keys(skillsMap).length > 0) {
+              console.log('Setting skills from API badges:', Object.values(skillsMap));
               setSkills(Object.values(skillsMap));
+            } else {
+              // If no badge data from API, use default unranked badges for all skills
+              console.warn('No badge data found in profile.badges. Using default unranked badges.');
+              const defaultSkills: Skill[] = [
+                { 
+                  name: "Game Design", 
+                  icon: Gamepad2,
+                  currentLevel: 1, // Unranked
+                  points: 0,
+                  maxPoints: 10000,
+                  description: "",
+                  rewards: []
+                },
+                { 
+                  name: "Level Design", 
+                  icon: Monitor,
+                  currentLevel: 1, // Unranked
+                  points: 0,
+                  maxPoints: 10000,
+                  description: "",
+                  rewards: []
+                },
+                { 
+                  name: "Drawing", 
+                  icon: Paintbrush,
+                  currentLevel: 1, // Unranked
+                  points: 0,
+                  maxPoints: 10000,
+                  description: "",
+                  rewards: []
+                },
+                { 
+                  name: "C# Programming", 
+                  icon: Code,
+                  currentLevel: 1, // Unranked
+                  points: 0,
+                  maxPoints: 10000,
+                  description: "",
+                  rewards: []
+                }
+              ];
+              setSkills(defaultSkills);
             }
           } else {
-            console.log('No badge data in profile:', profile);
+            // If badgesObject is empty, use default unranked badges for all skills
+            console.warn('No badge data found in profile.badges. Using default unranked badges.');
+            const defaultSkills: Skill[] = [
+              { 
+                name: "Game Design", 
+                icon: Gamepad2,
+                currentLevel: 1, // Unranked
+                points: 0,
+                maxPoints: 10000,
+                description: "",
+                rewards: []
+              },
+              { 
+                name: "Level Design", 
+                icon: Monitor,
+                currentLevel: 1, // Unranked
+                points: 0,
+                maxPoints: 10000,
+                description: "",
+                rewards: []
+              },
+              { 
+                name: "Drawing", 
+                icon: Paintbrush,
+                currentLevel: 1, // Unranked
+                points: 0,
+                maxPoints: 10000,
+                description: "",
+                rewards: []
+              },
+              { 
+                name: "C# Programming", 
+                icon: Code,
+                currentLevel: 1, // Unranked
+                points: 0,
+                maxPoints: 10000,
+                description: "",
+                rewards: []
+              }
+            ];
+            setSkills(defaultSkills);
           }
         } catch (error) {
           console.error('Error fetching profile:', error);
@@ -399,18 +522,272 @@ const App: React.FC = () => {
               description: quest.description,
               steps: quest.subQuests?.map((_: any, i: number) => i + 1) || [],
               currentStep: aq.subQuestsProgress?.filter((p: any) => p.status === 'Completed').length || 0,
-              rewards: quest.completionRewards || [],
+              rewards: (() => {
+                // Map completionRewards from backend structure to frontend format
+                // Backend structure: completionRewards: [{ chance: 1, entries: [{ type, minAmount, maxAmount, ... }] }]
+                if (!quest.completionRewards || !Array.isArray(quest.completionRewards)) {
+                  return [];
+                }
+                
+                const mappedRewards: ObjectiveReward[] = [];
+                
+                quest.completionRewards.forEach((rewardGroup: any) => {
+                  if (rewardGroup && Array.isArray(rewardGroup.entries)) {
+                    rewardGroup.entries.forEach((entry: any) => {
+                      // Map backend type to frontend type
+                      let frontendType: 'exp' | 'rank' | 'skill' | 'coins' | 'animal' = 'coins';
+                      if (entry.type === 'Coin') {
+                        frontendType = 'coins';
+                      } else if (entry.type === 'RankPoint') {
+                        frontendType = 'rank';
+                      } else if (entry.type === 'BadgePoint') {
+                        frontendType = 'skill';
+                      } else if (entry.type === 'LeaderboardScore') {
+                        // LeaderboardScore might not be displayed, but we'll include it as coins for now
+                        frontendType = 'coins';
+                      }
+                      
+                      // Use minAmount as value (or average if min/max differ)
+                      const rewardValue = entry.minAmount || (entry.minAmount === entry.maxAmount ? entry.minAmount : Math.floor((entry.minAmount + entry.maxAmount) / 2));
+                      
+                      const mappedReward: ObjectiveReward = {
+                        type: frontendType,
+                        value: rewardValue || 0
+                      };
+                      
+                      // Add skillName for BadgePoint type
+                      if (frontendType === 'skill' && entry.badgeCategory) {
+                        mappedReward.skillName = entry.badgeCategory;
+                      }
+                      
+                      mappedRewards.push(mappedReward);
+                    });
+                  }
+                });
+                
+                return mappedRewards;
+              })(),
               completed: aq.isCompleted || false,
-              objectives: quest.subQuests?.map((sq: any, idx: number) => ({
+            objectives: quest.subQuests?.map((sq: any, idx: number) => {
+              // Backend reward structure:
+              // rewards: [
+              //   {
+              //     chance: 1,
+              //     entries: [
+              //       {
+              //         type: "Coin" | "RankPoint" | "LeaderboardScore" | "BadgePoint",
+              //         minAmount: number,
+              //         maxAmount: number,
+              //         weight: number,
+              //         badgeCategory?: string (for BadgePoint)
+              //       }
+              //     ]
+              //   }
+              // ]
+              
+              let reward: any = { type: 'coins', value: 0 };
+              
+              // Try sq.reward first (single object - for backwards compatibility)
+              if (sq.reward && typeof sq.reward === 'object' && sq.reward.type) {
+                reward = sq.reward;
+              }
+              // Try sq.rewards array (actual backend structure)
+              else if (Array.isArray(sq.rewards) && sq.rewards.length > 0) {
+                const rewardGroup = sq.rewards[0];
+                if (rewardGroup && Array.isArray(rewardGroup.entries) && rewardGroup.entries.length > 0) {
+                  const rewardEntry = rewardGroup.entries[0];
+                  
+                  // Map backend type to frontend type
+                  let frontendType = 'coins';
+                  if (rewardEntry.type === 'Coin') {
+                    frontendType = 'coins';
+                  } else if (rewardEntry.type === 'RankPoint') {
+                    frontendType = 'rank';
+                  } else if (rewardEntry.type === 'BadgePoint') {
+                    frontendType = 'skill';
+                  } else if (rewardEntry.type === 'LeaderboardScore') {
+                    // LeaderboardScore might not be used in frontend, default to coins
+                    frontendType = 'coins';
+                  }
+                  
+                  // Use minAmount as value (or average of min/max if different)
+                  const rewardValue = rewardEntry.minAmount || (rewardEntry.minAmount === rewardEntry.maxAmount ? rewardEntry.minAmount : Math.floor((rewardEntry.minAmount + rewardEntry.maxAmount) / 2));
+                  
+                  reward = {
+                    type: frontendType,
+                    value: rewardValue || 0
+                  };
+                  
+                  // Add skillName for BadgePoint type
+                  if (frontendType === 'skill' && rewardEntry.badgeCategory) {
+                    reward.skillName = rewardEntry.badgeCategory;
+                  }
+                }
+              }
+              // Check if reward data is in the progress entry
+              else {
+                const progressEntry = aq.subQuestsProgress?.find((p: any) => {
+                  const pId = (p.subQuestId || p.subQuest?._id || p.subQuest?.id || (typeof p.subQuest === 'string' ? p.subQuest : null))?.toString();
+                  const sqId = (sq._id || sq.id)?.toString();
+                  return pId === sqId;
+                });
+                
+                if (progressEntry?.reward && typeof progressEntry.reward === 'object' && progressEntry.reward.type) {
+                  reward = progressEntry.reward;
+                } else if (Array.isArray(progressEntry?.rewards) && progressEntry.rewards.length > 0) {
+                  const rewardGroup = progressEntry.rewards[0];
+                  if (rewardGroup && Array.isArray(rewardGroup.entries) && rewardGroup.entries.length > 0) {
+                    const rewardEntry = rewardGroup.entries[0];
+                    let frontendType = 'coins';
+                    if (rewardEntry.type === 'Coin') {
+                      frontendType = 'coins';
+                    } else if (rewardEntry.type === 'RankPoint') {
+                      frontendType = 'rank';
+                    } else if (rewardEntry.type === 'BadgePoint') {
+                      frontendType = 'skill';
+                    }
+                    reward = {
+                      type: frontendType,
+                      value: rewardEntry.minAmount || 0
+                    };
+                    if (frontendType === 'skill' && rewardEntry.badgeCategory) {
+                      reward.skillName = rewardEntry.badgeCategory;
+                    }
+                  }
+                }
+              }
+              
+              // Ensure reward has the correct structure
+              if (!reward || typeof reward !== 'object') {
+                reward = { type: 'coins', value: 0 };
+              }
+              if (!reward.type) {
+                reward.type = 'coins';
+              }
+              if (typeof reward.value === 'undefined' || reward.value === null) {
+                reward.value = 0;
+              }
+              
+              return {
                 text: sq.title || sq.description,
-                reward: sq.reward || { type: 'coins', value: 0 }
-              })) || [],
-              objectiveCompleted: aq.subQuestsProgress?.map((p: any) => p.status === 'Completed') || [],
-              objectiveSubmissions: aq.subQuestsProgress?.map((p: any) => ({
-                imageUrl: p.imageProof || null,
-                status: p.status === 'Completed' ? 'approved' : p.status === 'Pending' ? 'pending' : 'none'
-              })) || [],
-              objectiveRewardsAwarded: aq.subQuestsProgress?.map((p: any) => p.rewardAwarded || false) || [],
+                reward: reward,
+                subQuestId: sq._id || sq.id // Store subQuest ID for API submission
+              };
+            }) || [],
+            objectiveCompleted: (() => {
+              // Match progress to objectives by subQuestId, not by array index
+              const objectives = quest.subQuests || [];
+              const progressMap = new Map();
+              // Create a map of subQuestId -> progress status
+              // Try multiple possible field names for subQuestId in progress
+              aq.subQuestsProgress?.forEach((p: any, idx: number) => {
+                // Try to get subQuestId from progress object - check various possible structures
+                const progressSubQuestId = p.subQuestId || 
+                                         p.subQuest?._id || 
+                                         p.subQuest?.id ||
+                                         (typeof p.subQuest === 'string' ? p.subQuest : null);
+                
+                if (progressSubQuestId) {
+                  const subQuestIdString = progressSubQuestId.toString();
+                  // Mark as completed if status is 'Completed' OR 'Pending' (user sees pending as completed)
+                  progressMap.set(subQuestIdString, p.status === 'Completed' || p.status === 'Pending');
+                }
+              });
+              // Map each objective to its completion status by matching subQuestId
+              return objectives.map((sq: any, idx: number) => {
+                const objectiveSubQuestId = (sq._id || sq.id)?.toString();
+                
+                // First, try to get from the map we built
+                let completed = progressMap.get(objectiveSubQuestId);
+                
+                // If not found in map, try to find progress by searching through all progress entries
+                if (completed === undefined) {
+                  const matchingProgress = aq.subQuestsProgress?.find((p: any) => {
+                    const pId = (p.subQuestId || p.subQuest?._id || p.subQuest?.id || (typeof p.subQuest === 'string' ? p.subQuest : null))?.toString();
+                    return pId === objectiveSubQuestId;
+                  });
+                  if (matchingProgress) {
+                    // Mark as completed if status is 'Completed' OR 'Pending' (user sees pending as completed)
+                    completed = matchingProgress.status === 'Completed' || matchingProgress.status === 'Pending';
+                  } else {
+                    // DO NOT use array index fallback - it causes incorrect mapping
+                    completed = false;
+                  }
+                }
+                return completed || false;
+              });
+            })(),
+            objectiveSubmissions: (() => {
+              // Match submissions to objectives by subQuestId, not by array index
+              const objectives = quest.subQuests || [];
+              const submissionsMap = new Map();
+              // Create a map of subQuestId -> submission data
+              // Try multiple possible field names for subQuestId in progress
+              aq.subQuestsProgress?.forEach((p: any, idx: number) => {
+                const subQuestId = p.subQuestId || p.subQuest?._id || p.subQuest?.id || (typeof p.subQuest === 'string' ? p.subQuest : null);
+                if (subQuestId) {
+                  submissionsMap.set(subQuestId.toString(), {
+                    imageUrl: p.imageProof || null,
+                    status: p.status === 'Completed' ? 'approved' : p.status === 'Pending' ? 'pending' : p.status === 'Rejected' ? 'rejected' : 'none'
+                  });
+                }
+              });
+              // Map each objective to its submission by matching subQuestId
+              return objectives.map((sq: any, idx: number) => {
+                const subQuestId = (sq._id || sq.id)?.toString();
+                let submission = submissionsMap.get(subQuestId);
+                
+                // If not found in map, try to find by searching all progress entries
+                if (!submission) {
+                  const matchingProgress = aq.subQuestsProgress?.find((p: any) => {
+                    const pId = (p.subQuestId || p.subQuest?._id || p.subQuest?.id || (typeof p.subQuest === 'string' ? p.subQuest : null))?.toString();
+                    return pId === subQuestId;
+                  });
+                  if (matchingProgress) {
+                    submission = {
+                      imageUrl: matchingProgress.imageProof || null,
+                      status: matchingProgress.status === 'Completed' ? 'approved' : matchingProgress.status === 'Pending' ? 'pending' : matchingProgress.status === 'Rejected' ? 'rejected' : 'none'
+                    };
+                  }
+                }
+                
+                return submission || {
+                  imageUrl: null,
+                  status: 'none' as ApprovalStatus
+                };
+              });
+            })(),
+              objectiveRewardsAwarded: (() => {
+              // Match rewards awarded to objectives by subQuestId, not by array index
+              const objectives = quest.subQuests || [];
+              const rewardsMap = new Map();
+              // Create a map of subQuestId -> reward awarded status
+              // Try multiple possible field names for subQuestId in progress
+              aq.subQuestsProgress?.forEach((p: any, idx: number) => {
+                const subQuestId = p.subQuestId || p.subQuest?._id || p.subQuest?.id || (typeof p.subQuest === 'string' ? p.subQuest : null);
+                if (subQuestId) {
+                  rewardsMap.set(subQuestId.toString(), p.rewardAwarded || false);
+                }
+              });
+              // Map each objective to its reward awarded status by matching subQuestId
+              return objectives.map((sq: any, idx: number) => {
+                const subQuestId = (sq._id || sq.id)?.toString();
+                let awarded = rewardsMap.get(subQuestId);
+                
+                // If not found in map, try to find by searching all progress entries
+                if (awarded === undefined) {
+                  const matchingProgress = aq.subQuestsProgress?.find((p: any) => {
+                    const pId = (p.subQuestId || p.subQuest?._id || p.subQuest?.id || (typeof p.subQuest === 'string' ? p.subQuest : null))?.toString();
+                    return pId === subQuestId;
+                  });
+                  if (matchingProgress) {
+                    awarded = matchingProgress.rewardAwarded || false;
+                  }
+                }
+                
+                return awarded || false;
+              });
+            })(),
               rewardClaimed: aq.submissionStatus === 'Completed',
               rewardSubmissionStatus: (aq.submissionStatus === 'Pending' ? 'pending' : aq.submissionStatus === 'Completed' ? 'approved' : 'none') as ApprovalStatus,
               questRewardsAwarded: aq.isCompleted || false,
@@ -435,7 +812,51 @@ const App: React.FC = () => {
               description: quest.description,
               steps: quest.subQuests?.map((_: any, i: number) => i + 1) || [],
               currentStep: quest.subQuests?.length || 0,
-              rewards: quest.completionRewards || [],
+              rewards: (() => {
+                // Map completionRewards from backend structure to frontend format
+                // Backend structure: completionRewards: [{ chance: 1, entries: [{ type, minAmount, maxAmount, ... }] }]
+                if (!quest.completionRewards || !Array.isArray(quest.completionRewards)) {
+                  return [];
+                }
+                
+                const mappedRewards: ObjectiveReward[] = [];
+                
+                quest.completionRewards.forEach((rewardGroup: any) => {
+                  if (rewardGroup && Array.isArray(rewardGroup.entries)) {
+                    rewardGroup.entries.forEach((entry: any) => {
+                      // Map backend type to frontend type
+                      let frontendType: 'exp' | 'rank' | 'skill' | 'coins' | 'animal' = 'coins';
+                      if (entry.type === 'Coin') {
+                        frontendType = 'coins';
+                      } else if (entry.type === 'RankPoint') {
+                        frontendType = 'rank';
+                      } else if (entry.type === 'BadgePoint') {
+                        frontendType = 'skill';
+                      } else if (entry.type === 'LeaderboardScore') {
+                        // LeaderboardScore might not be displayed, but we'll include it as coins for now
+                        frontendType = 'coins';
+                      }
+                      
+                      // Use minAmount as value (or average if min/max differ)
+                      const rewardValue = entry.minAmount || (entry.minAmount === entry.maxAmount ? entry.minAmount : Math.floor((entry.minAmount + entry.maxAmount) / 2));
+                      
+                      const mappedReward: ObjectiveReward = {
+                        type: frontendType,
+                        value: rewardValue || 0
+                      };
+                      
+                      // Add skillName for BadgePoint type
+                      if (frontendType === 'skill' && entry.badgeCategory) {
+                        mappedReward.skillName = entry.badgeCategory;
+                      }
+                      
+                      mappedRewards.push(mappedReward);
+                    });
+                  }
+                });
+                
+                return mappedRewards;
+              })(),
               completed: true,
               objectives: quest.subQuests?.map((sq: any) => ({
                 text: sq.title || sq.description,
@@ -732,56 +1153,8 @@ const App: React.FC = () => {
     ]
   });
 
-  const [skills, setSkills] = useState<Skill[]>([
-    { 
-      name: "Game Design", 
-      icon: Gamepad2,
-      currentLevel: 2, // Bronze (1=Unranked, 2=Bronze, 3=Silver, 4=Gold, 5=Diamond)
-      points: 0,
-      maxPoints: 10000,
-      description: "Basic Game Designer. Can Create Simple Games",
-      rewards: [
-        { type: "animal", value: "ANIMAL APPEAR!" },
-        { type: "coins", value: "x300" }
-      ]
-    },
-    { 
-      name: "Level Design", 
-      icon: Monitor,
-      currentLevel: 3, // Silver
-      points: 0,
-      maxPoints: 10000,
-      description: "Basic Level Designer. Can Create Simple Levels",
-      rewards: [
-        { type: "animal", value: "ANIMAL APPEAR!" },
-        { type: "coins", value: "x200" }
-      ]
-    },
-    { 
-      name: "Drawing", 
-      icon: Paintbrush,
-      currentLevel: 4, // Gold
-      points: 0,
-      maxPoints: 10000,
-      description: "Master Artist. Can Create Professional Art",
-      rewards: [
-        { type: "animal", value: "ANIMAL APPEAR!" },
-        { type: "coins", value: "x500" }
-      ]
-    },
-    { 
-      name: "C# Programming", 
-      icon: Code,
-      currentLevel: 5, // Diamond
-      points: 0,
-      maxPoints: 10000,
-      description: "Basic Programmer. Can Create Simple System",
-      rewards: [
-        { type: "animal", value: "ANIMAL APPEAR!" },
-        { type: "coins", value: "x300" }
-      ]
-    }
-  ]);
+  // Initialize skills as empty - will be populated from API badges
+  const [skills, setSkills] = useState<Skill[]>([]);
 
   const leaderboard: LeaderboardItem[] = [
     { rank: 1, name: "mr.X", avatar: "/Asset/pets/dog.png", level: 25, score: 3589 },
@@ -1059,28 +1432,17 @@ const App: React.FC = () => {
           />
         )}
         
-        {/* Badge icon */}
-        <div 
-          className={`w-16 h-16 flex items-center justify-center transition-all duration-500 ${
+        {/* Badge image - no borders, just the image */}
+        <img 
+          src={getBadgeIconPath(skill.name, skill.currentLevel)} 
+          alt={`${skill.name} - Level ${skill.currentLevel}`}
+          className={`w-16 h-16 object-contain transition-all duration-500 ${
             isLevelingUp ? 'scale-125 shadow-lg' : ''
           }`}
           style={{ 
             boxShadow: isLevelingUp ? `0 0 20px ${currentLevelColor}` : 'none'
           }}
-        >
-          <img 
-            src={getBadgeIconPath(skill.name, skill.currentLevel)} 
-            alt={`${skill.name} - Level ${skill.currentLevel}`}
-            className="w-16 h-16 object-contain"
-            onError={(e) => {
-              console.error(`Failed to load badge image for ${skill.name} level ${skill.currentLevel}:`, getBadgeIconPath(skill.name, skill.currentLevel));
-              console.error('Image error:', e);
-            }}
-            onLoad={() => {
-              console.log(`Successfully loaded badge: ${skill.name} level ${skill.currentLevel} from ${getBadgeIconPath(skill.name, skill.currentLevel)}`);
-            }}
-          />
-        </div>
+        />
         
         {/* XP Progress Bar - Hidden for Diamond level */}
         {!isDiamond && (
@@ -1314,12 +1676,12 @@ const App: React.FC = () => {
 
   // Helper function to check if all objectives are completed (approved by admin)
   const areAllObjectivesCompleted = (quest: Quest): boolean => {
-    return quest.objectiveSubmissions.every(submission => submission.status === 'approved');
+    return quest.objectiveSubmissions.every(submission => submission && submission.status === 'approved');
   };
 
   // Helper function to get count of approved objectives (for step progress)
   const getApprovedObjectivesCount = (quest: Quest): number => {
-    return quest.objectiveSubmissions.filter(submission => submission.status === 'approved').length;
+    return quest.objectiveSubmissions.filter(submission => submission && submission.status === 'approved').length;
   };
 
   // Helper function to update quest step based on approved objectives
@@ -1340,6 +1702,7 @@ const App: React.FC = () => {
 
   // Function to trigger reward animation
   const triggerRewardAnimation = (reward: ObjectiveReward) => {
+    console.log('triggerRewardAnimation called with:', reward);
     // Create a key for this reward type to prevent duplicates (without timestamp)
     const rewardKey = `${reward.type}-${reward.value || 0}-${reward.skillName || ''}`;
     const now = Date.now();
@@ -1358,6 +1721,8 @@ const App: React.FC = () => {
       console.log('Duplicate reward animation prevented:', rewardKey, 'recent:', recentReward);
       return; // Skip duplicate animation
     }
+    
+    console.log('Creating reward animation for:', rewardKey);
     
     // Mark this reward as in progress with timestamp
     const rewardKeyWithTimestamp = `${rewardKey}-${now}`;
@@ -1381,9 +1746,10 @@ const App: React.FC = () => {
       // Ensure no duplicate IDs (safety check)
       const existingIds = new Set(prev.map(anim => anim.id));
       if (existingIds.has(animationId)) {
+        console.log('Animation ID already exists, skipping:', animationId);
         return prev; // Skip if ID already exists
       }
-      return [...prev, {
+      const newAnimation = {
         id: animationId,
         type: reward.type,
         value: reward.value || 0,
@@ -1392,7 +1758,9 @@ const App: React.FC = () => {
         y,
         driftX,
         startTime: Date.now() // Track animation start time
-      }];
+      };
+      console.log('Adding reward animation to state:', newAnimation, 'Total animations:', prev.length + 1);
+      return [...prev, newAnimation];
     });
     
     // Remove animation after it completes (bubble animation duration)
@@ -1622,14 +1990,28 @@ const App: React.FC = () => {
     const quest = questsState.find(q => q.id === questId);
     if (!quest) return;
     
+    // Ensure objectiveSubmissions array exists and has enough entries
+    if (!quest.objectiveSubmissions) {
+      quest.objectiveSubmissions = [];
+    }
+    
+    // Initialize submission if it doesn't exist
+    if (!quest.objectiveSubmissions[objectiveIndex]) {
+      quest.objectiveSubmissions[objectiveIndex] = {
+        imageUrl: null,
+        status: 'none'
+      };
+    }
+    
     const submission = quest.objectiveSubmissions[objectiveIndex];
-    // Only allow upload if not already approved
-    if (submission.status !== 'approved') {
+    // Allow upload if: not approved, not pending (user can resubmit if rejected)
+    // Note: pending is shown as completed to user, but we still allow resubmission if rejected
+    if (submission && (submission.status === 'none' || submission.status === 'rejected')) {
       // Cancel all reward animations when opening a new submission modal
       setRewardAnimations([]);
       
       setSelectedObjective({ questId, objectiveIndex });
-      setUploadedImage(submission.imageUrl);
+      setUploadedImage(submission.imageUrl || null);
       setShowImageUploadModal(true);
     }
   };
@@ -1648,7 +2030,13 @@ const App: React.FC = () => {
 
   // Handler to submit image
   const handleSubmitImage = async () => {
-    if (!selectedObjective || !uploadedImage) return;
+    if (!selectedObjective) return;
+    
+    // Image is optional according to API guide, but we'll require it for better UX
+    if (!uploadedImage) {
+      alert('Please upload an image proof before submitting.');
+      return;
+    }
 
     // Preserve scroll position before state updates
     const questListContainers = document.querySelectorAll('.overflow-y-auto');
@@ -1669,6 +2057,14 @@ const App: React.FC = () => {
     
     const objective = quest.objectives[selectedObjective.objectiveIndex];
     if (!objective) return;
+
+    // Check if there's already a pending submission (prevent duplicate API calls)
+    const currentSubmission = quest.objectiveSubmissions[selectedObjective.objectiveIndex];
+    if (currentSubmission && currentSubmission.status === 'pending') {
+      // Already has a pending submission - don't submit again
+      alert('This objective already has a pending submission. Please wait for it to be reviewed.');
+      return;
+    }
 
     try {
       // Convert base64 image to blob/file
@@ -1694,41 +2090,258 @@ const App: React.FC = () => {
         formData.append('description', description);
       }
       
-      // Note: subQuestId would need to come from backend quest structure
-      // For now, we'll submit without it and let backend handle it
+      // Add subQuestId to formData if available
+      if (objective.subQuestId) {
+        formData.append('subQuestId', objective.subQuestId);
+      }
 
-      // Submit to API
-      await questAPI.submitQuest(quest.id.toString(), formData);
+      // Submit to API and get response with grantedRewards
+      const submitResponse: any = await questAPI.submitQuest(quest.id.toString(), formData);
+      
+      // Check if rewards were granted by the backend
+      // According to API guide: grantedRewards is only present if rewards were actually granted
+      // If it's missing or empty, it means no rewards (resubmission)
+      const grantedRewards = submitResponse?.grantedRewards;
+      console.log('API submitResponse:', submitResponse);
+      console.log('grantedRewards from API:', grantedRewards);
+      const hasGrantedRewards = grantedRewards && (
+        (grantedRewards.coins && grantedRewards.coins > 0) ||
+        (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) ||
+        (grantedRewards.leaderboardScore && grantedRewards.leaderboardScore > 0) ||
+        (grantedRewards.badgePoints && Object.keys(grantedRewards.badgePoints).length > 0) ||
+        (grantedRewards.items && grantedRewards.items.length > 0)
+      );
+      console.log('hasGrantedRewards calculated as:', hasGrantedRewards);
 
-      // Update local state optimistically
+      // Get the reward before updating state
+      const rewardRef = { value: objective.reward };
+      const processingKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
+      
+      // Prevent duplicate processing
+      if (processingObjectives.current.has(processingKey)) {
+        console.log('Already processing this objective, skipping duplicate');
+        return;
+      }
+      processingObjectives.current.add(processingKey);
+
+      // Update local state - status is 'pending' but visually show as completed
       setQuestsState(prevQuests =>
         prevQuests.map(q => {
           if (q.id === selectedObjective.questId) {
+            // Ensure arrays exist and have correct length
+            const existingRewardsAwarded = q.objectiveRewardsAwarded || [];
+            const newRewardsAwarded = [...existingRewardsAwarded];
+            while (newRewardsAwarded.length < q.objectives.length) {
+              newRewardsAwarded.push(false);
+            }
+            
+            // Only mark as awarded if rewards were actually granted by backend
+            if (hasGrantedRewards && newRewardsAwarded[selectedObjective.objectiveIndex] !== true) {
+              newRewardsAwarded[selectedObjective.objectiveIndex] = true;
+            }
+            
             const newSubmissions = [...q.objectiveSubmissions];
             newSubmissions[selectedObjective.objectiveIndex] = {
               imageUrl: uploadedImage,
-              status: 'pending' // Will be approved by admin
+              status: 'pending' // Status is pending in backend, but user sees it as completed
             };
             
-            return {
+            const newCompleted = [...q.objectiveCompleted];
+            newCompleted[selectedObjective.objectiveIndex] = true; // Visually show as completed
+            
+            const updatedQuest = {
               ...q,
-              objectiveSubmissions: newSubmissions
+              objectiveSubmissions: newSubmissions,
+              objectiveCompleted: newCompleted,
+              objectiveRewardsAwarded: newRewardsAwarded
             };
+            
+            // Update step progress
+            setTimeout(() => updateQuestStep(selectedObjective.questId), 0);
+            
+            return updatedQuest;
           }
           return q;
         })
       );
 
-      // Refresh quest data from API
-      const activeQuests = await userAPI.getActiveQuests();
-      // Update quests state with fresh data
-      // (You may want to refactor this into a helper function)
+      // Award reward immediately after submission (user doesn't wait for backend approval)
+      // BUT: Only award if backend granted rewards (hasGrantedRewards from API response)
+      if (hasGrantedRewards) {
+        console.log('hasGrantedRewards is true, processing rewards:', grantedRewards);
+        setTimeout(() => {
+            const rewardKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
+            
+            // Check if already awarded
+            if (!awardedRewards.current.has(rewardKey)) {
+              // Mark as awarded immediately to prevent duplicates
+              awardedRewards.current.add(rewardKey);
+              
+              // Process badge points from API response first (if any)
+              if (grantedRewards.badgePoints && typeof grantedRewards.badgePoints === 'object') {
+                Object.keys(grantedRewards.badgePoints).forEach(skillName => {
+                  const pointsToAdd = grantedRewards.badgePoints[skillName];
+                  if (pointsToAdd && pointsToAdd > 0) {
+                    // Map API skill name to display name
+                    const skillNameMap: { [key: string]: string } = {
+                      "GameDesign": "Game Design",
+                      "gamedesign": "Game Design",
+                      "Game Design": "Game Design",
+                      "LevelDesign": "Level Design",
+                      "leveldesign": "Level Design",
+                      "Level Design": "Level Design",
+                      "Art": "Drawing",
+                      "art": "Drawing",
+                      "Drawing": "Drawing",
+                      "Programming": "C# Programming",
+                      "programming": "C# Programming",
+                      "C# Programming": "C# Programming",
+                      "CSharp": "C# Programming",
+                      "csharp": "C# Programming",
+                      "Explorer": "Game Design",
+                      "explorer": "Game Design"
+                    };
+                    
+                    const displayName = skillNameMap[skillName] || skillName;
+                    
+                    // Trigger reward animation for badge points
+                    console.log('Triggering badge points animation:', pointsToAdd, 'for', displayName);
+                    triggerRewardAnimation({
+                      type: 'skill',
+                      value: pointsToAdd,
+                      skillName: displayName
+                    });
+                  
+                  // Award badge points directly
+                  setSkills(prev => prev.map(skill => {
+                    if (skill.name === displayName) {
+                      const oldLevel = skill.currentLevel;
+                      const oldPoints = skill.points;
+                      const oldMaxPoints = skill.maxPoints;
+                      const newPoints = oldPoints + pointsToAdd;
+                      
+                      let newLevel = oldLevel;
+                      let newMaxPoints = oldMaxPoints;
+                      
+                      // Check if skill should level up
+                      if (newPoints >= oldMaxPoints && oldLevel < 5) {
+                        newLevel = oldLevel + 1;
+                        newMaxPoints = 10000 * newLevel;
+                        
+                        // Trigger level-up animation
+                        setTimeout(() => {
+                          handleSkillLevelUp(skill.name, newLevel, skill.rewards);
+                        }, 100);
+                      }
+                      
+                      const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
+                      
+                      console.log(`Awarded ${pointsToAdd} badge points to ${displayName} (from API)`);
+                      
+                      return {
+                        ...skill,
+                        points: cappedPoints,
+                        currentLevel: newLevel,
+                        maxPoints: newMaxPoints
+                      };
+                    }
+                    return skill;
+                  }));
+                }
+              });
+            }
+            
+            // Also award coins and rank points from API response
+            if (grantedRewards.coins && grantedRewards.coins > 0) {
+              // Trigger reward animation for coins
+              console.log('Triggering coins animation:', grantedRewards.coins);
+              triggerRewardAnimation({
+                type: 'coins',
+                value: grantedRewards.coins
+              });
+              
+              setUser(prev => ({
+                ...prev,
+                coins: prev.coins + grantedRewards.coins
+              }));
+              console.log(`Awarded ${grantedRewards.coins} coins (from API)`);
+            }
+            
+            if (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) {
+              // Trigger reward animation for rank points
+              console.log('Triggering rank points animation:', grantedRewards.rankPoints);
+              triggerRewardAnimation({
+                type: 'rank',
+                value: grantedRewards.rankPoints
+              });
+              
+              setUser(prev => ({
+                ...prev,
+                rankPoints: prev.rankPoints + grantedRewards.rankPoints
+              }));
+              console.log(`Awarded ${grantedRewards.rankPoints} rank points (from API)`);
+            }
+            
+            // Also award the reward from objective definition (for display/fallback)
+            // But only if we haven't already processed rewards from API
+            // This prevents duplicate animations
+            if (rewardRef.value && (!grantedRewards.badgePoints || Object.keys(grantedRewards.badgePoints).length === 0) && !grantedRewards.coins && !grantedRewards.rankPoints) {
+              awardObjectiveReward(rewardRef.value, rewardKey);
+            }
+            
+            console.log('Reward awarded - backend granted rewards for objective:', selectedObjective.objectiveIndex, grantedRewards);
+            
+            // Clean up after 5 seconds
+            setTimeout(() => {
+              awardedRewards.current.delete(rewardKey);
+            }, 5000);
+          } else {
+            console.log('Reward already awarded, skipping duplicate:', rewardKey);
+          }
+          
+          // Clear processing flag
+          setTimeout(() => {
+            processingObjectives.current.delete(processingKey);
+          }, 100);
+        }, 100); // Small delay to ensure animations trigger
+      } else {
+        console.log('No rewards granted by backend (resubmission) - skipping reward award for objective:', selectedObjective.objectiveIndex);
+        // Clear processing flag even if no reward
+        setTimeout(() => {
+          processingObjectives.current.delete(processingKey);
+        }, 100);
+      }
 
-    } catch (error) {
+      // Refresh quest data from API to get updated submission status
+      // Note: We merge API data with local optimistic state to handle rejections
+      // We DON'T refresh immediately after submission to avoid overwriting optimistic state
+      // The refresh will happen naturally when the user navigates or when the app loads
+      // This prevents the "already pending" error from showing up
+
+    } catch (error: any) {
       console.error('Error submitting quest:', error);
-      alert('Failed to submit quest. Please try again.');
+      const errorMessage = error?.message || 'Unknown error occurred';
+      console.error('Full error details:', {
+        questId: quest.id,
+        questIdString: quest.id.toString(),
+        objectiveIndex: selectedObjective.objectiveIndex,
+        subQuestId: objective.subQuestId,
+        hasImage: !!uploadedImage,
+        hasDescription: !!description,
+        error: errorMessage,
+        errorStack: error?.stack
+      });
+      
+      // Don't close modal on error so user can retry
+      alert(`Failed to submit quest: ${errorMessage}. Please check the console for details.`);
+      if (selectedObjective) {
+        const errorProcessingKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
+        processingObjectives.current.delete(errorProcessingKey);
+      }
+      return; // Exit early on error, don't close modal
     }
 
+    // Only close modal and reset on success
     // Restore scroll position
     setTimeout(() => {
       if (scrollPositionRef.current.container) {
@@ -1851,19 +2464,161 @@ const App: React.FC = () => {
     }, 100);
   }, []);
 
-  // Handler to claim reward (now with approval workflow)
-  const handleClaimReward = (questId: number) => {
-    setQuestsState(prevQuests => 
-      prevQuests.map(quest => {
-        if (quest.id === questId && areAllObjectivesCompleted(quest) && !quest.rewardClaimed) {
-          return {
-            ...quest,
-            rewardSubmissionStatus: 'pending',
-          };
+  // Handler to claim reward (submit main quest completion to API)
+  const handleClaimReward = async (questId: number) => {
+    const quest = questsState.find(q => q.id === questId);
+    if (!quest) return;
+    
+    // Check if all objectives are completed and reward not already claimed
+    if (!areAllObjectivesCompleted(quest) || quest.rewardClaimed) {
+      return;
+    }
+    
+    // Check if already pending
+    if (quest.rewardSubmissionStatus === 'pending') {
+      alert('Quest completion reward is already pending approval.');
+      return;
+    }
+    
+    try {
+      // Submit main quest completion (without subQuestId = submits main quest)
+      const formData = new FormData();
+      // Optionally add description if needed
+      // formData.append('description', 'Quest completed');
+      
+      // Submit to API - no subQuestId means main quest submission
+      const submitResponse: any = await questAPI.submitQuest(quest.id.toString(), formData);
+      
+      // Check if rewards were granted by the backend
+      const grantedRewards = submitResponse?.grantedRewards;
+      const hasGrantedRewards = grantedRewards && (
+        (grantedRewards.coins && grantedRewards.coins > 0) ||
+        (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) ||
+        (grantedRewards.leaderboardScore && grantedRewards.leaderboardScore > 0) ||
+        (grantedRewards.badgePoints && Object.keys(grantedRewards.badgePoints).length > 0) ||
+        (grantedRewards.items && grantedRewards.items.length > 0)
+      );
+      
+      // Process rewards from API response
+      if (hasGrantedRewards) {
+        // Process badge points from API response
+        if (grantedRewards.badgePoints && typeof grantedRewards.badgePoints === 'object') {
+          Object.keys(grantedRewards.badgePoints).forEach(skillName => {
+            const pointsToAdd = grantedRewards.badgePoints[skillName];
+            if (pointsToAdd && pointsToAdd > 0) {
+              // Map API skill name to display name
+              const skillNameMap: { [key: string]: string } = {
+                "GameDesign": "Game Design",
+                "gamedesign": "Game Design",
+                "Game Design": "Game Design",
+                "LevelDesign": "Level Design",
+                "leveldesign": "Level Design",
+                "Level Design": "Level Design",
+                "Art": "Drawing",
+                "art": "Drawing",
+                "Drawing": "Drawing",
+                "Programming": "C# Programming",
+                "programming": "C# Programming",
+                "C# Programming": "C# Programming",
+                "CSharp": "C# Programming",
+                "csharp": "C# Programming",
+                "Explorer": "Game Design",
+                "explorer": "Game Design"
+              };
+              
+                  const displayName = skillNameMap[skillName] || skillName;
+                  
+                  // Trigger reward animation for badge points
+                  triggerRewardAnimation({
+                    type: 'skill',
+                    value: pointsToAdd,
+                    skillName: displayName
+                  });
+                  
+                  // Award badge points directly
+                  setSkills(prev => prev.map(skill => {
+                if (skill.name === displayName) {
+                  const oldLevel = skill.currentLevel;
+                  const oldPoints = skill.points;
+                  const oldMaxPoints = skill.maxPoints;
+                  const newPoints = oldPoints + pointsToAdd;
+                  
+                  let newLevel = oldLevel;
+                  let newMaxPoints = oldMaxPoints;
+                  
+                  // Check if skill should level up
+                  if (newPoints >= oldMaxPoints && oldLevel < 5) {
+                    newLevel = oldLevel + 1;
+                    newMaxPoints = 10000 * newLevel;
+                    
+                    // Trigger level-up animation
+                    setTimeout(() => {
+                      handleSkillLevelUp(skill.name, newLevel, skill.rewards);
+                    }, 100);
+                  }
+                  
+                  const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
+                  
+                  console.log(`Awarded ${pointsToAdd} badge points to ${displayName} (from API - quest completion)`);
+                  
+                  return {
+                    ...skill,
+                    points: cappedPoints,
+                    currentLevel: newLevel,
+                    maxPoints: newMaxPoints
+                  };
+                }
+                return skill;
+              }));
+            }
+          });
         }
-        return quest;
-      })
-    );
+        
+        // Process coins from API response
+        if (grantedRewards.coins && grantedRewards.coins > 0) {
+          setUser(prev => ({
+            ...prev,
+            coins: prev.coins + grantedRewards.coins
+          }));
+          console.log(`Awarded ${grantedRewards.coins} coins (from API - quest completion)`);
+        }
+        
+        // Process rank points from API response
+        if (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) {
+          setUser(prev => ({
+            ...prev,
+            rankPoints: prev.rankPoints + grantedRewards.rankPoints
+          }));
+          console.log(`Awarded ${grantedRewards.rankPoints} rank points (from API - quest completion)`);
+        }
+        
+        // Also award rewards from quest definition (for display/fallback)
+        if (quest.rewards && quest.rewards.length > 0) {
+          awardQuestRewards(quest.rewards, questId);
+        }
+      }
+      
+      // Update local state to show pending status
+      setQuestsState(prevQuests => 
+        prevQuests.map(q => {
+          if (q.id === questId) {
+            return {
+              ...q,
+              rewardSubmissionStatus: 'pending',
+              rewardClaimed: hasGrantedRewards ? true : q.rewardClaimed, // Mark as claimed if rewards were granted
+              questRewardsAwarded: hasGrantedRewards ? true : q.questRewardsAwarded
+            };
+          }
+          return q;
+        })
+      );
+      
+      console.log('Main quest completion submitted:', submitResponse);
+    } catch (error: any) {
+      console.error('Error submitting quest completion:', error);
+      const errorMessage = error?.message || 'Unknown error occurred';
+      alert(`Failed to submit quest completion: ${errorMessage}. Please check the console for details.`);
+    }
   };
 
   // Handler for admin approval of reward (instant confirm for testing)
@@ -1952,17 +2707,9 @@ const App: React.FC = () => {
   };
 
   const QuestListOverlay: React.FC = () => {
-    // Sort quests: uncompleted first (including those with all objectives done but reward not claimed), completed at bottom
-    const sortedQuests = [...questsState].sort((a, b) => {
-      const aCompleted = isQuestTrulyCompleted(a);
-      const bCompleted = isQuestTrulyCompleted(b);
-      if (aCompleted === bCompleted) return 0;
-      return aCompleted ? 1 : -1;
-    });
-    
-    // Separate completed and uncompleted quests for better visual organization
-    const uncompletedQuests = sortedQuests.filter(q => !isQuestTrulyCompleted(q));
-    const completedQuests = sortedQuests.filter(q => isQuestTrulyCompleted(q));
+    // Separate completed and uncompleted quests
+    const uncompletedQuests = questsState.filter(q => !isQuestTrulyCompleted(q));
+    const completedQuests = questsState.filter(q => isQuestTrulyCompleted(q));
     
     // Track if panel should animate (only on manual open)
     const [shouldAnimate, setShouldAnimate] = useState(false);
@@ -2003,302 +2750,427 @@ const App: React.FC = () => {
     return (
       <div className={`fixed inset-0 z-50 flex items-end justify-center animate-fade-in ${theme === 'dark' ? 'bg-black/80' : 'bg-black/50'}`}>
         <div 
-          className={`w-full max-w-md rounded-t-xl shadow-lg h-[85vh] flex flex-col animate-slide-up transition-colors ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
+          className={`w-full max-w-md rounded-t-xl shadow-lg pb-20 animate-slide-up transition-colors ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className={`p-4 border-b flex justify-between items-center flex-shrink-0 ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+          <div className={`p-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
             <div></div>
-            <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Active Quests</h2>
+            <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>All Quests</h2>
             <button
-              onClick={() => setShowQuestOverlay(false)}
+              onClick={() => {
+                setShowQuestOverlay(false);
+                setSelectedQuestId(null);
+              }}
               className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
             >
               <X size={20} />
             </button>
           </div>
 
-          {/* Quest List */}
-          <div className="flex-1 overflow-y-auto p-4" id="quest-list-container">
-            {sortedQuests.length === 0 ? (
-              <div className={`text-center py-10 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                No active quests found.
-              </div>
-            ) : (
+          {/* Quest List with Full Details */}
+          <div className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+            {/* Uncompleted Quests */}
+            {uncompletedQuests.length > 0 && (
               <>
-                {sortedQuests.map((quest) => (
+                {uncompletedQuests.map((quest) => (
                   <div 
-                    key={quest.id}
+                    key={`uncompleted-${quest.id}`}
                     id={`quest-${quest.id}`}
-                    className={`rounded-xl p-4 mb-4 shadow-sm border transition-all ${
-                      selectedQuestId === quest.id 
-                        ? theme === 'dark' ? 'bg-gray-800 border-blue-500 ring-2 ring-blue-500/50' : 'bg-white border-blue-500 ring-2 ring-blue-500/20'
-                        : theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-                    }`}
+                    className={`rounded-xl p-4 mb-4 shadow-sm border transition-all ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}
                   >
                     {/* Quest Header */}
-                    <div 
-                      className="mb-4 cursor-pointer"
-                      onClick={() => toggleQuestExpansion(quest.id)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                            quest.type === 'Main Quest' 
-                              ? 'bg-blue-100 text-blue-700' 
-                              : 'bg-purple-100 text-purple-700'
-                          }`}>
-                            {quest.type}
-                          </span>
-                          <span className={`text-xs px-2 py-0.5 rounded ${theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'}`}>
-                            {quest.category}
-                          </span>
-                        </div>
-                        {quest.completed && (
-                          <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded flex items-center gap-1">
-                            <Check size={12} /> Completed
-                          </span>
-                        )}
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Check size={16} className="text-purple-600" />
+                        <span className={`text-xs font-semibold ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
+                          {quest.type}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2 mb-2">
-                        <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                          <span className="text-lg">📜</span>
+                        <div className={`w-6 h-6 rounded flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                          <span className="text-xs">🎮</span>
                         </div>
-                        <h3 className={`font-bold text-lg leading-tight ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{quest.title}</h3>
+                        <h3 className={`font-bold text-xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{quest.title}</h3>
                       </div>
-                      <p className={`text-sm mb-3 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{quest.description}</p>
-                      
-                      {/* Progress Bar */}
-                      {!quest.completed && (
-                        <div className="flex items-center gap-2">
-                          <div className={`flex-1 h-2 rounded-full ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                            <div 
-                              className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                              style={{ width: `${calculateProgress(quest)}%` }}
-                            ></div>
-                          </div>
-                          <span className={`text-xs font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                            {Math.round(calculateProgress(quest))}%
-                          </span>
-                        </div>
-                      )}
                     </div>
-
-                    {/* Expandable Content */}
-                    <div className={`transition-all duration-300 overflow-hidden ${
-                      selectedQuestId === quest.id ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
-                    }`}>
                       {/* Objectives */}
-                      <div className="mb-4 mt-4">
-                        <div className={`text-xs font-semibold uppercase mb-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
-                          Objectives
-                        </div>
-                        <div className={`rounded-lg overflow-hidden ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-50'}`}>
-                          {quest.objectives.map((objective, index) => {
-                            const isCompleted = quest.objectiveCompleted[index] || false;
-                            const submission = quest.objectiveSubmissions[index];
-                            const status = submission?.status || 'none';
-                            const reward = objective.reward;
-                            
-                            // Format reward display
-                            const getRewardDisplay = () => {
-                              if (reward.type === 'exp' && typeof reward.value === 'number') {
-                                return (
-                                  <div className="flex flex-col items-center">
-                                    <div className="w-10 h-10 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold">
-                                      {reward.value.toLocaleString()} XP
+                    <div className="mb-4">
+                      <div className="space-y-1">
+                        {quest.objectives.map((objective, index) => {
+                          const isCompleted = quest.objectiveCompleted[index] || false;
+                          const submission = quest.objectiveSubmissions[index];
+                          const status = submission?.status || 'none';
+                          const reward = objective.reward;
+                          
+                          // Format reward display
+                          const getRewardDisplay = () => {
+                            if (reward.type === 'exp' && typeof reward.value === 'number') {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className="w-10 h-10 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold">
+                                    {reward.value.toLocaleString()} XP
+                                  </div>
+                                </div>
+                              );
+                            } else if (reward.type === 'coins' && typeof reward.value === 'number') {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <img src="/Asset/item/coin.png" alt="Coins" className="w-8 h-8 object-contain" />
+                                  <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
+                                </div>
+                              );
+                            } else if (reward.type === 'skill' && typeof reward.value === 'number') {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                                    {reward.value}
+                                  </div>
+                                  {reward.skillName && (
+                                    <div className={`text-xs font-semibold mt-1 text-center max-w-[80px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                      {reward.skillName}
                                     </div>
+                                  )}
+                                </div>
+                              );
+                            } else if (reward.type === 'rank' && typeof reward.value === 'number') {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className="w-12 h-12 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center leading-tight whitespace-nowrap">
+                                    {reward.value.toLocaleString()} RP
                                   </div>
-                                );
-                              } else if (reward.type === 'coins' && typeof reward.value === 'number') {
-                                return (
-                                  <div className="flex flex-col items-center">
-                                    <img src="/Asset/item/coin.png" alt="Coins" className="w-8 h-8 object-contain" />
-                                    <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
+                                </div>
+                              );
+                            } else if (reward.type === 'animal') {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                                      <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
+                                    </svg>
                                   </div>
-                                );
-                              } else if (reward.type === 'skill' && typeof reward.value === 'number') {
-                                return (
-                                  <div className="flex flex-col items-center">
-                                    <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                                      {reward.value}
-                                    </div>
-                                    {reward.skillName && (
-                                      <div className={`text-xs font-semibold mt-1 text-center max-w-[80px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        {reward.skillName}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              } else if (reward.type === 'rank' && typeof reward.value === 'number') {
-                                return (
-                                  <div className="flex flex-col items-center">
-                                    <div className="w-12 h-12 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center leading-tight whitespace-nowrap">
-                                      {reward.value.toLocaleString()} RP
-                                    </div>
-                                  </div>
-                                );
-                              } else if (reward.type === 'animal') {
-                                return (
-                                  <div className="flex flex-col items-center">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                                      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
-                                        <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
-                                      </svg>
-                                    </div>
-                                  </div>
-                                );
-                              }
-                            };
+                                </div>
+                              );
+                            }
+                          };
 
-                            // Determine visual state
-                            const isPending = status === 'pending';
-                            const isApproved = status === 'approved';
-                            const isClickable = status !== 'approved';
+                          // Determine visual state
+                          // Note: 'pending' status is shown as completed to user (optimistic UI)
+                          const isPending = status === 'pending';
+                          const isApproved = status === 'approved' || status === 'pending'; // Show pending as approved visually
+                          const isFullyApproved = status === 'approved'; // Fully approved (not just pending)
+                          const isRejected = status === 'rejected';
+                          const isClickable = isRejected || (status !== 'approved' && status !== 'pending'); // Allow resubmission if rejected
 
-                            return (
-                              <div 
-                                key={index} 
-                                className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all ${
-                                  theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
-                                } ${
-                                  isPending 
-                                    ? theme === 'dark' ? 'bg-gray-800/50 opacity-70' : 'bg-gray-800 opacity-70' 
-                                    : isApproved 
-                                    ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' 
-                                    : isClickable 
-                                    ? theme === 'dark' ? 'cursor-pointer hover:bg-gray-800' : 'cursor-pointer hover:bg-gray-50' 
-                                    : ''
-                                }`}
-                                onClick={() => isClickable && handleObjectiveClick(quest.id, index)}
-                              >
+                          return (
+                            <div 
+                              key={index} 
+                              className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all ${
+                                theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
+                              } ${
+                                isRejected
+                                  ? theme === 'dark' ? 'bg-red-900/20 border-red-500' : 'bg-red-50 border-red-200'
+                                  : isApproved 
+                                  ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' 
+                                  : isClickable 
+                                  ? theme === 'dark' ? 'bg-green-900/30 border-green-500 cursor-pointer hover:bg-green-900/40' : 'bg-green-50 border-green-200 cursor-pointer hover:bg-green-100' 
+                                  : ''
+                              }`}
+                              onClick={() => isClickable && handleObjectiveClick(quest.id, index)}
+                            >
+                              <div className="flex-1 flex items-center gap-2">
+                                <span className={`text-sm ${
+                                  isApproved 
+                                    ? 'text-green-600 font-semibold' 
+                                    : isRejected
+                                    ? 'text-red-600 font-semibold'
+                                    : theme === 'dark' ? 'text-gray-300' : 'text-black'
+                                }`}>
+                                  {objective.text}
+                                </span>
                                 {isPending && (
-                                  <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                                    <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
+                                  <Check className="w-4 h-4 text-green-600" />
+                                )}
+                                {isFullyApproved && (
+                                  <div className="flex items-center gap-0.5">
+                                    <Check className="w-4 h-4 text-green-600" />
+                                    <Check className="w-4 h-4 text-green-600" />
                                   </div>
                                 )}
-                                <div className={`flex-1 flex items-center gap-2 ${isPending ? 'opacity-30' : ''} px-3`}>
-                                  <span className={`text-sm ${
-                                    isApproved 
-                                      ? 'text-green-600 font-semibold' 
-                                      : theme === 'dark' ? 'text-gray-300' : 'text-black'
-                                  }`}>
-                                    {objective.text}
-                                  </span>
-                                  {isApproved && (
-                                    <Check className="w-4 h-4 text-green-600" />
-                                  )}
-                                </div>
-                                <div className={`flex items-center gap-2 ${isPending ? 'opacity-30' : ''} px-3`}>
-                                  <div className="flex-shrink-0">
-                                    {getRewardDisplay()}
-                                  </div>
-                                  {/* Instant confirm button for testing */}
-                                  {isPending && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleApproveObjective(quest.id, index);
-                                      }}
-                                      className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors z-20 relative"
-                                      title="Approve (Testing)"
-                                    >
-                                      ✓
-                                    </button>
-                                  )}
+                                {isRejected && (
+                                  <span className="text-xs text-red-600 font-semibold">(Rejected - Click to resubmit)</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-shrink-0">
+                                  {getRewardDisplay()}
                                 </div>
                               </div>
-                            );
-                          })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* REWARDS Section */}
+                    {quest.rewards && quest.rewards.length > 0 && (
+                      <div className="mb-4 relative">
+                        <div className="flex justify-center absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                          <div className="bg-[#F67BA4] text-white text-center py-2.5 px-16">
+                            <span className="text-m font-semibold uppercase">REWARDS</span>
+                          </div>
+                        </div>
+                        <div className={`relative rounded-lg pt-8 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
+                          <button
+                            onClick={() => {
+                              if (areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none') {
+                                handleClaimReward(quest.id);
+                              }
+                            }}
+                            disabled={quest.rewardClaimed || !areAllObjectivesCompleted(quest) || quest.rewardSubmissionStatus === 'pending'}
+                            className={`w-full p-8 rounded-lg transition-all relative ${
+                              quest.rewardClaimed
+                                ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed' : 'bg-gray-100 cursor-not-allowed'
+                                : quest.rewardSubmissionStatus === 'pending'
+                                ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-70' : 'bg-gray-100 cursor-not-allowed opacity-70'
+                                : areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none'
+                                ? theme === 'dark' ? 'bg-green-900/40 border-2 border-green-500 hover:bg-green-900/50 cursor-pointer' : 'bg-green-50 border-2 border-green-200 hover:bg-green-100 cursor-pointer'
+                                : theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-50' : 'bg-gray-100 cursor-not-allowed opacity-50'
+                            }`}
+                          >
+                            {quest.rewardSubmissionStatus === 'pending' && (
+                              <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                                <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
+                              </div>
+                            )}
+                            <div className={`flex justify-center gap-6 ${quest.rewardSubmissionStatus === 'pending' ? 'opacity-30' : ''}`}>
+                              {quest.rewards.map((reward, index) => (
+                                <div key={index} className="flex flex-col items-center">
+                                  {reward.type === 'exp' && typeof reward.value === 'number' ? (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                      {reward.value.toLocaleString()} XP
+                                    </div>
+                                  ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
+                                    <>
+                                      <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
+                                      <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
+                                    </>
+                                  ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
+                                    <div className="flex flex-col items-center">
+                                      <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                        {reward.value}
+                                      </div>
+                                      {reward.skillName && (
+                                        <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
+                                          {reward.skillName}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                      {reward.value.toLocaleString()} RP
+                                    </div>
+                                  ) : reward.type === 'animal' ? (
+                                    <>
+                                      <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-2 shadow-md ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                                          <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
+                                        </svg>
+                                      </div>
+                                      <div className={`text-xs font-semibold text-center ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>ANIMAL<br/>APPEAR!</div>
+                                    </>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+                          </button>
                         </div>
                       </div>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+            
+            {/* Completed Quests Section */}
+            {completedQuests.length > 0 && (
+              <>
+                <div className={`text-xs font-semibold uppercase mb-2 mt-6 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Completed
+                </div>
+                {completedQuests.map((quest) => (
+                  <div 
+                    key={`completed-${quest.id}`}
+                    id={`quest-${quest.id}`}
+                    className={`rounded-xl p-4 mb-4 shadow-sm border transition-all opacity-50 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}
+                  >
+                    {/* Quest Header */}
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Check size={16} className="text-purple-600" />
+                        <span className={`text-xs font-semibold ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
+                          {quest.type}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className={`w-6 h-6 rounded flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                          <span className="text-xs">🎮</span>
+                        </div>
+                        <h3 className={`font-bold text-xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{quest.title}</h3>
+                      </div>
+                    </div>
 
-                      {/* REWARDS Section */}
-                      {quest.rewards && quest.rewards.length > 0 && (
-                        <div className="mb-4 relative">
-                          <div className="flex justify-center absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
-                            <div className="bg-[#F67BA4] text-white text-center py-2.5 px-16">
-                              <span className="text-m font-semibold uppercase">REWARDS</span>
-                            </div>
-                          </div>
-                          <div className={`relative rounded-lg pt-8 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
-                            <button
-                              onClick={() => {
-                                if (areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none') {
-                                  handleClaimReward(quest.id);
-                                }
-                              }}
-                              disabled={quest.rewardClaimed || !areAllObjectivesCompleted(quest) || quest.rewardSubmissionStatus === 'pending'}
-                              className={`w-full p-8 rounded-lg transition-all relative ${
-                                quest.rewardClaimed
-                                  ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed' : 'bg-gray-100 cursor-not-allowed'
-                                  : quest.rewardSubmissionStatus === 'pending'
-                                  ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-70' : 'bg-gray-100 cursor-not-allowed opacity-70'
-                                  : areAllObjectivesCompleted(quest)
-                                  ? theme === 'dark' ? 'bg-gray-900/50 hover:bg-gray-800 cursor-pointer' : 'bg-gray-100 hover:bg-gray-200 cursor-pointer'
-                                  : theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-50' : 'bg-gray-100 cursor-not-allowed opacity-50'
+                    {/* Objectives */}
+                    <div className="mb-4">
+                      <div className="space-y-1">
+                        {quest.objectives.map((objective, index) => {
+                          const isCompleted = quest.objectiveCompleted[index] || false;
+                          const submission = quest.objectiveSubmissions[index];
+                          const status = submission?.status || 'none';
+                          const reward = objective.reward;
+                          
+                          // Format reward display
+                          const getRewardDisplay = () => {
+                            if (reward.type === 'exp' && typeof reward.value === 'number') {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className="w-10 h-10 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold">
+                                    {reward.value.toLocaleString()} XP
+                                  </div>
+                                </div>
+                              );
+                            } else if (reward.type === 'coins' && typeof reward.value === 'number') {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <img src="/Asset/item/coin.png" alt="Coins" className="w-8 h-8 object-contain" />
+                                  <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
+                                </div>
+                              );
+                            } else if (reward.type === 'skill' && typeof reward.value === 'number') {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                                    {reward.value}
+                                  </div>
+                                  {reward.skillName && (
+                                    <div className={`text-xs font-semibold mt-1 text-center max-w-[80px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                      {reward.skillName}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            } else if (reward.type === 'rank' && typeof reward.value === 'number') {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className="w-12 h-12 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center leading-tight whitespace-nowrap">
+                                    {reward.value.toLocaleString()} RP
+                                  </div>
+                                </div>
+                              );
+                            } else if (reward.type === 'animal') {
+                              return (
+                                <div className="flex flex-col items-center">
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                                      <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
+                                    </svg>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          };
+
+                          const isApproved = status === 'approved';
+
+                          return (
+                            <div 
+                              key={index} 
+                              className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all ${
+                                theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
+                              } ${
+                                isApproved ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' : ''
                               }`}
                             >
-                              {quest.rewardSubmissionStatus === 'pending' && (
-                                <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                                  <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
+                              <div className="flex-1 flex items-center gap-2">
+                                <span className={`text-sm ${
+                                  isApproved 
+                                    ? 'text-green-600 font-semibold' 
+                                    : theme === 'dark' ? 'text-gray-300' : 'text-black'
+                                }`}>
+                                  {objective.text}
+                                </span>
+                                {isApproved && (
+                                  <div className="flex items-center gap-0.5">
+                                    <Check className="w-4 h-4 text-green-600" />
+                                    <Check className="w-4 h-4 text-green-600" />
                                   </div>
-                              )}
-                              <div className={`flex justify-center gap-6 ${quest.rewardSubmissionStatus === 'pending' ? 'opacity-30' : ''}`}>
-                                {quest.rewards.map((reward, index) => (
-                                  <div key={index} className="flex flex-col items-center">
-                                    {reward.type === 'exp' && typeof reward.value === 'number' ? (
-                                      <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                        {reward.value.toLocaleString()} XP
-                                      </div>
-                                    ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
-                                      <>
-                                        <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
-                                        <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
-                                      </>
-                                    ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
-                                      <div className="flex flex-col items-center">
-                                        <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                          {reward.value}
-                                        </div>
-                                        {reward.skillName && (
-                                          <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
-                                            {reward.skillName}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
-                                      <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                        {reward.value.toLocaleString()} RP
-                                      </div>
-                                    ) : reward.type === 'animal' ? (
-                                      <>
-                                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-2 shadow-md ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                                          <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
-                                            <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
-                                          </svg>
-                                        </div>
-                                        <div className={`text-xs font-semibold text-center ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>ANIMAL<br/>APPEAR!</div>
-                                      </>
-                                    ) : null}
-                                  </div>
-                                ))}
+                                )}
                               </div>
-                            </button>
-                            {/* Instant confirm button for testing */}
-                            {quest.rewardSubmissionStatus === 'pending' && (
-                              <button
-                                onClick={() => handleApproveReward(quest.id)}
-                                className="absolute top-2 right-2 px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors z-20"
-                                title="Approve Reward (Testing)"
-                              >
-                                ✓ Confirm
-                              </button>
-                            )}
+                              <div className="flex items-center gap-2">
+                                <div className="flex-shrink-0">
+                                  {getRewardDisplay()}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* REWARDS Section */}
+                    {quest.rewards && quest.rewards.length > 0 && (
+                      <div className="mb-4 relative">
+                        <div className="flex justify-center absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                          <div className="bg-[#BF5475] text-white text-center py-2 px-6 rounded-lg">
+                            <span className="text-sm font-semibold uppercase">REWARDS</span>
                           </div>
                         </div>
-                      )}
-                    </div>
+                        <div className={`relative rounded-lg pt-2 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
+                          <div className={`w-full p-4 rounded-lg cursor-not-allowed ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
+                            <div className="flex justify-center gap-6">
+                              {quest.rewards.map((reward, index) => (
+                                <div key={index} className="flex flex-col items-center">
+                                  {reward.type === 'exp' && typeof reward.value === 'number' ? (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                      {reward.value.toLocaleString()} XP
+                                    </div>
+                                  ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
+                                    <>
+                                      <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
+                                      <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
+                                    </>
+                                  ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
+                                    <div className="flex flex-col items-center">
+                                      <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                        {reward.value}
+                                      </div>
+                                      {reward.skillName && (
+                                        <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
+                                          {reward.skillName}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
+                                      {reward.value.toLocaleString()} RP
+                                    </div>
+                                  ) : reward.type === 'animal' ? (
+                                    <>
+                                      <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-2 shadow-md ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                                        <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                                          <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
+                                        </svg>
+                                      </div>
+                                      <div className={`text-xs font-semibold text-center ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>ANIMAL<br/>APPEAR!</div>
+                                    </>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </>
@@ -2737,7 +3609,7 @@ const App: React.FC = () => {
         <div className="flex items-center gap-3 sm:gap-6">
           {/* Pet Display on Left */}
           <div className="flex flex-col items-center flex-shrink-0">
-            <img src={user.avatar} alt="Pet" className="w-36 h-36 sm:w-48 sm:h-48 object-contain" />
+            <img src={user.avatar} alt="Pet" className="w-45 h-45 sm:w-48 sm:h-48 object-contain" />
             <div className="text-center mt-1">
               <span className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{user.petLevel}</span>
             </div>
