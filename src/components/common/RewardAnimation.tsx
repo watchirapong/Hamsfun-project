@@ -5,8 +5,11 @@ import { Coins, Star, Trophy, Crown } from 'lucide-react';
 
 export interface RewardAnimationInstance {
   id: number | string;
-  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal';
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item';
   value: number | string;
+  itemName?: string;
+  itemImage?: string;
+  quantity?: number;
   x: number;
   y: number;
   driftX: number;
@@ -49,6 +52,12 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
         return <Crown className="w-5 h-5 text-green-600" />;
       case 'animal':
         return <span className="text-xl">🐾</span>;
+      case 'item':
+        // Show item image if available
+        if (animation.itemImage) {
+          return <img src={animation.itemImage} alt={animation.itemName || 'Item'} className="w-8 h-8 object-contain" />;
+        }
+        return <span className="text-xl">🎁</span>;
       default:
         return null;
     }
@@ -66,6 +75,10 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
         return `+${animation.value}`;
       case 'animal':
         return `${animation.value}`;
+      case 'item':
+        // Show item name and quantity
+        const qty = animation.quantity || 1;
+        return `${animation.itemName || 'Item'} x${qty}`;
       default:
         return '';
     }

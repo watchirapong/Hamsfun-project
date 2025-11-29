@@ -120,6 +120,21 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
           </div>
         </div>
       );
+    } else if (reward.type === 'item') {
+      return (
+        <div className="flex flex-col items-center">
+          {reward.itemImage ? (
+            <img src={reward.itemImage} alt={reward.itemName || 'Item'} className="w-8 h-8 object-contain" />
+          ) : (
+            <div className={`w-8 h-8 rounded flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+              <span className="text-lg">🎁</span>
+            </div>
+          )}
+          {reward.quantity && (
+            <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.quantity}</div>
+          )}
+        </div>
+      );
     }
     return null;
   };
@@ -428,7 +443,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                             </div>
                           )}
                           <div className={`flex justify-center gap-6 ${quest.rewardSubmissionStatus === 'pending' ? 'opacity-30' : ''}`}>
-                            {quest.rewards.map((reward, index) => (
+                            {quest.rewards.filter(reward => reward.type !== 'skill').map((reward, index) => (
                               <div key={index} className="flex flex-col items-center">
                                 {reward.type === 'exp' && typeof reward.value === 'number' ? (
                                   <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
@@ -462,6 +477,24 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                       </svg>
                                     </div>
                                     <div className={`text-xs font-semibold text-center ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>ANIMAL<br/>APPEAR!</div>
+                                  </>
+                                ) : reward.type === 'item' ? (
+                                  <>
+                                    {reward.itemImage ? (
+                                      <img src={reward.itemImage} alt={reward.itemName || 'Item'} className="w-12 h-12 object-contain mb-2" />
+                                    ) : (
+                                      <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-2 shadow-md ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                                        <span className="text-4xl">🎁</span>
+                                      </div>
+                                    )}
+                                    {reward.quantity && (
+                                      <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.quantity}</div>
+                                    )}
+                                    {reward.itemName && (
+                                      <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        {reward.itemName}
+                                      </div>
+                                    )}
                                   </>
                                 ) : null}
                               </div>
@@ -561,7 +594,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                       <div className={`relative rounded-lg pt-2 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
                         <div className={`w-full p-4 rounded-lg cursor-not-allowed ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
                           <div className="flex justify-center gap-6">
-                            {quest.rewards.map((reward, index) => (
+                            {quest.rewards.filter(reward => reward.type !== 'skill').map((reward, index) => (
                               <div key={index} className="flex flex-col items-center">
                                 {reward.type === 'exp' && typeof reward.value === 'number' ? (
                                   <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
@@ -595,6 +628,24 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                       </svg>
                                     </div>
                                     <div className={`text-xs font-semibold text-center ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>ANIMAL<br/>APPEAR!</div>
+                                  </>
+                                ) : reward.type === 'item' ? (
+                                  <>
+                                    {reward.itemImage ? (
+                                      <img src={reward.itemImage} alt={reward.itemName || 'Item'} className="w-12 h-12 object-contain mb-2" />
+                                    ) : (
+                                      <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-2 shadow-md ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                                        <span className="text-4xl">🎁</span>
+                                      </div>
+                                    )}
+                                    {reward.quantity && (
+                                      <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.quantity}</div>
+                                    )}
+                                    {reward.itemName && (
+                                      <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        {reward.itemName}
+                                      </div>
+                                    )}
                                   </>
                                 ) : null}
                               </div>

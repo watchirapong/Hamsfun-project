@@ -5,7 +5,7 @@ export interface RankObjective {
   coinCost?: number; // Cost to rank up
 }
 
-export type RankName = 
+export type RankName =
   | 'Meteor I'
   | 'Meteor II'
   | 'Meteor III'

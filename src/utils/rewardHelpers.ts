@@ -24,7 +24,7 @@ export const mapApiSkillNameToDisplayName = (apiSkillName: string): string => {
     "Explorer": "Game Design",
     "explorer": "Game Design"
   };
-  
+
   return skillNameMap[apiSkillName] || apiSkillName;
 };
 
@@ -35,7 +35,7 @@ export const mapApiSkillNameToDisplayName = (apiSkillName: string): string => {
  */
 export const hasValidGrantedRewards = (grantedRewards: any): boolean => {
   if (!grantedRewards) return false;
-  
+
   return (
     (grantedRewards.coins && grantedRewards.coins > 0) ||
     (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) ||
@@ -61,7 +61,7 @@ export const processCoinsFromApi = (
       type: 'coins',
       value: coins
     });
-    
+
     setUser((prev: any) => ({
       ...prev,
       coins: prev.coins + coins
@@ -86,7 +86,7 @@ export const processRankPointsFromApi = (
       type: 'rank',
       value: rankPoints
     });
-    
+
     setUser((prev: any) => ({
       ...prev,
       rankPoints: prev.rankPoints + rankPoints
@@ -110,21 +110,22 @@ export const processBadgePointsFromApi = (
   handleSkillLevelUp: (skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => void
 ) => {
   console.log('[Badge Processing] Processing badge points from backend:', badgePoints);
-  
+
   Object.keys(badgePoints).forEach(skillName => {
     const pointsToAdd = badgePoints[skillName];
     if (pointsToAdd && pointsToAdd > 0) {
       const displayName = mapApiSkillNameToDisplayName(skillName);
-      
+
       console.log(`[Badge Processing] Awarding ${pointsToAdd} points to ${displayName} (API name: ${skillName})`);
-      
-      // Trigger reward animation for badge points
-      triggerRewardAnimation({
-        type: 'skill',
-        value: pointsToAdd,
-        skillName: displayName
-      });
-    
+
+      // DON'T trigger reward animation for badge points (as per user request)
+      // Badge points will still be awarded, just no animation shown
+      // triggerRewardAnimation({
+      //   type: 'skill',
+      //   value: pointsToAdd,
+      //   skillName: displayName
+      // });
+
       // Award badge points directly
       setSkills(prev => prev.map(skill => {
         if (skill.name === displayName) {
@@ -132,23 +133,23 @@ export const processBadgePointsFromApi = (
           const oldPoints = skill.points;
           const oldMaxPoints = skill.maxPoints;
           const newPoints = oldPoints + pointsToAdd;
-          
+
           let newLevel = oldLevel;
           let newMaxPoints = oldMaxPoints;
-          
+
           // Check if skill should level up
           if (newPoints >= oldMaxPoints && oldLevel < 5) {
             newLevel = oldLevel + 1;
             newMaxPoints = 10000 * newLevel;
-            
+
             // Trigger level-up animation
             setTimeout(() => {
               handleSkillLevelUp(skill.name, newLevel, skill.rewards);
             }, 100);
           }
-          
+
           const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
-          
+
           return {
             ...skill,
             points: cappedPoints,
@@ -158,6 +159,38 @@ export const processBadgePointsFromApi = (
         }
         return skill;
       }));
+    }
+  });
+};
+
+/**
+ * Processes item rewards from API response
+ * @param items - Array of items with itemId, name, quantity
+ * @param triggerRewardAnimation - Function to trigger reward animation
+ */
+export const processItemsFromApi = (
+  items: Array<{ itemId: string; name: string; quantity: number; icon?: string }>,
+  triggerRewardAnimation: (reward: { type: 'item'; value: number; itemName: string; itemImage?: string; quantity: number }) => void
+) => {
+  console.log('[Item Processing] Processing items from backend:', items);
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    console.log('[Item Processing] No items to process');
+    return;
+  }
+
+  items.forEach(item => {
+    if (item && item.quantity > 0) {
+      console.log(`[Item Processing] Awarding ${item.quantity}x ${item.name}`);
+
+      // Trigger reward animation for items
+      triggerRewardAnimation({
+        type: 'item',
+        value: item.quantity,
+        itemName: item.name,
+        itemImage: item.icon, // Use icon from API if available
+        quantity: item.quantity
+      });
     }
   });
 };
