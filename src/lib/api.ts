@@ -154,61 +154,10 @@ export const itemAPI = {
 
 // Leaderboard APIs
 export const leaderboardAPI = {
-  // Get leaderboard
-  getLeaderboard: () => apiCall<any[]>('/api/v1/leaderboard'),
-};
-
-// Admin APIs
-export const adminAPI = {
-  // Create quest
-  createQuest: (formData: FormData) =>
-    apiCallMultipart('/api/v1/admin/quests', formData),
-
-  // Assign quest to user
-  assignQuestToUser: (userId: string, questId: string) =>
-    apiCall(`/api/v1/admin/users/${userId}/quests`, {
-      method: 'POST',
-      body: JSON.stringify({ questId }),
-    }),
-
-  // Get submissions
-  getSubmissions: () => apiCall<any[]>('/api/v1/admin/submissions'),
-
-  // Approve submission
-  approveSubmission: (submissionId: string) =>
-    apiCall(`/api/v1/admin/submissions/${submissionId}/approve`, {
-      method: 'PUT',
-    }),
-
-  // Reject submission
-  rejectSubmission: (submissionId: string, feedback: string) =>
-    apiCall(`/api/v1/admin/submissions/${submissionId}/reject`, {
-      method: 'PUT',
-      body: JSON.stringify({ feedback }),
-    }),
-
-  // Grant item to user
-  grantItem: (userId: string, itemId: string, quantity: number) =>
-    apiCall(`/api/v1/admin/users/${userId}/grant-item`, {
-      method: 'POST',
-      body: JSON.stringify({ itemId, quantity }),
-    }),
-
-  // House management
-  getHouses: () => apiCall('/api/v1/admin/houses'),
-  createHouse: (name: string, discordRoleId: string) =>
-    apiCall('/api/v1/admin/houses', {
-      method: 'POST',
-      body: JSON.stringify({ name, discordRoleId }),
-    }),
-  updateHouse: (houseId: string, data: any) =>
-    apiCall(`/api/v1/admin/houses/${houseId}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    }),
-  deleteHouse: (houseId: string) =>
-    apiCall(`/api/v1/admin/houses/${houseId}`, {
-      method: 'DELETE',
-    }),
+  // Get leaderboard (returns both users and houses)
+  getLeaderboard: () => apiCall<{ users: any[]; houses?: any[] }>('/api/v1/leaderboard'),
+  
+  // Get house members (if endpoint exists)
+  getHouseMembers: (houseId: string) => apiCall<any[]>(`/api/v1/houses/${houseId}/members`).catch(() => []),
 };
 

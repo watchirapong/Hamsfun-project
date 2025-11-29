@@ -7,6 +7,7 @@ export const useUI = () => {
   const [selectedQuestId, setSelectedQuestId] = useState<number | null>(null);
   const [showItemsOverlay, setShowItemsOverlay] = useState<boolean>(false);
   const [showBadgeOverlay, setShowBadgeOverlay] = useState<boolean>(false);
+  const [showLeaderboardOverlay, setShowLeaderboardOverlay] = useState<boolean>(false);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [description, setDescription] = useState<string>('anyone can be anything');
   const [isEditingDescription, setIsEditingDescription] = useState<boolean>(false);
@@ -26,6 +27,8 @@ export const useUI = () => {
     setShowItemsOverlay,
     showBadgeOverlay,
     setShowBadgeOverlay,
+    showLeaderboardOverlay,
+    setShowLeaderboardOverlay,
     selectedSkill,
     setSelectedSkill,
     description,

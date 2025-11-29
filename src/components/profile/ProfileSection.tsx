@@ -26,19 +26,23 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
 }) => {
   return (
     <div className={`p-4 shadow-sm mb-4 transition-colors ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-      <div className="flex items-center gap-3 sm:gap-6">
-        {/* Pet Display on Left */}
-        <div className="flex flex-col items-center flex-shrink-0">
-          <img src={user.avatar} alt="Pet" className="w-45 h-45 sm:w-48 sm:h-48 object-contain" />
-          <div className="text-center mt-1">
+      <div className="flex items-center gap-3 sm:gap-6 w-full">
+        {/* Pet Display on Left - 50% of screen width */}
+        <div className="flex flex-col items-center w-1/2">
+          <img 
+            src={/*user.avatar*/ "/Asset/pets/dog.png" /*TESTING*/} 
+            alt="Pet" 
+            className="w-full h-auto object-contain max-w-full" 
+          />
+          <div className="text-center mt-1 ml-40">
             <span className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{user.petLevel}</span>
           </div>
         </div>
         
-        {/* Rank Card on Right - Clickable with Flip Animation */}
-        <div className="flex-1 min-w-0" style={{ flex: '1 1 auto' }}>
+        {/* Rank Card on Right - 50% of screen width - Clickable with Flip Animation */}
+        <div className="w-1/2">
           <div 
-            className={`flip-card cursor-pointer w-full sm:max-w-md ${rankCardFlipped ? 'flipped' : ''}`}
+            className={`flip-card cursor-pointer w-full ${rankCardFlipped ? 'flipped' : ''}`}
             onClick={onRankCardFlip}
             style={{ minHeight: '280px' }}
           >

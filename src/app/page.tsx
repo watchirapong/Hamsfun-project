@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Trophy, Gamepad2, Monitor, Paintbrush, Code, ChevronRight, Star, Crown, Users, Ticket, Coins, Edit2, Gift } from 'lucide-react';
-import { userAPI, questAPI, authAPI, getToken, setToken, removeToken } from '@/lib/api';
+import { userAPI, questAPI, authAPI, leaderboardAPI, getToken, setToken, removeToken } from '@/lib/api';
 import { 
   User, 
   Skill, 
@@ -49,15 +49,18 @@ import { QuestCard } from '@/components/quests/QuestCard';
 import { SkillCard } from '@/components/skills/SkillCard';
 import { RewardAnimation } from '@/components/common/RewardAnimation';
 import { LeaderboardItemComponent } from '@/components/common/LeaderboardItem';
+import { HouseLeaderboardItemComponent } from '@/components/leaderboard/HouseLeaderboardItem';
 import { BackpackItemComponent } from '@/components/items/BackpackItem';
 import { ImageUploadModal } from '@/components/quests/ImageUploadModal';
 import { ItemsOverlay } from '@/components/items/ItemsOverlay';
 import { SettingsOverlay } from '@/components/common/SettingsOverlay';
 import { QuestListOverlay } from '@/components/quests/QuestListOverlay';
 import { BadgeOverlay } from '@/components/skills/BadgeOverlay';
+import { LeaderboardOverlay } from '@/components/leaderboard/LeaderboardOverlay';
 import { mockQuests } from '@/data/mockQuests';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
+import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useUI } from '@/hooks/useUI';
 import { useItems } from '@/hooks/useItems';
 import { useRewards } from '@/hooks/useRewards';
@@ -86,6 +89,8 @@ const App: React.FC = () => {
     setShowItemsOverlay,
     showBadgeOverlay,
     setShowBadgeOverlay,
+    showLeaderboardOverlay,
+    setShowLeaderboardOverlay,
     selectedSkill,
     setSelectedSkill,
     description,
@@ -154,7 +159,7 @@ const App: React.FC = () => {
           container.scrollTop = scrollPositionRef.current.scrollTop;
         }
       }, 0);
-    }
+      }
   }, [showImageUploadModal]);
   
   // Rewards management
@@ -173,12 +178,20 @@ const App: React.FC = () => {
 
   // User and skills are managed by useAuth hook
 
-  const leaderboard: LeaderboardItem[] = [
-    { rank: 1, name: "mr.X", avatar: "/Asset/pets/dog.png", level: 25, score: 3589 },
-    { rank: 2, name: "mr.X", avatar: "/Asset/pets/dog.png", level: 25, score: 2439 },
-    { rank: 3, name: "mr.X", avatar: "/Asset/pets/dog.png", level: 25, score: 1321 },
-    { rank: 4, name: "mr.X", avatar: "/Asset/pets/dog.png", level: 25, score: 589 }
-  ];
+  // Leaderboard data from API (houses)
+  const { houseLeaderboard, isLoading: leaderboardLoading, error: leaderboardError } = useLeaderboard();
+  
+  // Handler to fetch house members
+  const handleFetchHouseMembers = async (houseId: string) => {
+    try {
+      const members = await leaderboardAPI.getHouseMembers(houseId);
+      // Sort members by leaderboardScore (descending)
+      return members.sort((a: any, b: any) => (b.leaderboardScore || 0) - (a.leaderboardScore || 0));
+    } catch (error) {
+      console.error('Failed to fetch house members:', error);
+      return [];
+    }
+  };
 
   // parseItemDate is now in useItems hook
 
@@ -249,7 +262,7 @@ const App: React.FC = () => {
         </div>
       </div>
     );
-  }
+    }
 
   // Show login screen if not authenticated
   if (!isAuthenticated) {
@@ -272,23 +285,27 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-black'}`}>
-      {/* Settings Overlay */}
-      {showSettingsOverlay && (
-        <SettingsOverlay
-          theme={theme}
-          onClose={() => setShowSettingsOverlay(false)}
-          onThemeChange={setTheme}
-          onLogout={handleLogout}
-        />
-      )}
-      
-      {/* Reward Animations */}
-      {rewardAnimations.map((animation) => (
-        <RewardAnimation key={animation.id} animation={animation} />
-      ))}
-      {/* Header */}
-      <Header
+    <>
+      {/* Full screen background with theme */}
+      <div className={`min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        {/* Centered page container with fixed width (mobile-like) */}
+        <div className={`mx-auto max-w-[428px] min-h-screen transition-colors duration-300 ${theme === 'dark' ? 'bg-gray-800 text-white shadow-2xl' : 'bg-white text-black shadow-2xl'}`}>
+        {/* Settings Overlay */}
+        {showSettingsOverlay && (
+          <SettingsOverlay
+            theme={theme}
+            onClose={() => setShowSettingsOverlay(false)}
+            onThemeChange={setTheme}
+            onLogout={handleLogout}
+          />
+        )}
+        
+        {/* Reward Animations */}
+        {rewardAnimations.map((animation) => (
+          <RewardAnimation key={animation.id} animation={animation} />
+        ))}
+        {/* Header */}
+        <Header
         description={description}
         isEditingDescription={isEditingDescription}
         coins={user.coins}
@@ -339,7 +356,7 @@ const App: React.FC = () => {
             />
           ))}
         <button 
-          className="w-full bg-blue-500 text-white py-3 rounded-xl font-medium hover:bg-blue-600 transition-colors"
+          className="w-full bg-[#4EAAFF] text-white py-3 rounded-xl font-medium hover:bg-blue-600 transition-colors"
           onClick={() => {
             setSelectedQuestId(null);
             setShowQuestOverlay(true);
@@ -347,14 +364,37 @@ const App: React.FC = () => {
         >
           More Quests
         </button>
-      </div>
-
+          </div>
+          
       {/* Leaderboard Section */}
       <div className="px-4 mb-4">
         <h2 className="font-bold text-lg mb-3 text-black">Leader Board</h2>
-        {leaderboard.map((item, index) => (
-          <LeaderboardItemComponent key={index} item={item} />
-        ))}
+        {leaderboardLoading ? (
+          <div className="text-center py-4 text-gray-500">Loading leaderboard...</div>
+        ) : leaderboardError ? (
+          <div className="text-center py-4 text-red-500">Failed to load leaderboard</div>
+        ) : houseLeaderboard.length === 0 ? (
+          <div className="text-center py-4 text-gray-500">No leaderboard data available</div>
+        ) : (
+          <>
+            {/* Show only top 5 houses on main page */}
+            {houseLeaderboard.slice(0, 5).map((item) => (
+              <HouseLeaderboardItemComponent 
+                key={item.houseId || item.rank} 
+                item={item}
+                onFetchMembers={handleFetchHouseMembers}
+              />
+            ))}
+            {houseLeaderboard.length > 5 && (
+              <div 
+                onClick={() => setShowLeaderboardOverlay(true)}
+                className="text-center py-2 text-blue-500 text-sm font-medium cursor-pointer"
+              >
+                View All ({houseLeaderboard.length} houses)
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Backpack Section */}
@@ -364,12 +404,12 @@ const App: React.FC = () => {
           <BackpackItemComponent key={item.id} item={item} onUse={handleUseItem} onDelete={handleDeleteItem} />
         ))}
         <button 
-          className="w-full bg-blue-500 text-white py-3 rounded-xl font-medium hover:bg-blue-600 transition-colors"
+          className="w-full bg-[#4EAAFF] text-white py-3 rounded-xl font-medium hover:bg-blue-600 transition-colors"
           onClick={() => setShowItemsOverlay(true)}
         >
           More Items
         </button>
-      </div>
+        </div>
 
       {/* Quest Overlay */}
       {showQuestOverlay && (
@@ -385,9 +425,9 @@ const App: React.FC = () => {
           handleClaimReward={handleClaimReward}
           handleApproveObjective={handleApproveObjective}
           handleApproveReward={handleApproveReward}
-        />
+            />
       )}
-      
+
       {/* Items Overlay */}
       {showItemsOverlay && (
         <ItemsOverlay
@@ -406,6 +446,16 @@ const App: React.FC = () => {
           setShowBadgeOverlay={setShowBadgeOverlay}
         />
       )}
+      
+      {/* Leaderboard Overlay */}
+      {showLeaderboardOverlay && (
+        <LeaderboardOverlay
+          houseLeaderboard={houseLeaderboard}
+          theme={theme}
+          onClose={() => setShowLeaderboardOverlay(false)}
+          onFetchMembers={handleFetchHouseMembers}
+        />
+      )}
 
       {/* Image Upload Modal */}
       <ImageUploadModal
@@ -419,7 +469,9 @@ const App: React.FC = () => {
           setUploadedImage(null);
         }}
       />
-    </div>
+        </div>
+      </div>
+    </>
   );
 };
 

@@ -103,6 +103,62 @@ export interface LeaderboardItem {
   score: number;
 }
 
+// API Response types for Leaderboard
+export interface LeaderboardUser {
+  _id: string;
+  username: string;
+  rank: {
+    currentTier: string;
+    points: number;
+  };
+  leaderboardScore: number;
+  roles?: Array<{
+    name: string;
+    id: string;
+    color: string;
+    position: number;
+  }>;
+  badges?: {
+    [key: string]: {
+      rank: string;
+      points: number;
+    };
+  };
+}
+
+export interface LeaderboardResponse {
+  users: LeaderboardUser[];
+  houses?: House[];
+}
+
+export interface House {
+  _id: string;
+  name: string;
+  score: number;
+  memberCount: number;
+  members?: HouseMember[]; // Optional, may be included in response
+}
+
+export interface HouseMember {
+  _id: string;
+  username: string;
+  leaderboardScore: number;
+  rank?: {
+    currentTier: string;
+    points: number;
+  };
+  petLevel?: number;
+}
+
+export interface HouseLeaderboardItem {
+  rank: number;
+  houseName: string;
+  houseScore: number;
+  memberCount: number;
+  houseId: string;
+  members?: HouseMember[]; // Optional, for expanded view
+}
+
 export interface BackpackItem {
   id: number;
   name: string;

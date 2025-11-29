@@ -4,6 +4,8 @@ import { Quest, ObjectiveReward } from '@/types';
 import { getApprovedObjectivesCount, areAllObjectivesCompleted } from '@/utils/helpers';
 import { hasValidGrantedRewards } from '@/utils/rewardHelpers';
 import { processBadgePointsFromApi, processCoinsFromApi, processRankPointsFromApi } from '@/utils/rewardHelpers';
+import { validateObjectiveBadgePoints, validateQuestCompletionBadgePoints } from '@/utils/badgeValidation';
+import { refreshBadgeDataFromBackend } from '@/utils/badgeSync';
 
 interface QuestHandlersParams {
   questsState: Quest[];
@@ -297,14 +299,45 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
           // Use grantedRewards from API response
           const rewardsToProcess = grantedRewards;
           
+          // Validate badge points before processing
+          const currentQuest = questsState.find(q => q.id === selectedObjective.questId);
+          if (currentQuest && rewardsToProcess?.badgePoints) {
+            const validation = validateObjectiveBadgePoints(
+              currentQuest,
+              selectedObjective.objectiveIndex,
+              rewardsToProcess.badgePoints
+            );
+            
+            if (!validation.isValid) {
+              console.error('Badge points validation failed:', validation);
+              // Log mismatches but still process rewards (backend is source of truth)
+              validation.mismatches.forEach(mismatch => {
+                console.error(`Badge mismatch: ${mismatch.skillName} - Expected: ${mismatch.expected}, Received: ${mismatch.received}`);
+              });
+            }
+            
+            if (validation.warnings.length > 0) {
+              console.warn('Badge points validation warnings:', validation.warnings);
+            }
+          }
+          
           // Process badge points from API response first (if any)
           if (rewardsToProcess && rewardsToProcess.badgePoints && typeof rewardsToProcess.badgePoints === 'object') {
+            // Log the badge points being processed for verification
+            console.log('Processing badge points from backend:', rewardsToProcess.badgePoints);
+            
             processBadgePointsFromApi(
               rewardsToProcess.badgePoints,
               setSkills,
               triggerRewardAnimation,
               handleSkillLevelUp
             );
+            
+            // Refresh badge data from backend to ensure sync after processing
+            // This ensures frontend state matches backend exactly
+            setTimeout(async () => {
+              await refreshBadgeDataFromBackend(setSkills);
+            }, 1000); // Wait 1 second for backend to process
           }
           
           // Also award coins and rank points from API response
@@ -530,14 +563,37 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       
       // Process rewards from API response
       if (hasGrantedRewards) {
+        // Validate badge points before processing
+        const validation = validateQuestCompletionBadgePoints(quest, grantedRewards.badgePoints);
+        
+        if (!validation.isValid) {
+          console.error('Quest completion badge points validation failed:', validation);
+          validation.mismatches.forEach(mismatch => {
+            console.error(`Badge mismatch: ${mismatch.skillName} - Expected: ${mismatch.expected}, Received: ${mismatch.received}`);
+          });
+        }
+        
+        if (validation.warnings.length > 0) {
+          console.warn('Quest completion badge points validation warnings:', validation.warnings);
+        }
+        
         // Process badge points from API response
         if (grantedRewards.badgePoints && typeof grantedRewards.badgePoints === 'object') {
+          // Log the badge points being processed for verification
+          console.log('Processing quest completion badge points from backend:', grantedRewards.badgePoints);
+          
           processBadgePointsFromApi(
             grantedRewards.badgePoints,
             setSkills,
             triggerRewardAnimation,
             handleSkillLevelUp
           );
+          
+          // Refresh badge data from backend to ensure sync after processing
+          // This ensures frontend state matches backend exactly
+          setTimeout(async () => {
+            await refreshBadgeDataFromBackend(setSkills);
+          }, 1000); // Wait 1 second for backend to process
         }
         
         // Process coins from API response

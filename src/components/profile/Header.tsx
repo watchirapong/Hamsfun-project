@@ -28,9 +28,6 @@ export const Header: React.FC<HeaderProps> = ({
     <div className={`shadow-sm p-4 transition-colors ${theme === 'dark' ? 'bg-gray-800 border-b border-gray-700' : 'bg-white'}`}>
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
-            <Crown size={16} className="text-yellow-500" />
-          </div>
           {isEditingDescription ? (
             <input
               type="text"

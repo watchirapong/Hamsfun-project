@@ -109,10 +109,14 @@ export const processBadgePointsFromApi = (
   triggerRewardAnimation: (reward: { type: 'skill'; value: number; skillName: string }) => void,
   handleSkillLevelUp: (skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => void
 ) => {
+  console.log('[Badge Processing] Processing badge points from backend:', badgePoints);
+  
   Object.keys(badgePoints).forEach(skillName => {
     const pointsToAdd = badgePoints[skillName];
     if (pointsToAdd && pointsToAdd > 0) {
       const displayName = mapApiSkillNameToDisplayName(skillName);
+      
+      console.log(`[Badge Processing] Awarding ${pointsToAdd} points to ${displayName} (API name: ${skillName})`);
       
       // Trigger reward animation for badge points
       triggerRewardAnimation({

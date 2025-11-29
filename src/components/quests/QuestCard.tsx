@@ -44,13 +44,17 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick }) => 
             // Count how many objectives are completed (not which ones)
             // Fill balls from left to right based on count
             const isStepCompleted = index < completedObjectives;
+            // Next progress level is the first uncompleted objective (or reward if all completed)
+            const isNextProgressLevel = index === completedObjectives;
             
             return (
               <React.Fragment key={index}>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs relative ${
                   isStepCompleted
                     ? 'bg-[#4CCC51] text-white' 
                     : 'bg-gray-200 text-gray-600'
+                } ${
+                  isNextProgressLevel ? 'ring-2 ring-[#4CCC51] ring-offset-1' : ''
                 }`}>
                   {index + 1}
                 </div>
@@ -59,10 +63,12 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick }) => 
             );
           })}
           {/* Reward step at the end */}
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center relative ${
             quest.rewardClaimed
               ? 'bg-blue-500 text-white' 
               : 'bg-gray-200 text-gray-600'
+          } ${
+            completedObjectives === totalObjectives && !quest.rewardClaimed ? 'ring-2 ring-[#4CCC51] ring-offset-1' : ''
           }`}>
             <Gift size={14} />
           </div>

@@ -72,7 +72,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}
         >
-          Submit to Admin
+          Submit
         </button>
       </div>
     </div>
