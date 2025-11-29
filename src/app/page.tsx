@@ -394,8 +394,8 @@ const App: React.FC = () => {
               </div>
             )}
           </>
-        )}
-      </div>
+            )}
+          </div>
 
       {/* Backpack Section */}
       <div className="px-4 mb-4">

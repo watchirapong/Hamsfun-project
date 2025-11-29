@@ -38,7 +38,8 @@
 | Property | Type | Description |
 | :--- | :--- | :--- |
 | `_id` | String | User ID |
-| `username` | String | Username |
+| `discordUsername` | String | Username (from Discord) |
+| `discordNickname` | String | Nickname (from Discord Guild) |
 | `discordId` | String | Discord User ID |
 | `coins` | Number | จำนวนเหรียญที่มี |
 | `rank` | Object | ข้อมูล Rank |
@@ -48,7 +49,8 @@
 ```json
 {
   "_id": "6566f...",
-  "username": "PlayerOne",
+  "discordUsername": "PlayerOne",
+  "discordNickname": "PlayerOneNick",
   "discordId": "123456789",
   "coins": 100,
   "rank": {
@@ -85,7 +87,7 @@
       "_id": "6566e...",
       "name": "Health Potion",
       "description": "Restores 50 HP",
-      "type": "Consumable"
+      "type": "NormalItem"
     },
     "kind": "Stackable",
     "quantity": 5,
@@ -280,7 +282,7 @@
 {
   "name": "Magic Stone",
   "description": "A stone with magical power",
-  "type": "Material"
+  "type": "NormalItem"
 }
 ```
 
@@ -291,7 +293,7 @@
   "data": {
     "_id": "65675...",
     "name": "Magic Stone",
-    "type": "Material"
+    "type": "NormalItem"
   }
 }
 ```
@@ -309,7 +311,8 @@
 {
   "users": [
     {
-      "username": "TopPlayer",
+      "discordUsername": "TopPlayer",
+      "discordNickname": "TopPlayerNick",
       "leaderboardScore": 5000,
       "rank": { "currentTier": "Star I" }
     }
@@ -319,7 +322,13 @@
       "_id": "65676...",
       "name": "House of Valor",
       "score": 15000,
-      "memberCount": 10
+      "memberCount": 10,
+      "members": [
+        {
+           "discordUsername": "Member1",
+           "leaderboardScore": 1000
+        }
+      ]
     }
   ]
 }
@@ -382,7 +391,7 @@
     "_id": "65673...",
     "type": "Quest",
     "status": "Pending",
-    "user": { "username": "PlayerOne" },
+    "user": { "discordUsername": "PlayerOne" },
     "questId": { "title": "Welcome Quest" },
     "subQuestTitle": "Say Hello"
   }

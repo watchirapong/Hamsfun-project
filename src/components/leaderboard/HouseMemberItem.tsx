@@ -56,7 +56,7 @@ export const HouseMemberItem: React.FC<HouseMemberItemProps> = ({ member, rank }
             textShadow: `0 0 6px ${rankStyle.textGlowColor}`,
           } : { color: '#000000' }}
         >
-          {member.username}
+          {member.discordNickname || member.discordUsername}
         </div>
         <div className="text-xs text-gray-400 opacity-70">Pet Lv{petLevel}</div>
       </div>

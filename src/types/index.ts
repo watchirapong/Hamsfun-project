@@ -106,7 +106,8 @@ export interface LeaderboardItem {
 // API Response types for Leaderboard
 export interface LeaderboardUser {
   _id: string;
-  username: string;
+  discordUsername: string;
+  discordNickname?: string;
   rank: {
     currentTier: string;
     points: number;
@@ -141,13 +142,15 @@ export interface House {
 
 export interface HouseMember {
   _id: string;
-  username: string;
+  discordUsername: string;
+  discordNickname?: string;
   leaderboardScore: number;
   rank?: {
     currentTier: string;
     points: number;
   };
   petLevel?: number;
+  avatar?: string;
 }
 
 export interface HouseLeaderboardItem {

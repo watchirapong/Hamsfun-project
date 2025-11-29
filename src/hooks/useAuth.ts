@@ -57,7 +57,7 @@ export const useAuth = () => {
           const profile = await userAPI.getMyProfile();
           // Map backend profile to frontend User interface
           setUser({
-            name: profile.username || profile.name || 'User',
+            name: profile.discordNickname || profile.discordUsername || profile.name || 'User',
             avatar: profile.avatar || "/Asset/pets/dog.png",
             badge: getRankIconPath(profile.rank?.currentTier || "Meteor I"),
             coins: profile.coins || 0,
