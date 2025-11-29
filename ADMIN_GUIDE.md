@@ -447,7 +447,22 @@
 }
 ```
 
-### 7.7 Create House
+### 7.7 Get Houses
+**URL:** `GET /api/v1/admin/houses`
+**Description:** ดูรายการบ้านทั้งหมด
+
+**Response Example:**
+```json
+[
+  {
+    "_id": "65678...",
+    "name": "House of Wisdom",
+    "discordRoleId": "987654321"
+  }
+]
+```
+
+### 7.8 Create House
 **URL:** `POST /api/v1/admin/houses`
 **Description:** สร้างบ้านใหม่
 
@@ -465,5 +480,98 @@
   "_id": "65678...",
   "name": "House of Wisdom",
   "discordRoleId": "987654321"
+}
+```
+
+### 7.9 Update House
+**URL:** `PUT /api/v1/admin/houses/:id`
+**Description:** แก้ไขข้อมูลบ้าน
+
+**Request Example:**
+```json
+{
+  "name": "House of Valor",
+  "discordRoleId": "987654321"
+}
+```
+
+**Response Example:**
+```json
+{
+  "_id": "65678...",
+  "name": "House of Valor",
+  "discordRoleId": "987654321"
+}
+```
+
+### 7.10 Delete House
+**URL:** `DELETE /api/v1/admin/houses/:id`
+**Description:** ลบบ้าน
+
+**Response Example:**
+```json
+{ "message": "House removed" }
+```
+
+### 7.11 Delete Quest
+**URL:** `DELETE /api/v1/admin/quests/:id`
+**Description:** ลบเควส
+
+**Response Example:**
+```json
+{ "message": "Quest removed" }
+```
+
+### 7.12 Reject Submission
+**URL:** `PUT /api/v1/admin/submissions/:id/reject`
+**Description:** ปฏิเสธการส่งงาน
+
+**Request Example:**
+```json
+{
+  "feedback": "Please resubmit with better proof"
+}
+```
+
+**Response Example:**
+```json
+{ "message": "Submission rejected" }
+```
+
+### 7.13 Grant Leaderboard Score
+**URL:** `POST /api/v1/admin/users/:userId/grant-leaderboard`
+**Description:** เพิ่มคะแนนลีดเดอร์บอร์ด
+
+**Request Example:**
+```json
+{
+  "score": 500
+}
+```
+
+**Response Example:**
+```json
+{
+  "message": "Leaderboard score granted",
+  "leaderboardScore": 1500
+}
+```
+
+### 7.14 Assign Quest to Multiple Users (Bulk)
+**URL:** `POST /api/v1/admin/quests/:questId/assign-bulk`
+**Description:** มอบหมายเควสให้ผู้ใช้หลายคนพร้อมกัน (ตาม House หรือ Role)
+
+**Request Example:**
+```json
+{
+  "houseId": "65678...",
+  "roleName": "Member"
+}
+```
+
+**Response Example:**
+```json
+{
+  "message": "Quest assigned to 15 users"
 }
 ```
