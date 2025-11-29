@@ -2098,20 +2098,37 @@ const App: React.FC = () => {
       // Submit to API and get response with grantedRewards
       const submitResponse: any = await questAPI.submitQuest(quest.id.toString(), formData);
       
+      // Log full response to debug
+      console.log('API submitResponse (full):', JSON.stringify(submitResponse, null, 2));
+      console.log('API submitResponse keys:', Object.keys(submitResponse || {}));
+      
       // Check if rewards were granted by the backend
       // According to API guide: grantedRewards is only present if rewards were actually granted
       // If it's missing or empty, it means no rewards (resubmission)
-      const grantedRewards = submitResponse?.grantedRewards;
-      console.log('API submitResponse:', submitResponse);
-      console.log('grantedRewards from API:', grantedRewards);
-      const hasGrantedRewards = grantedRewards && (
-        (grantedRewards.coins && grantedRewards.coins > 0) ||
-        (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) ||
-        (grantedRewards.leaderboardScore && grantedRewards.leaderboardScore > 0) ||
-        (grantedRewards.badgePoints && Object.keys(grantedRewards.badgePoints).length > 0) ||
-        (grantedRewards.items && grantedRewards.items.length > 0)
+      // But also check other possible field names
+      const grantedRewards = submitResponse?.grantedRewards || submitResponse?.granted_rewards || submitResponse?.rewards;
+      console.log('grantedRewards from API (checked multiple fields):', grantedRewards);
+      
+      // Also check if the response itself contains reward data directly
+      const directRewards = {
+        coins: submitResponse?.coins,
+        rankPoints: submitResponse?.rankPoints || submitResponse?.rank_points,
+        badgePoints: submitResponse?.badgePoints || submitResponse?.badge_points,
+        items: submitResponse?.items
+      };
+      console.log('Direct rewards from response:', directRewards);
+      
+      // Use grantedRewards if available, otherwise check direct rewards
+      const rewardsToUse = grantedRewards || (Object.values(directRewards).some(v => v !== undefined && v !== null) ? directRewards : null);
+      
+      const hasGrantedRewards = rewardsToUse && (
+        (rewardsToUse.coins && rewardsToUse.coins > 0) ||
+        (rewardsToUse.rankPoints && rewardsToUse.rankPoints > 0) ||
+        (rewardsToUse.leaderboardScore && rewardsToUse.leaderboardScore > 0) ||
+        (rewardsToUse.badgePoints && Object.keys(rewardsToUse.badgePoints || {}).length > 0) ||
+        (rewardsToUse.items && rewardsToUse.items.length > 0)
       );
-      console.log('hasGrantedRewards calculated as:', hasGrantedRewards);
+      console.log('hasGrantedRewards calculated as:', hasGrantedRewards, 'using rewards:', rewardsToUse);
 
       // Get the reward before updating state
       const rewardRef = { value: objective.reward };
@@ -2124,6 +2141,12 @@ const App: React.FC = () => {
       }
       processingObjectives.current.add(processingKey);
 
+      // Check if this is a first-time submission by checking current state
+      const currentQuest = questsState.find(q => q.id === selectedObjective.questId);
+      const currentSubmission = currentQuest?.objectiveSubmissions?.[selectedObjective.objectiveIndex];
+      const isFirstTimeSubmission = !currentSubmission || currentSubmission.status === 'none' || currentSubmission.status === 'rejected';
+      console.log('Is first-time submission?', isFirstTimeSubmission, 'current status:', currentSubmission?.status);
+
       // Update local state - status is 'pending' but visually show as completed
       setQuestsState(prevQuests =>
         prevQuests.map(q => {
@@ -2135,8 +2158,11 @@ const App: React.FC = () => {
               newRewardsAwarded.push(false);
             }
             
-            // Only mark as awarded if rewards were actually granted by backend
-            if (hasGrantedRewards && newRewardsAwarded[selectedObjective.objectiveIndex] !== true) {
+            // Mark as awarded if:
+            // 1. Backend granted rewards (hasGrantedRewards), OR
+            // 2. It's a first-time submission (optimistic - backend might not return grantedRewards)
+            const shouldAwardRewards = hasGrantedRewards || (isFirstTimeSubmission && !newRewardsAwarded[selectedObjective.objectiveIndex]);
+            if (shouldAwardRewards && newRewardsAwarded[selectedObjective.objectiveIndex] !== true) {
               newRewardsAwarded[selectedObjective.objectiveIndex] = true;
             }
             
@@ -2166,21 +2192,26 @@ const App: React.FC = () => {
       );
 
       // Award reward immediately after submission (user doesn't wait for backend approval)
-      // BUT: Only award if backend granted rewards (hasGrantedRewards from API response)
-      if (hasGrantedRewards) {
-        console.log('hasGrantedRewards is true, processing rewards:', grantedRewards);
-        setTimeout(() => {
-            const rewardKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
-            
-            // Check if already awarded
-            if (!awardedRewards.current.has(rewardKey)) {
-              // Mark as awarded immediately to prevent duplicates
-              awardedRewards.current.add(rewardKey);
-              
-              // Process badge points from API response first (if any)
-              if (grantedRewards.badgePoints && typeof grantedRewards.badgePoints === 'object') {
-                Object.keys(grantedRewards.badgePoints).forEach(skillName => {
-                  const pointsToAdd = grantedRewards.badgePoints[skillName];
+      // Award if:
+      // 1. Backend granted rewards (hasGrantedRewards from API response), OR
+      // 2. It's a first-time submission (optimistic - backend might not return grantedRewards but still grants them)
+      if (hasGrantedRewards || isFirstTimeSubmission) {
+        console.log('Processing rewards - hasGrantedRewards:', hasGrantedRewards, 'isFirstTimeSubmission:', isFirstTimeSubmission, 'rewards:', rewardsToUse);
+        // Process rewards immediately (synchronously) before closing modal
+        const rewardKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
+        
+        // Check if already awarded
+        if (!awardedRewards.current.has(rewardKey)) {
+          // Mark as awarded immediately to prevent duplicates
+          awardedRewards.current.add(rewardKey);
+          
+          // If backend didn't return rewards but it's a first-time submission, use objective reward definition
+          const rewardsToProcess = hasGrantedRewards ? rewardsToUse : null;
+          
+          // Process badge points from API response first (if any)
+          if (rewardsToProcess && rewardsToProcess.badgePoints && typeof rewardsToProcess.badgePoints === 'object') {
+                Object.keys(rewardsToProcess.badgePoints).forEach(skillName => {
+                  const pointsToAdd = rewardsToProcess.badgePoints[skillName];
                   if (pointsToAdd && pointsToAdd > 0) {
                     // Map API skill name to display name
                     const skillNameMap: { [key: string]: string } = {
@@ -2252,63 +2283,88 @@ const App: React.FC = () => {
             }
             
             // Also award coins and rank points from API response
-            if (grantedRewards.coins && grantedRewards.coins > 0) {
+            if (rewardsToProcess && rewardsToProcess.coins && rewardsToProcess.coins > 0) {
               // Trigger reward animation for coins
-              console.log('Triggering coins animation:', grantedRewards.coins);
+              console.log('Triggering coins animation:', rewardsToProcess.coins);
               triggerRewardAnimation({
                 type: 'coins',
-                value: grantedRewards.coins
+                value: rewardsToProcess.coins
               });
               
               setUser(prev => ({
                 ...prev,
-                coins: prev.coins + grantedRewards.coins
+                coins: prev.coins + rewardsToProcess.coins
               }));
-              console.log(`Awarded ${grantedRewards.coins} coins (from API)`);
+              console.log(`Awarded ${rewardsToProcess.coins} coins (from API)`);
             }
             
-            if (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) {
+            if (rewardsToProcess && rewardsToProcess.rankPoints && rewardsToProcess.rankPoints > 0) {
               // Trigger reward animation for rank points
-              console.log('Triggering rank points animation:', grantedRewards.rankPoints);
+              console.log('Triggering rank points animation:', rewardsToProcess.rankPoints);
               triggerRewardAnimation({
                 type: 'rank',
-                value: grantedRewards.rankPoints
+                value: rewardsToProcess.rankPoints
               });
               
               setUser(prev => ({
                 ...prev,
-                rankPoints: prev.rankPoints + grantedRewards.rankPoints
+                rankPoints: prev.rankPoints + rewardsToProcess.rankPoints
               }));
-              console.log(`Awarded ${grantedRewards.rankPoints} rank points (from API)`);
+              console.log(`Awarded ${rewardsToProcess.rankPoints} rank points (from API)`);
             }
             
-            // Also award the reward from objective definition (for display/fallback)
-            // But only if we haven't already processed rewards from API
-            // This prevents duplicate animations
-            if (rewardRef.value && (!grantedRewards.badgePoints || Object.keys(grantedRewards.badgePoints).length === 0) && !grantedRewards.coins && !grantedRewards.rankPoints) {
+            // If backend didn't return rewards but it's a first-time submission, use objective reward definition
+            // OR if backend returned rewards but they're incomplete, use objective reward as fallback
+            if (rewardRef.value && (!hasGrantedRewards || !rewardsToProcess || 
+                (!rewardsToProcess.badgePoints || Object.keys(rewardsToProcess.badgePoints || {}).length === 0) && 
+                !rewardsToProcess.coins && !rewardsToProcess.rankPoints)) {
+              console.log('Using objective reward definition (backend did not return rewards or rewards incomplete):', rewardRef.value);
               awardObjectiveReward(rewardRef.value, rewardKey);
             }
             
-            console.log('Reward awarded - backend granted rewards for objective:', selectedObjective.objectiveIndex, grantedRewards);
+            console.log('Reward awarded for objective:', selectedObjective.objectiveIndex, 'hasGrantedRewards:', hasGrantedRewards, 'isFirstTimeSubmission:', isFirstTimeSubmission);
             
             // Clean up after 5 seconds
             setTimeout(() => {
               awardedRewards.current.delete(rewardKey);
             }, 5000);
+            
+            // Close modal after rewards are processed (give time for animations to start)
+            setTimeout(() => {
+              setShowImageUploadModal(false);
+              setSelectedObjective(null);
+              setUploadedImage(null);
+              setDescription('');
+            }, 300);
           } else {
             console.log('Reward already awarded, skipping duplicate:', rewardKey);
+            
+            // Close modal even if reward was already awarded
+            setTimeout(() => {
+              setShowImageUploadModal(false);
+              setSelectedObjective(null);
+              setUploadedImage(null);
+              setDescription('');
+            }, 100);
           }
           
           // Clear processing flag
           setTimeout(() => {
             processingObjectives.current.delete(processingKey);
           }, 100);
-        }, 100); // Small delay to ensure animations trigger
       } else {
         console.log('No rewards granted by backend (resubmission) - skipping reward award for objective:', selectedObjective.objectiveIndex);
         // Clear processing flag even if no reward
         setTimeout(() => {
           processingObjectives.current.delete(processingKey);
+        }, 100);
+        
+        // Close modal even if no rewards (resubmission case)
+        setTimeout(() => {
+          setShowImageUploadModal(false);
+          setSelectedObjective(null);
+          setUploadedImage(null);
+          setDescription('');
         }, 100);
       }
 
@@ -2349,11 +2405,8 @@ const App: React.FC = () => {
       }
     }, 0);
 
-    // Close modal
-    setShowImageUploadModal(false);
-    setSelectedObjective(null);
-    setUploadedImage(null);
-    setDescription('');
+    // Modal closing is now handled inside the try block after rewards are processed
+    // This ensures rewards are visible before the modal closes
   };
 
   // Handler for admin approval (instant confirm for testing)
