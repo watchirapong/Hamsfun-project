@@ -2,8 +2,8 @@
 const nextConfig = {
   output: "standalone",
 
-  basePath: "/hamster-quest",
-  assetPrefix: "/hamster-quest",
+  // basePath: "/hamster-quest",  // Commented out for local development
+  // assetPrefix: "/hamster-quest",  // Commented out for local development
   trailingSlash: true,
 
   images: {
