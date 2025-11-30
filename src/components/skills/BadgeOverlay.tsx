@@ -16,13 +16,36 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const startY = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
+  const dragStartTarget = useRef<HTMLElement | null>(null);
+  const panelHeightRef = useRef<number>(0);
 
   const handleClose = () => {
+    if (!panelRef.current) return;
+    
     setIsClosing(true);
+    setIsAnimating(true);
+    setIsDragging(false);
+    
+    // Get current panel height for smooth closing animation
+    const panel = panelRef.current;
+    panelHeightRef.current = panel.offsetHeight;
+    
+    // Animate from current dragY position to full panel height
+    const currentY = dragY;
+    const targetY = panelHeightRef.current;
+    
+    // Set smooth transition and animate to closed position
+    panel.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    panel.style.transform = `translateY(${targetY}px)`;
+    
     setTimeout(() => {
       setShowBadgeOverlay(false);
+      setIsClosing(false);
+      setIsAnimating(false);
+      setDragY(0);
     }, 300); // Match animation duration
   };
 
@@ -59,13 +82,12 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
 
   // Native touch event handlers (to allow preventDefault)
   const handleTouchStartNative = (e: TouchEvent) => {
-    // Only start drag if touching the drag handle area
+    // Start drag from anywhere on screen
     const target = e.target as HTMLElement;
-    if (target.closest('.drag-handle')) {
-      e.preventDefault();
-      startY.current = e.touches[0].clientY;
-      setIsDragging(true);
-    }
+    dragStartTarget.current = target;
+    e.preventDefault();
+    startY.current = e.touches[0].clientY;
+    setIsDragging(true);
   };
 
   const handleTouchMoveNative = (e: TouchEvent) => {
@@ -89,17 +111,17 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
       setDragY(0);
     }
     setIsDragging(false);
+    dragStartTarget.current = null;
   };
 
-  // Mouse drag handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Only start drag if clicking on the drag handle area
-    const target = e.target as HTMLElement;
-    if (target.closest('.drag-handle')) {
-      e.preventDefault(); // Prevent text selection
-      startY.current = e.clientY;
-      setIsDragging(true);
-    }
+  // Mouse drag handlers (for document events)
+  const handleMouseDown = (e: MouseEvent | React.MouseEvent) => {
+    // Start drag from anywhere on screen
+    const target = (e.target as HTMLElement);
+    dragStartTarget.current = target;
+    e.preventDefault(); // Prevent text selection
+    startY.current = 'clientY' in e ? e.clientY : (e as React.MouseEvent).clientY;
+    setIsDragging(true);
   };
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -113,14 +135,35 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
   };
 
   const handleMouseUp = () => {
+    if (!isDragging) return;
+    
     const threshold = getCloseThreshold();
     if (dragY > threshold) {
       handleClose();
     } else {
-      // Snap back smoothly
-      setDragY(0);
+      // Snap back smoothly from current position
+      snapBackToOpen();
     }
     setIsDragging(false);
+    dragStartTarget.current = null;
+  };
+  
+  // Smooth snap-back animation from current drag position
+  const snapBackToOpen = () => {
+    if (!panelRef.current) return;
+    
+    setIsAnimating(true);
+    const panel = panelRef.current;
+    
+    // Animate from current dragY position back to 0
+    panel.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    panel.style.transform = 'translateY(0)';
+    
+    // Update state after animation completes
+    setTimeout(() => {
+      setDragY(0);
+      setIsAnimating(false);
+    }, 300);
   };
 
   // Prevent background scrolling when panel is open
@@ -133,59 +176,69 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
     }
   }, [selectedSkill]);
 
-  // Add native touch event listeners with passive: false
+  // Add native touch event listeners to document for global drag detection
   useEffect(() => {
-    if (!panelRef.current) return;
+    if (!selectedSkill) return; // Only when overlay is open
 
-    const panel = panelRef.current;
-    panel.addEventListener('touchstart', handleTouchStartNative, { passive: false });
-    panel.addEventListener('touchmove', handleTouchMoveNative, { passive: false });
-    panel.addEventListener('touchend', handleTouchEndNative, { passive: false });
+    const handleTouchStart = (e: TouchEvent) => {
+      handleTouchStartNative(e);
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      handleTouchMoveNative(e);
+    };
+    const handleTouchEnd = (e: TouchEvent) => {
+      handleTouchEndNative();
+    };
+
+    document.addEventListener('touchstart', handleTouchStart, { passive: false });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: false });
 
     return () => {
-      panel.removeEventListener('touchstart', handleTouchStartNative);
-      panel.removeEventListener('touchmove', handleTouchMoveNative);
-      panel.removeEventListener('touchend', handleTouchEndNative);
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isDragging, dragY]);
+  }, [selectedSkill, isDragging, dragY]);
 
   // Directly update transform style to override CSS animations
   useEffect(() => {
     if (!panelRef.current) return;
     
     const panel = panelRef.current;
-    if (isClosing) {
-      // When closing, remove inline styles to allow CSS animation to work
-      panel.style.transform = '';
-      panel.style.transition = '';
-      // Ensure closing animation class is applied
-      panel.classList.add('animate-slide-down');
-      panel.classList.remove('animate-slide-up');
-    } else if (isDragging || dragY > 0) {
-      // Remove animation class to prevent conflicts
+    
+    // Don't interfere if we're animating (closing or snapping back)
+    if (isAnimating) {
+      return;
+    }
+    
+    if (isDragging || dragY > 0) {
+      // Remove animation classes to prevent conflicts
       panel.classList.remove('animate-slide-up', 'animate-slide-down');
-      // Directly set transform
+      // Directly set transform during drag (no transition)
       panel.style.transform = `translateY(${dragY}px)`;
       panel.style.transition = 'none';
-    } else {
-      // Restore transition when not dragging
-      panel.style.transition = 'transform 0.3s ease-out';
-      if (dragY === 0) {
-        panel.style.transform = 'translateY(0)';
-      }
+    } else if (dragY === 0 && !isClosing) {
+      // Panel is open and at rest
+      panel.classList.remove('animate-slide-up', 'animate-slide-down');
+      panel.style.transform = 'translateY(0)';
+      panel.style.transition = '';
     }
-  }, [isDragging, dragY, isClosing]);
+  }, [isDragging, dragY, isClosing, isAnimating]);
 
   useEffect(() => {
-    if (isDragging) {
+    // Attach mouse events to document for global drag detection
+    if (selectedSkill) { // Only when overlay is open
+      document.addEventListener('mousedown', handleMouseDown as any);
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       return () => {
+        document.removeEventListener('mousedown', handleMouseDown as any);
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isDragging, dragY]);
+  }, [selectedSkill, isDragging, dragY]);
 
   return (
     <div className={`fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center ${
@@ -194,23 +247,17 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
       <div 
         ref={panelRef}
         className={`bg-white w-full max-w-md rounded-t-xl shadow-lg pb-20 ${
-          isClosing ? 'animate-slide-down' : (!isDragging && dragY === 0 ? 'animate-slide-up' : '')
+          !isDragging && dragY === 0 && !isAnimating && !isClosing ? 'animate-slide-up' : ''
         }`}
       >
-        {/* iPhone-style home indicator bar - drag handle */}
-        <div 
-          className="flex justify-center pt-3 pb-2 drag-handle cursor-grab active:cursor-grabbing"
-          onMouseDown={handleMouseDown}
-        >
+        {/* iPhone-style home indicator bar */}
+        <div className="flex justify-center pt-3 pb-2">
           <div className="w-12 h-1 bg-gray-400 rounded-full"></div>
         </div>
 
         {/* Badge Info */}
         <div className="p-4">
-          <div 
-            className="text-center mb-6 drag-handle cursor-grab active:cursor-grabbing"
-            onMouseDown={handleMouseDown}
-          >
+          <div className="text-center mb-6">
             <h3 className="font-bold text-xl mb-2">{selectedSkill.name}</h3>
             <p className="text-gray-600 text-sm">{selectedSkill.description || 'No description available.'}</p>
           </div>

@@ -65,12 +65,12 @@ export const validateBadgePoints = (
     // The backend might return API names (GameDesign, Art, etc.) while frontend uses display names
     const apiSkillName = getApiSkillNameFromDisplayName(expectedReward.skillName);
     const displayName = mapApiSkillNameToDisplayName(apiSkillName);
-
+    
     // Check both API name and display name
-    const receivedPoints = grantedBadgePoints?.[apiSkillName] ||
-      grantedBadgePoints?.[displayName] ||
-      grantedBadgePoints?.[expectedReward.skillName] ||
-      0;
+    const receivedPoints = grantedBadgePoints?.[apiSkillName] || 
+                          grantedBadgePoints?.[displayName] ||
+                          grantedBadgePoints?.[expectedReward.skillName] ||
+                          0;
 
     // Allow some tolerance (backend might grant slightly different amounts due to min/max ranges)
     // But log if there's a significant mismatch
@@ -96,7 +96,7 @@ export const validateBadgePoints = (
       const hasExpectedReward = expectedBadgeRewards.some(
         r => r.skillName === displayName || r.skillName === apiSkillName
       );
-
+      
       if (!hasExpectedReward && grantedBadgePoints[apiSkillName] > 0) {
         result.warnings.push(
           `Unexpected badge points granted for ${apiSkillName}: ${grantedBadgePoints[apiSkillName]}`
@@ -115,7 +115,7 @@ export const validateBadgePoints = (
  */
 const getApiSkillNameFromDisplayName = (displayName: string): string => {
   const normalized = displayName.toLowerCase().trim();
-
+  
   if (normalized.includes('game') || normalized === 'explorer') {
     return 'GameDesign';
   } else if (normalized.includes('level')) {
@@ -125,7 +125,7 @@ const getApiSkillNameFromDisplayName = (displayName: string): string => {
   } else if (normalized.includes('programming') || normalized.includes('code') || normalized.includes('c#')) {
     return 'Programming';
   }
-
+  
   // Return as-is if no match (might already be API name)
   return displayName;
 };
@@ -165,7 +165,7 @@ export const validateQuestCompletionBadgePoints = (
   quest: Quest,
   grantedBadgePoints: { [skillName: string]: number } | undefined
 ): BadgeValidationResult => {
-  const expectedRewards = quest.rewards || [];
+  const expectedRewards = quest.completionRewards || [];
   return validateBadgePoints(expectedRewards, grantedBadgePoints, quest.id);
 };
 

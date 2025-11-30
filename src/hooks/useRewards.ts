@@ -14,6 +14,7 @@ export interface RewardAnimationInstance {
   y: number;
   driftX: number;
   startTime: number;
+  forceBurst?: boolean; // Flag to force immediate burst (e.g., on panel close)
 }
 
 export const useRewards = (
@@ -99,12 +100,12 @@ export const useRewards = (
       return [...prev, newAnimation];
     });
     
-    // Remove animation after it completes (bubble animation duration)
+    // Remove animation after it completes (bubble animation duration + burst time)
     setTimeout(() => {
       setRewardAnimations(prev => prev.filter(anim => anim.id !== animationId));
       // Remove from in-progress set after animation completes
       rewardAnimationsInProgress.current.delete(rewardKeyWithTimestamp);
-    }, 5000); // 5 seconds for slower animation
+    }, 5600); // 5 seconds float + 600ms burst
   };
 
   // Helper function to award objective reward

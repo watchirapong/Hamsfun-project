@@ -174,78 +174,59 @@ body {
   transform: rotateY(180deg);
 }
 
-/* Reward Bubble Animation - Floating Orb with Sway (Smooth, Curved Motion) */
+/* Reward Bubble Animation - Slow Upward Float (No Oscillation) */
 @keyframes bubbleFloat {
   0% {
-    transform: translate(0, 0) scale(0.6);
+    transform: translateY(0) scale(0.6);
     opacity: 0;
-  }
-  3% {
-    transform: translate(0, 0) scale(0.9);
-    opacity: 0.7;
-  }
-  6% {
-    transform: translate(0, 0) scale(1);
-    opacity: 1;
-  }
-  12% {
-    transform: translate(-4px, -7vh) scale(1.02);
-    opacity: 1;
-  }
-  20% {
-    transform: translate(calc(var(--drift-x) * 0.18 + 5px), -16vh) scale(1.04);
-    opacity: 1;
-  }
-  30% {
-    transform: translate(calc(var(--drift-x) * 0.32 - 4px), -26vh) scale(1.06);
-    opacity: 0.99;
-  }
-  40% {
-    transform: translate(calc(var(--drift-x) * 0.45 + 5px), -36vh) scale(1.08);
-    opacity: 0.97;
-  }
-  50% {
-    transform: translate(calc(var(--drift-x) * 0.55 - 4px), -46vh) scale(1.1);
-    opacity: 0.95;
-  }
-  60% {
-    transform: translate(calc(var(--drift-x) * 0.65 + 5px), -56vh) scale(1.12);
-    opacity: 0.92;
-  }
-  70% {
-    transform: translate(calc(var(--drift-x) * 0.75 - 4px), -66vh) scale(1.14);
-    opacity: 0.87;
-  }
-  80% {
-    transform: translate(calc(var(--drift-x) * 0.85 + 5px), -76vh) scale(1.16);
-    opacity: 0.78;
-  }
-  88% {
-    transform: translate(calc(var(--drift-x) * 0.92 - 3px), -84vh) scale(1.18);
-    opacity: 0.65;
-  }
-  94% {
-    transform: translate(calc(var(--drift-x) * 0.97 - 2px), -90vh) scale(1.22);
-    opacity: 0.45;
   }
   100% {
-    transform: translate(var(--drift-x), -100vh) scale(1.5);
-    opacity: 0;
+    transform: translateY(-60vh) scale(1.2);
+    opacity: 0.9;
   }
 }
 
-/* Pop animation at the top */
+/* Bubble Burst Animation - Expanding Circles with Glow */
 @keyframes bubblePop {
   0% {
-    transform: scale(1);
+    transform: scale(1) translateY(0);
+    opacity: 1;
+    filter: blur(0px);
+  }
+  100% {
+    transform: scale(0) translateY(0);
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+/* Bubble Particle Expansion - Soft Circular Movement */
+@keyframes bubbleParticleExpand {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
     opacity: 1;
   }
+  20% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
   50% {
-    transform: scale(1.3);
     opacity: 0.7;
   }
   100% {
-    transform: scale(1.6);
     opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3);
+  }
+}
+
+/* Glow Pulse Effect */
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
   }
 }

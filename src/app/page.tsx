@@ -139,8 +139,13 @@ const App: React.FC = () => {
   // Cancel reward animations when quest overlay closes
   useEffect(() => {
     if (!showQuestOverlay) {
-      // Clear all reward animations when overlay closes
-      setRewardAnimations([]);
+      // Trigger burst on all active animations before clearing
+      setRewardAnimations(prev => prev.map(anim => ({ ...anim, forceBurst: true })));
+      
+      // Clear animations after burst completes (600ms)
+      setTimeout(() => {
+        setRewardAnimations([]);
+      }, 600);
     }
   }, [showQuestOverlay]);
 

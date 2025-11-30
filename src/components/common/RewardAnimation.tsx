@@ -13,6 +13,7 @@ export interface RewardAnimationInstance {
   startTime: number;
   itemName?: string;
   itemIcon?: string;
+  forceBurst?: boolean; // Flag to force immediate burst (e.g., on panel close)
 }
 
 interface RewardAnimationProps {
@@ -20,31 +21,77 @@ interface RewardAnimationProps {
 }
 
 export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) => {
-  // Calculate elapsed time to prevent animation restart on re-render
-  const [elapsedTime, setElapsedTime] = React.useState(0);
+  const [currentPosition, setCurrentPosition] = React.useState({ y: 0, scale: 0.6, opacity: 0 });
   const [isPopping, setIsPopping] = React.useState(false);
-  const animationDuration = 4000; // 4 seconds total
-  const popStartTime = animationDuration * 0.85; // Start pop at 85% of animation
+  const [shouldBurst, setShouldBurst] = React.useState(false);
+  const animationDuration = 7000; // 5 seconds total for slower float
+  const targetHeight = window.innerHeight * 0.8; // 80% of screen height
+  const popStartTime = animationDuration * 0.8; // Start pop at 80% of animation
+  
+  // Easing function for smooth float
+  const easeOutCubic = (t: number): number => {
+    return 1 - Math.pow(1 - t, 3);
+  };
   
   React.useEffect(() => {
-    const updateElapsed = () => {
+    // Check if force burst is requested (e.g., panel closing)
+    if (animation.forceBurst && !isPopping && !shouldBurst) {
+      setIsPopping(true);
+      setShouldBurst(true);
+      return;
+    }
+
+    const updatePosition = () => {
       const elapsed = Date.now() - animation.startTime;
-      setElapsedTime(Math.min(elapsed, animationDuration));
+      const progress = Math.min(elapsed / animationDuration, 1);
       
-      // Trigger pop animation near the top
-      if (elapsed >= popStartTime && !isPopping) {
+      if (progress >= 1 || isPopping) {
+        // Animation complete or bursting - maintain final position
+        if (!isPopping && !shouldBurst && progress >= popStartTime / animationDuration) {
+          setIsPopping(true);
+          setShouldBurst(true);
+        }
+        return;
+      }
+      
+      // Calculate position based on progress with easing
+      const easedProgress = easeOutCubic(progress);
+      const y = -targetHeight * easedProgress;
+      
+      // Scale and opacity based on progress
+      let scale = 0.6;
+      let opacity = 0;
+      
+      if (progress < 0.1) {
+        // Initial appearance (0-10%)
+        const initialProgress = progress / 0.1;
+        scale = 0.6 + (0.4 * initialProgress);
+        opacity = initialProgress * 0.7;
+      } else if (progress < 0.2) {
+        // Full appearance (10-20%)
+        const appearanceProgress = (progress - 0.1) / 0.1;
+        scale = 1;
+        opacity = 0.7 + (0.3 * appearanceProgress);
+      } else {
+        // Floating phase (20-100%)
+        scale = 1 + (0.1 * (progress - 0.2) / 0.8);
+        opacity = 1;
+      }
+      
+      setCurrentPosition({ y, scale, opacity });
+      
+      // Trigger burst at 80% progress
+      if (progress >= popStartTime / animationDuration && !isPopping && !shouldBurst) {
         setIsPopping(true);
+        setShouldBurst(true);
       }
     };
     
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 16); // ~60fps
+    updatePosition();
+    const interval = setInterval(updatePosition, 16); // ~60fps
     
     return () => clearInterval(interval);
-  }, [animation.startTime, isPopping, popStartTime]);
-  
-  // Calculate animation delay (negative to skip to current point)
-  const animationDelay = elapsedTime > 0 ? -elapsedTime : 0;
+  }, [animation.startTime, animation.forceBurst, isPopping, shouldBurst, popStartTime, targetHeight]);
   
   const getIcon = () => {
     switch (animation.type) {
@@ -97,35 +144,47 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
     }
   };
 
+  // Calculate bottom position - animation.y is spawn position from top of screen
+  // Convert to bottom positioning: bottom = window.innerHeight - y (from top)
+  // To move upward, we increase bottom value by adding the absolute value of currentPosition.y
+  const bottomPosition = (window.innerHeight - animation.y) + Math.abs(currentPosition.y);
+
   return (
     <div 
       className="fixed z-[9999] pointer-events-none"
       style={{ 
         left: `${animation.x}px`,
-        bottom: `${window.innerHeight - animation.y}px`, // Use bottom positioning for upward floating
-        animation: isPopping 
-          ? `bubblePop ${animationDuration - popStartTime}ms cubic-bezier(0.4, 0, 0.2, 1) forwards`
-          : `bubbleFloat ${animationDuration}ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
-        animationDelay: `${animationDelay}ms`,
-        '--drift-x': `${animation.driftX}px`
-      } as React.CSSProperties & { '--drift-x': string }}
+        bottom: `${bottomPosition}px`,
+        transform: isPopping ? 'none' : `scale(${currentPosition.scale})`,
+        opacity: isPopping ? 1 : currentPosition.opacity,
+        transition: isPopping ? 'none' : 'none', // No transition, we update directly
+      }}
     >
       {/* Floating Orb Bubble */}
       <div className="relative">
-        {/* Outer glow - pulsing effect */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/30 to-transparent blur-xl animate-pulse"></div>
+        {/* Outer glow - pulsing effect (only when not bursting) */}
+        {!isPopping && (
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/30 to-transparent blur-xl animate-pulse"></div>
+        )}
         
         {/* Bubble orb container */}
-        <div className={`relative flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-md rounded-full px-5 py-4 shadow-2xl border-2 border-white/60 ${
-          isPopping ? 'animate-bubblePop' : ''
-        }`}
-        style={{
-          minWidth: '80px',
-          minHeight: '80px',
-        }}>
+        <div 
+          className="relative flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-white/90 to-white/70 backdrop-blur-md rounded-full px-5 py-4 shadow-2xl border-2 border-white/60"
+          style={{
+            minWidth: '80px',
+            minHeight: '80px',
+            transform: isPopping ? 'scale(0)' : 'scale(1)',
+            opacity: isPopping ? 0 : 1,
+            transition: isPopping ? 'transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 400ms ease-out' : 'none',
+          }}
+        >
           {/* Bubble shine/highlight effect */}
-          <div className="absolute top-2 left-3 w-4 h-4 bg-white/80 rounded-full blur-sm"></div>
-          <div className="absolute top-1 left-2 w-2 h-2 bg-white rounded-full"></div>
+          {!isPopping && (
+            <>
+              <div className="absolute top-2 left-3 w-4 h-4 bg-white/80 rounded-full blur-sm"></div>
+              <div className="absolute top-1 left-2 w-2 h-2 bg-white rounded-full"></div>
+            </>
+          )}
           
           {/* Icon */}
           <div className="relative z-10 flex items-center justify-center">
@@ -137,6 +196,110 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
             {getLabel()}
           </div>
         </div>
+
+        {/* Bubble Pop Particles - Soft Circular Expansion */}
+        {isPopping && (
+          <>
+            {/* Central soft glow pulse */}
+            <div 
+              className="absolute rounded-full bg-gradient-to-br from-blue-200/50 via-cyan-200/40 to-white/50 blur-3xl"
+              style={{
+                width: '120px',
+                height: '120px',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                animation: 'glowPulse 500ms ease-out forwards',
+              }}
+            />
+            
+            {/* Main bubble particles - soft circular expansion */}
+            {[...Array(6)].map((_, i) => {
+              const angle = (i * 360) / 6;
+              const radian = (angle * Math.PI) / 180;
+              const baseDistance = 50;
+              const finalDistance = baseDistance * 2.5;
+              const sizeVariation = 12 + (i % 3) * 4; // Vary sizes: 12px, 16px, 20px
+              const x = Math.cos(radian) * finalDistance;
+              const y = Math.sin(radian) * finalDistance;
+              
+              return (
+                <div
+                  key={i}
+                  className="absolute rounded-full bg-gradient-to-br from-blue-100/90 via-cyan-100/80 to-white/90 blur-md"
+                  style={{
+                    width: `${sizeVariation}px`,
+                    height: `${sizeVariation}px`,
+                    left: '50%',
+                    top: '50%',
+                    transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.3)`,
+                    opacity: 0,
+                    animation: `bubbleParticleExpand 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                    animationDelay: `${i * 30}ms`,
+                    boxShadow: '0 0 15px rgba(135, 206, 250, 0.6), 0 0 30px rgba(135, 206, 250, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.8)',
+                  }}
+                />
+              );
+            })}
+            
+            {/* Secondary smaller bubbles for detail */}
+            {[...Array(10)].map((_, i) => {
+              const angle = (i * 360) / 10 + 18; // Offset by 18 degrees
+              const radian = (angle * Math.PI) / 180;
+              const baseDistance = 35;
+              const finalDistance = baseDistance * 2.5;
+              const size = 6 + (i % 2) * 2; // 6px or 8px
+              const x = Math.cos(radian) * finalDistance;
+              const y = Math.sin(radian) * finalDistance;
+              
+              return (
+                <div
+                  key={`small-${i}`}
+                  className="absolute rounded-full bg-white/70 blur-sm"
+                  style={{
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    left: '50%',
+                    top: '50%',
+                    transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.3)`,
+                    opacity: 0,
+                    animation: `bubbleParticleExpand 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                    animationDelay: `${i * 20}ms`,
+                    boxShadow: '0 0 8px rgba(255, 255, 255, 0.9), inset 0 0 4px rgba(255, 255, 255, 1)',
+                  }}
+                />
+              );
+            })}
+            
+            {/* Tiny sparkle particles */}
+            {[...Array(8)].map((_, i) => {
+              const angle = (i * 360) / 8 + 22.5;
+              const radian = (angle * Math.PI) / 180;
+              const baseDistance = 25;
+              const finalDistance = baseDistance * 2.5;
+              const x = Math.cos(radian) * finalDistance;
+              const y = Math.sin(radian) * finalDistance;
+              
+              return (
+                <div
+                  key={`sparkle-${i}`}
+                  className="absolute rounded-full bg-white blur-xs"
+                  style={{
+                    width: '3px',
+                    height: '3px',
+                    left: '50%',
+                    top: '50%',
+                    transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.3)`,
+                    opacity: 0,
+                    animation: `bubbleParticleExpand 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                    animationDelay: `${i * 15}ms`,
+                    boxShadow: '0 0 6px rgba(255, 255, 255, 1)',
+                  }}
+                />
+              );
+            })}
+          </>
+        )}
       </div>
     </div>
   );
