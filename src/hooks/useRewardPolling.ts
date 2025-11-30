@@ -1,10 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { userAPI } from '@/lib/api';
 import { Quest } from '@/types';
-import { hasValidGrantedRewards } from '@/utils/rewardHelpers';
 import { processBadgePointsFromApi, processCoinsFromApi, processRankPointsFromApi, processLeaderboardPointsFromApi, processItemsFromApi } from '@/utils/rewardHelpers';
 import { getItemIconUrl } from '@/utils/itemHelpers';
-import { refreshBadgeDataFromBackend } from '@/utils/badgeSync';
+import { getAssetUrl } from '@/utils/helpers';
 
 interface UseRewardPollingParams {
   questsState: Quest[];
@@ -72,7 +71,7 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
           // Quest was approved - check if we can get grantedRewards from API
           // Since the API might not return grantedRewards in the quest list,
           // we'll trigger the reward animation based on the quest's reward structure
-          
+
           // Award rewards from quest definition (since API doesn't return grantedRewards in list)
           if (pendingQuest.rewards && pendingQuest.rewards.length > 0) {
             const rewardKey = `quest-${pendingQuest.id}-approved`;
@@ -90,7 +89,7 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
                     processLeaderboardPointsFromApi(reward.value, setUser, triggerRewardAnimation);
                   } else if (reward.type === 'item' && reward.itemId) {
                     const itemQuantity = typeof reward.value === 'number' ? reward.value : 1;
-                    const itemIcon = reward.itemIcon || "/Asset/item/classTicket.png";
+                    const itemIcon = reward.itemIcon || getAssetUrl("/Asset/item/classTicket.png");
                     const iconUrl = getItemIconUrl(itemIcon);
                     processItemsFromApi([{
                       itemId: reward.itemId,
@@ -184,7 +183,7 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
 
           if (isCompleted && hasRewardsGranted) {
             // Check if we have this quest in state and if rewards haven't been awarded
-            const existingQuest = questsState.find(q => 
+            const existingQuest = questsState.find(q =>
               String(q.id) === String(questId)
             );
 
@@ -205,7 +204,7 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
                         processLeaderboardPointsFromApi(reward.value, setUser, triggerRewardAnimation);
                       } else if (reward.type === 'item' && reward.itemId) {
                         const itemQuantity = typeof reward.value === 'number' ? reward.value : 1;
-                        const itemIcon = reward.itemIcon || "/Asset/item/classTicket.png";
+                        const itemIcon = reward.itemIcon || getAssetUrl("/Asset/item/classTicket.png");
                         const iconUrl = getItemIconUrl(itemIcon);
                         processItemsFromApi([{
                           itemId: reward.itemId,

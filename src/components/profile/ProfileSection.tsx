@@ -3,7 +3,7 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 import { User, Quest } from '@/types';
-import { isQuestTrulyCompleted } from '@/utils/helpers';
+import { isQuestTrulyCompleted, getAssetUrl } from '@/utils/helpers';
 
 interface ProfileSectionProps {
   user: User;
@@ -30,7 +30,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
         {/* Pet Display on Left - 50% of screen width */}
         <div className="flex flex-col items-center w-1/2">
           <img 
-            src={/*user.avatar*/ "/Asset/pets/dog.png" /*TESTING*/} 
+            src={/*user.avatar*/ getAssetUrl("/Asset/pets/dog.png") /*TESTING*/} 
             alt="Pet" 
             className="w-full h-auto object-contain max-w-full" 
           />

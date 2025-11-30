@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BackpackItem } from '@/types';
 import { userAPI } from '@/lib/api';
 import { hasItemTimePassed } from '@/utils/helpers';
+import { getAssetUrl } from '@/utils/helpers';
 
 // Helper function to parse date string and check if time has passed
 const parseItemDate = (dateString: string): { startTime: Date; endTime: Date } | null => {
@@ -9,18 +10,18 @@ const parseItemDate = (dateString: string): { startTime: Date; endTime: Date } |
   try {
     const datePart = dateString.split(' ')[0]; // "20/11/2025"
     const timePart = dateString.match(/\((\d{2}):(\d{2})-(\d{2}):(\d{2})\)/);
-    
+
     if (!timePart) return null;
-    
+
     const [day, month, year] = datePart.split('/');
     const startHour = parseInt(timePart[1]);
     const startMinute = parseInt(timePart[2]);
     const endHour = parseInt(timePart[3]);
     const endMinute = parseInt(timePart[4]);
-    
+
     const startTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), startHour, startMinute);
     const endTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), endHour, endMinute);
-    
+
     return { startTime, endTime };
   } catch (error) {
     return null;
@@ -45,7 +46,7 @@ export const useItems = () => {
 
     try {
       await userAPI.useItem(itemId.toString());
-      
+
       // Update local state
       setBackpackItems(prevItems => {
         return prevItems.map(i => {
@@ -66,7 +67,7 @@ export const useItems = () => {
         description: inv.itemId?.description || '',
         date: inv.itemId?.date || '',
         quantity: inv.quantity || 1,
-        image: inv.itemId?.icon || inv.itemId?.image || "/Asset/item/classTicket.png",
+        image: inv.itemId?.icon || inv.itemId?.image || getAssetUrl("/Asset/item/classTicket.png"),
         icon: inv.itemId?.icon,
         used: inv.used || false,
         active: inv.active || false
@@ -94,7 +95,7 @@ export const useItems = () => {
         return true;
       });
     });
-    
+
     // Check every minute for expired items
     const interval = setInterval(() => {
       setBackpackItems(prevItems => {
@@ -106,7 +107,7 @@ export const useItems = () => {
         });
       });
     }, 60000); // Check every minute
-    
+
     return () => clearInterval(interval);
   }, []);
 

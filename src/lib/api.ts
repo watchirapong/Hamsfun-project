@@ -79,16 +79,16 @@ export const authAPI = {
       const params = new URLSearchParams();
       // The redirectUri should point to the handover endpoint where the token will be received
       // Format: {currentOrigin}/auth/handover
-      const currentOrigin = window.location.origin;
+      const currentOrigin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
       const handoverUri = `${currentOrigin}/auth/handover`;
-      
+
       if (redirectUri) {
         params.append('redirectUri', redirectUri);
       } else {
         // Default to handover endpoint if no redirectUri provided
         params.append('redirectUri', handoverUri);
       }
-      
+
       const discordAuthUrl = `${API_BASE_URL}/auth/discord?${params.toString()}`;
       console.log('Redirecting to Discord login:', discordAuthUrl);
       window.location.href = discordAuthUrl;
@@ -159,7 +159,7 @@ export const dojoAPI = {
 export const itemAPI = {
   // List items
   listItems: () => apiCall<{ message: string; data: any[] }>('/api/v1/items'),
-  
+
   // Get item by ID
   getItemById: (itemId: string) => apiCall<{ message: string; data: any }>(`/api/v1/items/${itemId}`),
 
@@ -175,7 +175,7 @@ export const itemAPI = {
 export const leaderboardAPI = {
   // Get leaderboard (returns both users and houses)
   getLeaderboard: () => apiCall<{ users: any[]; houses?: any[] }>('/api/v1/leaderboard'),
-  
+
   // Get house members (if endpoint exists)
   getHouseMembers: (houseId: string) => apiCall<any[]>(`/api/v1/houses/${houseId}/members`).catch(() => []),
 };

@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setToken } from '@/lib/api';
 
-export default function AuthHandoverPage() {
+function AuthHandoverContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -43,7 +43,6 @@ export default function AuthHandoverPage() {
     }
   }, [searchParams, router]);
 
-  // Show loading state while processing
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
@@ -54,6 +53,23 @@ export default function AuthHandoverPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthHandoverPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
+          <h1 className="text-2xl font-bold text-center mb-4 text-gray-900">Loading...</h1>
+          <div className="mt-6 flex justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          </div>
+        </div>
+      </div>
+    }>
+      <AuthHandoverContent />
+    </Suspense>
   );
 }
 

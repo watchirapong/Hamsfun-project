@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check } from 'lucide-react';
 import { Quest } from '@/types';
-import { areAllObjectivesCompleted, isQuestTrulyCompleted, formatShortNumber } from '@/utils/helpers';
+import { areAllObjectivesCompleted, isQuestTrulyCompleted, formatShortNumber, getAssetUrl } from '@/utils/helpers';
 import { getItemDetails, getItemIconUrl } from '@/utils/itemHelpers';
 
 interface QuestListOverlayProps {
@@ -150,7 +150,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
       const displayValue = formatRange(reward.minValue, reward.maxValue, reward.value);
       return (
         <div className="flex flex-col items-center">
-          <img src="/Asset/item/coin.png" alt="Coins" className="w-8 h-8 object-contain" />
+          <img src={getAssetUrl("/Asset/item/coin.png")} alt="Coins" className="w-8 h-8 object-contain" />
           <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
             {reward.minValue !== undefined && reward.maxValue !== undefined && reward.minValue !== reward.maxValue 
               ? `${formatShortNumber(reward.minValue)} - ${formatShortNumber(reward.maxValue)}` 
@@ -194,7 +194,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
       const displayValue = formatRange(reward.minValue, reward.maxValue, typeof reward.value === 'number' ? reward.value : undefined);
       const itemInfo = getItemInfo(reward.itemId);
       const itemName = reward.itemName || itemInfo?.name || 'Item';
-      const itemIcon = reward.itemIcon || itemInfo?.icon || "/Asset/item/classTicket.png";
+      const itemIcon = reward.itemIcon || itemInfo?.icon || getAssetUrl("/Asset/item/classTicket.png");
       const iconUrl = getItemIconUrl(itemIcon);
       
       return (
@@ -205,7 +205,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
             className="w-10 h-10 object-contain"
             onError={(e) => {
               // Fallback to default icon if item icon fails to load
-              (e.target as HTMLImageElement).src = "/Asset/item/classTicket.png";
+              (e.target as HTMLImageElement).src = getAssetUrl("/Asset/item/classTicket.png");
             }}
           />
           <div className={`text-xs font-semibold mt-1 text-center max-w-[80px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -705,7 +705,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                     </div>
                                   ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
                                     <>
-                                      <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
+                                      <img src={getAssetUrl("/Asset/item/coin.png")} alt="Coins" className="w-12 h-12 object-contain mb-2" />
                                       <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
                                         {reward.minValue !== undefined && reward.maxValue !== undefined && reward.minValue !== reward.maxValue 
                                           ? `${formatShortNumber(reward.minValue)} - ${formatShortNumber(reward.maxValue)}` 
@@ -735,7 +735,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                     (() => {
                                       const itemInfo = itemDetailsCache.get(reward.itemId);
                                       const itemName = reward.itemName || itemInfo?.name || 'Item';
-                                      const itemIcon = reward.itemIcon || itemInfo?.icon || "/Asset/item/classTicket.png";
+                                      const itemIcon = reward.itemIcon || itemInfo?.icon || getAssetUrl("/Asset/item/classTicket.png");
                                       const iconUrl = getItemIconUrl(itemIcon);
                                       const quantity = formatRange(reward.minValue, reward.maxValue, typeof reward.value === 'number' ? reward.value : undefined);
                                       
@@ -746,7 +746,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                             alt={itemName} 
                                             className="w-20 h-20 object-contain mb-2"
                                             onError={(e) => {
-                                              (e.target as HTMLImageElement).src = "/Asset/item/classTicket.png";
+                                              (e.target as HTMLImageElement).src = getAssetUrl("/Asset/item/classTicket.png");
                                             }}
                                           />
                                           <div className={`text-xs font-semibold text-center max-w-[100px] mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
@@ -888,7 +888,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                     </div>
                                   ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
                                     <>
-                                      <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
+                                      <img src={getAssetUrl("/Asset/item/coin.png")} alt="Coins" className="w-12 h-12 object-contain mb-2" />
                                       <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
                                         {reward.minValue !== undefined && reward.maxValue !== undefined && reward.minValue !== reward.maxValue 
                                           ? `${formatShortNumber(reward.minValue)} - ${formatShortNumber(reward.maxValue)}` 
@@ -918,7 +918,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                     (() => {
                                       const itemInfo = itemDetailsCache.get(reward.itemId);
                                       const itemName = reward.itemName || itemInfo?.name || 'Item';
-                                      const itemIcon = reward.itemIcon || itemInfo?.icon || "/Asset/item/classTicket.png";
+                                      const itemIcon = reward.itemIcon || itemInfo?.icon || getAssetUrl("/Asset/item/classTicket.png");
                                       const iconUrl = getItemIconUrl(itemIcon);
                                       const quantity = formatRange(reward.minValue, reward.maxValue, typeof reward.value === 'number' ? reward.value : undefined);
                                       
@@ -929,7 +929,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                             alt={itemName} 
                                             className="w-20 h-20 object-contain mb-2"
                                             onError={(e) => {
-                                              (e.target as HTMLImageElement).src = "/Asset/item/classTicket.png";
+                                              (e.target as HTMLImageElement).src = getAssetUrl("/Asset/item/classTicket.png");
                                             }}
                                           />
                                           <div className={`text-xs font-semibold text-center max-w-[100px] mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>

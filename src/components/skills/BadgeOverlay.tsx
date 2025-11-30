@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Skill } from '@/types';
-import { getBadgeIconPath } from '@/utils/helpers';
+import { getBadgeIconPath, getAssetUrl } from '@/utils/helpers';
 
 interface BadgeOverlayProps {
   selectedSkill: Skill | null;
@@ -339,7 +339,7 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
                     </div>
                   ) : (
                     <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-2">
-                      <img src="/Asset/item/coin.png" alt="Coins" className="w-6 h-6 object-contain" />
+                      <img src={getAssetUrl("/Asset/item/coin.png")} alt="Coins" className="w-6 h-6 object-contain" />
                     </div>
                   )}
                   <div className="text-center text-sm font-medium">

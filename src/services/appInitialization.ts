@@ -1,7 +1,7 @@
 import { Gamepad2, Monitor, Paintbrush, Code } from 'lucide-react';
 import { userAPI, getToken, setToken } from '@/lib/api';
 import { User, Skill, Quest, BackpackItem, ObjectiveReward, ApprovalStatus } from '@/types';
-import { getRankIconPath } from '@/utils/helpers';
+import { getRankIconPath, getAssetUrl } from '@/utils/helpers';
 import {
   mapBackendRewardEntryToFrontend,
   extractSubQuestIdFromProgress,
@@ -41,7 +41,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
     // Check for token in URL (from Discord OAuth redirect)
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get('token');
-    
+
     if (tokenFromUrl) {
       setToken(tokenFromUrl);
       // Remove token from URL
@@ -63,7 +63,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
       // Map backend profile to frontend User interface
       setUser({
         name: profile.discordNickname || profile.discordUsername || profile.name || 'User',
-        avatar: profile.avatar || "/Asset/pets/dog.png",
+        avatar: profile.avatar || getAssetUrl("/Asset/pets/dog.png"),
         badge: getRankIconPath(profile.rank?.currentTier || "Meteor I"),
         coins: profile.coins || 0,
         rankPoints: profile.rank?.points || 0,
@@ -81,7 +81,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
       console.log('Profile badges from API:', profile.badges);
       console.log('Badges type:', typeof profile.badges);
       console.log('Badges is array?', Array.isArray(profile.badges));
-      
+
       // Handle badges - could be object or array
       let badgesObject: { [key: string]: any } = {};
       if (profile.badges) {
@@ -95,10 +95,10 @@ export const initializeApp = async (params: InitializeAppParams) => {
           badgesObject = profile.badges;
         }
       }
-      
+
       if (badgesObject && Object.keys(badgesObject).length > 0) {
         const skillsMap: { [key: string]: Skill } = {};
-        
+
         // Map API skill names to display names and icons
         // Note: API returns badge names like "Explorer", "Programming", "Art", "LevelDesign", "GameDesign"
         const skillIconMap: { [key: string]: any } = {
@@ -119,19 +119,19 @@ export const initializeApp = async (params: InitializeAppParams) => {
           "Explorer": Gamepad2,
           "explorer": Gamepad2
         };
-        
+
         Object.keys(badgesObject).forEach(apiSkillName => {
           const badgeData = badgesObject[apiSkillName];
           console.log(`Processing badge: ${apiSkillName}`, badgeData);
           const displayName = mapApiSkillNameToDisplayName(apiSkillName);
           const icon = skillIconMap[apiSkillName] || Gamepad2;
-          
+
           // According to API document, badges have:
           // - rank: "Bronze", "Silver", "Gold", "Diamond" (or missing for Unranked)
           // - points: current points
           // - nextRank: next rank to achieve
           // - nextRankPoints: points needed for next rank
-          
+
           // Map rank string to level number
           // Unranked = 1, Bronze = 2, Silver = 3, Gold = 4, Diamond = 5
           let mappedLevel = 1; // Default to Unranked
@@ -150,15 +150,15 @@ export const initializeApp = async (params: InitializeAppParams) => {
               mappedLevel = 1;
             }
           }
-          
+
           // Use points from badgeData
           const currentPoints = badgeData.points || 0;
-          
+
           // Use nextRankPoints as maxPoints (points needed to reach next rank)
           // If at Diamond (level 5), there's no next rank, so use a high number
           const maxPoints = mappedLevel >= 5 ? 10000 : (badgeData.nextRankPoints || 10000);
-          
-          
+
+
           skillsMap[displayName] = {
             name: displayName, // Use display name for consistency
             icon: icon,
@@ -168,7 +168,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
             description: badgeData.description || "",
             rewards: badgeData.rewards || []
           };
-          
+
         });
         // Update skills state if we have badge data from API
         if (Object.keys(skillsMap).length > 0) {
@@ -209,9 +209,9 @@ export const initializeApp = async (params: InitializeAppParams) => {
             if (!quest.completionRewards || !Array.isArray(quest.completionRewards)) {
               return [];
             }
-            
+
             const mappedRewards: ObjectiveReward[] = [];
-            
+
             quest.completionRewards.forEach((rewardGroup: any) => {
               if (rewardGroup && Array.isArray(rewardGroup.entries)) {
                 rewardGroup.entries.forEach((entry: any) => {
@@ -220,7 +220,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
                 });
               }
             });
-            
+
             return mappedRewards;
           })(),
           completed: aq.isCompleted || false,
@@ -240,9 +240,9 @@ export const initializeApp = async (params: InitializeAppParams) => {
             //     ]
             //   }
             // ]
-            
+
             let reward: any = { type: 'coins', value: 0 };
-            
+
             // Try sq.reward first (single object - for backwards compatibility)
             if (sq.reward && typeof sq.reward === 'object' && sq.reward.type) {
               reward = sq.reward;
@@ -262,7 +262,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
                 const sqId = extractSubQuestIdFromSubQuest(sq)?.toString();
                 return pId === sqId;
               });
-              
+
               if (progressEntry?.reward && typeof progressEntry.reward === 'object' && progressEntry.reward.type) {
                 reward = progressEntry.reward;
               } else if (Array.isArray(progressEntry?.rewards) && progressEntry.rewards.length > 0) {
@@ -273,7 +273,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
                 }
               }
             }
-            
+
             // Ensure reward has the correct structure
             if (!reward || typeof reward !== 'object') {
               reward = { type: 'coins', value: 0 };
@@ -284,7 +284,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
             if (typeof reward.value === 'undefined' || reward.value === null) {
               reward.value = 0;
             }
-            
+
             return {
               text: sq.title || sq.description,
               reward: reward,
@@ -300,7 +300,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
             aq.subQuestsProgress?.forEach((p: any, idx: number) => {
               // Try to get subQuestId from progress object - check various possible structures
               const progressSubQuestId = extractSubQuestIdFromProgress(p);
-              
+
               if (progressSubQuestId) {
                 const subQuestIdString = progressSubQuestId.toString();
                 // Mark as completed if status is 'Completed' OR 'Pending' (user sees pending as completed)
@@ -310,10 +310,10 @@ export const initializeApp = async (params: InitializeAppParams) => {
             // Map each objective to its completion status by matching subQuestId
             return objectives.map((sq: any, idx: number) => {
               const objectiveSubQuestId = extractSubQuestIdFromSubQuest(sq)?.toString();
-              
+
               // First, try to get from the map we built
               let completed = progressMap.get(objectiveSubQuestId);
-              
+
               // If not found in map, try to find progress by searching through all progress entries
               if (completed === undefined) {
                 const matchingProgress = aq.subQuestsProgress?.find((p: any) => {
@@ -350,7 +350,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
             return objectives.map((sq: any, idx: number) => {
               const subQuestId = extractSubQuestIdFromSubQuest(sq)?.toString();
               let submission = submissionsMap.get(subQuestId);
-              
+
               // If not found in map, try to find by searching all progress entries
               if (!submission) {
                 const matchingProgress = aq.subQuestsProgress?.find((p: any) => {
@@ -364,7 +364,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
                   };
                 }
               }
-              
+
               return submission || {
                 imageUrl: null,
                 status: 'none' as ApprovalStatus
@@ -387,7 +387,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
             return objectives.map((sq: any, idx: number) => {
               const subQuestId = extractSubQuestIdFromSubQuest(sq)?.toString();
               let awarded = rewardsMap.get(subQuestId);
-              
+
               // If not found in map, try to find by searching all progress entries
               if (awarded === undefined) {
                 const matchingProgress = aq.subQuestsProgress?.find((p: any) => {
@@ -398,7 +398,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
                   awarded = matchingProgress.rewardAwarded || false;
                 }
               }
-              
+
               return awarded || false;
             });
           })(),
@@ -435,9 +435,9 @@ export const initializeApp = async (params: InitializeAppParams) => {
             if (!quest.completionRewards || !Array.isArray(quest.completionRewards)) {
               return [];
             }
-            
+
             const mappedRewards: ObjectiveReward[] = [];
-            
+
             quest.completionRewards.forEach((rewardGroup: any) => {
               if (rewardGroup && Array.isArray(rewardGroup.entries)) {
                 rewardGroup.entries.forEach((entry: any) => {
@@ -446,7 +446,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
                 });
               }
             });
-            
+
             return mappedRewards;
           })(),
           completed: true,
@@ -466,18 +466,18 @@ export const initializeApp = async (params: InitializeAppParams) => {
           category: quest.category || "General"
         };
       });
-      
+
       // Merge completed quests with active quests, avoiding duplicates
       // If a quest exists in both lists, prefer the completed version
       setQuestsState(prev => {
         const questMap = new Map<string | number, any>();
-        
+
         // First, add all active quests (normalize ID to string for consistent comparison)
         prev.forEach(quest => {
           const normalizedId = String(quest.id);
           questMap.set(normalizedId, quest);
         });
-        
+
         // Then, add/update with completed quests (completed quests take precedence)
         mappedCompleted.forEach(completedQuest => {
           const normalizedId = String(completedQuest.id);
@@ -487,7 +487,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
             questMap.set(normalizedId, completedQuest);
           }
         });
-        
+
         // Convert map back to array
         return Array.from(questMap.values());
       });
@@ -505,7 +505,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
         description: inv.itemId?.description || '',
         date: inv.itemId?.date || '',
         quantity: inv.quantity || 1,
-        image: inv.itemId?.icon || inv.itemId?.image || "/Asset/item/classTicket.png",
+        image: inv.itemId?.icon || inv.itemId?.image || getAssetUrl("/Asset/item/classTicket.png"),
         icon: inv.itemId?.icon,
         used: inv.used || false,
         active: inv.active || false
@@ -527,8 +527,8 @@ export const initializeApp = async (params: InitializeAppParams) => {
  */
 const getDefaultSkills = (): Skill[] => {
   return [
-    { 
-      name: "Game Design", 
+    {
+      name: "Game Design",
       icon: Gamepad2,
       currentLevel: 1, // Unranked
       points: 0,
@@ -536,8 +536,8 @@ const getDefaultSkills = (): Skill[] => {
       description: "",
       rewards: []
     },
-    { 
-      name: "Level Design", 
+    {
+      name: "Level Design",
       icon: Monitor,
       currentLevel: 1, // Unranked
       points: 0,
@@ -545,8 +545,8 @@ const getDefaultSkills = (): Skill[] => {
       description: "",
       rewards: []
     },
-    { 
-      name: "Drawing", 
+    {
+      name: "Drawing",
       icon: Paintbrush,
       currentLevel: 1, // Unranked
       points: 0,
@@ -554,8 +554,8 @@ const getDefaultSkills = (): Skill[] => {
       description: "",
       rewards: []
     },
-    { 
-      name: "C# Programming", 
+    {
+      name: "C# Programming",
       icon: Code,
       currentLevel: 1, // Unranked
       points: 0,

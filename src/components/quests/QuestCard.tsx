@@ -3,7 +3,7 @@
 import React from 'react';
 import { Gift } from 'lucide-react';
 import { Quest } from '@/types';
-import { isQuestTrulyCompleted } from '@/utils/helpers';
+import { isQuestTrulyCompleted, getAssetUrl } from '@/utils/helpers';
 
 interface QuestCardProps {
   quest: Quest;
@@ -29,7 +29,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick }) => 
       <div className="flex justify-between items-start mb-2">
         <div>
           <span className="text-xs font-semibold text-[#BF5475] py-1 rounded-full flex items-center gap-1">
-            <img src="/Asset/check-circle.png" alt="" className="w-3 h-3" />
+            <img src={getAssetUrl("/Asset/check-circle.png")} alt="" className="w-3 h-3" />
             {quest.type}
           </span>
           <h3 className="font-bold text-black text-lg mt-1">{quest.title}</h3>

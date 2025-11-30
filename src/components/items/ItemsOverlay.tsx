@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BackpackItem as BackpackItemType } from '@/types';
 import { isItemExpired, hasItemTimePassed, sortItems } from '@/utils/helpers';
 import { getItemIconUrl } from '@/utils/itemHelpers';
+import { getAssetUrl } from '@/utils/helpers';
 
 interface ItemsOverlayProps {
   items: BackpackItemType[];
@@ -305,16 +306,14 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
 
   useEffect(() => {
     // Attach mouse events to document for global drag detection
-    if (onClose) { // Only when overlay is open
-      document.addEventListener('mousedown', handleMouseDown as any);
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      return () => {
-        document.removeEventListener('mousedown', handleMouseDown as any);
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-    }
+    document.addEventListener('mousedown', handleMouseDown as any);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown as any);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
   }, [onClose, isDragging, dragY]);
 
   return (
@@ -369,7 +368,7 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
                   className="w-24 h-18 object-contain rounded-lg"
                   onError={(e) => {
                     // Fallback to default icon if item icon fails to load
-                    (e.target as HTMLImageElement).src = "/Asset/item/classTicket.png";
+                    (e.target as HTMLImageElement).src = getAssetUrl("/Asset/item/classTicket.png");
                   }}
                 />
                 <div className="flex-1">

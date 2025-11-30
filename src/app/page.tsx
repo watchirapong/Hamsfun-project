@@ -293,7 +293,7 @@ const App: React.FC = () => {
                 try {
                   // The redirectUri should point to where we want to return after auth
                   // The backend will redirect to /auth/handover with the token
-                  const redirectUri = `${window.location.origin}/auth/handover`;
+                  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || window.location.origin}/auth/handover`;
                   authAPI.discordLogin(redirectUri);
                 } catch (error) {
                   console.error('Discord login error:', error);

@@ -1,4 +1,5 @@
 import { itemAPI } from '@/lib/api';
+import { getAssetUrl } from './helpers';
 
 // Cache for item details to avoid repeated API calls
 const itemCache = new Map<string, { name: string; icon: string; description?: string }>();
@@ -19,14 +20,14 @@ export const getItemDetails = async (itemId: string): Promise<{ name: string; ic
     // Otherwise, fetch item by ID
     const response = await itemAPI.getItemById(itemId);
     const item = response.data || response;
-    
+
     if (item && item.icon) {
       const itemDetails = {
         name: item.name || 'Item',
         icon: item.icon,
         description: item.description
       };
-      
+
       // Cache the result
       itemCache.set(itemId, itemDetails);
       return itemDetails;
@@ -45,21 +46,21 @@ export const getItemDetails = async (itemId: string): Promise<{ name: string; ic
  */
 export const getItemDetailsBatch = async (itemIds: string[]): Promise<Map<string, { name: string; icon: string; description?: string }>> => {
   const results = new Map<string, { name: string; icon: string; description?: string }>();
-  
+
   // Filter out already cached items
   const uncachedIds = itemIds.filter(id => !itemCache.has(id));
-  
+
   // Fetch all uncached items in parallel
   const promises = uncachedIds.map(id => getItemDetails(id));
   await Promise.all(promises);
-  
+
   // Collect results from cache
   itemIds.forEach(id => {
     if (itemCache.has(id)) {
       results.set(id, itemCache.get(id)!);
     }
   });
-  
+
   return results;
 };
 
@@ -70,20 +71,23 @@ export const getItemDetailsBatch = async (itemIds: string[]): Promise<Map<string
  */
 export const getItemIconUrl = (itemIcon?: string): string => {
   if (!itemIcon) {
-    return "/Asset/item/classTicket.png";
+    return getAssetUrl("/Asset/item/classTicket.png");
   }
-  
+
   // If icon is a relative path (starts with /) but not a local asset, prepend API base URL
   if (itemIcon.startsWith('/') && !itemIcon.startsWith('/Asset')) {
     return `https://api.questcity.cloud/hamster-world${itemIcon}`;
   }
-  
+
   // If it's already a full URL, return as-is
   if (itemIcon.startsWith('http://') || itemIcon.startsWith('https://')) {
     return itemIcon;
   }
-  
+
   // Local asset paths (starting with /Asset) or other relative paths
+  if (itemIcon.startsWith('/Asset')) {
+    return getAssetUrl(itemIcon);
+  }
+
   return itemIcon;
 };
-

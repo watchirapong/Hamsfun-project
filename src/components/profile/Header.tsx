@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Crown, Edit2, Settings } from 'lucide-react';
+import { getAssetUrl } from '@/utils/helpers';
 
 interface HeaderProps {
   description: string;
@@ -54,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1">
-            <img src="/Asset/item/coin.png" alt="Coins" className="w-6 h-6 object-contain" />
+            <img src={getAssetUrl("/Asset/item/coin.png")} alt="Coins" className="w-6 h-6 object-contain" />
             <span className={`font-bold px-4 py-2 rounded shadow-sm ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-black'}`}>{coins}</span>
           </div>
           <button 

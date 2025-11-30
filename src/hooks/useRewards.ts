@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { ObjectiveReward, User, Skill } from '@/types';
 import { calculatePetLevelProgression } from '@/services/rewardService';
 import { mapApiSkillNameToDisplayName } from '@/utils/rewardHelpers';
+import { getAssetUrl } from '@/utils/helpers';
 
 export interface RewardAnimationInstance {
   id: string;
@@ -23,16 +24,16 @@ export const useRewards = (
 ) => {
   const [rewardAnimations, setRewardAnimations] = useState<RewardAnimationInstance[]>([]);
   const [levelUpAnimations, setLevelUpAnimations] = useState<Set<string>>(new Set());
-  
+
   // Ref to track reward animations in progress to prevent duplicates
   const rewardAnimationsInProgress = useRef<Set<string>>(new Set());
-  
+
   // Ref to track awarded rewards to prevent duplicates when overlay closes
   const awardedRewards = useRef<Set<string>>(new Set());
-  
+
   // Ref for unique animation ID counter
   const animationIdCounter = useRef<number>(0);
-  
+
   // Ref to track skill level-ups to prevent duplicate rewards
   const skillLevelUpProcessed = useRef<Set<string>>(new Set());
 
@@ -41,7 +42,7 @@ export const useRewards = (
     console.log('triggerRewardAnimation called with:', reward);
     const rewardKey = `${reward.type}-${reward.value || 0}-${reward.skillName || ''}`;
     const now = Date.now();
-    
+
     // Check if this exact reward animation was triggered recently (within last 1000ms)
     const recentReward = Array.from(rewardAnimationsInProgress.current).find(key => {
       if (key.startsWith(rewardKey + '-')) {
@@ -50,33 +51,33 @@ export const useRewards = (
       }
       return false;
     });
-    
+
     if (recentReward) {
       console.log('Duplicate reward animation prevented:', rewardKey, 'recent:', recentReward);
       return;
     }
-    
+
     console.log('Creating reward animation for:', rewardKey);
-    
+
     // Mark this reward as in progress with timestamp
     const rewardKeyWithTimestamp = `${rewardKey}-${now}`;
     rewardAnimationsInProgress.current.add(rewardKeyWithTimestamp);
-    
+
     // Use counter for unique IDs to prevent collisions
     animationIdCounter.current += 1;
     const animationId = `reward-${Date.now()}-${animationIdCounter.current}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Generate random position within screen bounds (leaving some margin)
     // Spawn at bottom of screen so bubbles can float upward
     const margin = 100;
     const x = margin + Math.random() * (window.innerWidth - margin * 2);
     const y = window.innerHeight - margin - Math.random() * 100; // Spawn near bottom of screen
-    
+
     // Generate random drift direction (-1 or 1) and amount
     const driftDirection = Math.random() > 0.5 ? 1 : -1;
     const driftAmount = 30 + Math.random() * 40; // 30-70px drift
     const driftX = driftDirection * driftAmount;
-    
+
     setRewardAnimations(prev => {
       // Ensure no duplicate IDs (safety check)
       const existingIds = new Set(prev.map(anim => anim.id));
@@ -99,7 +100,7 @@ export const useRewards = (
       console.log('Adding reward animation to state:', newAnimation, 'Total animations:', prev.length + 1);
       return [...prev, newAnimation];
     });
-    
+
     // Remove animation after it completes (bubble animation duration + burst time)
     setTimeout(() => {
       setRewardAnimations(prev => prev.filter(anim => anim.id !== animationId));
@@ -111,27 +112,27 @@ export const useRewards = (
   // Helper function to award objective reward
   const awardObjectiveReward = (reward: ObjectiveReward, contextKey?: string) => {
     // Create a unique key for this reward with context to prevent duplicates
-    const rewardKey = contextKey 
+    const rewardKey = contextKey
       ? `${contextKey}-${reward.type}-${reward.value || 0}-${reward.skillName || ''}`
       : `${reward.type}-${reward.value || 0}-${reward.skillName || ''}`;
-    
+
     // Check if this exact reward with context was already awarded
     if (awardedRewards.current.has(rewardKey)) {
       console.log('Reward already awarded (with context), skipping:', rewardKey);
       return;
     }
-    
+
     // Mark as awarded immediately
     awardedRewards.current.add(rewardKey);
-    
+
     // Trigger reward animation
     triggerRewardAnimation(reward);
-    
+
     // Clean up after 5 seconds
     setTimeout(() => {
       awardedRewards.current.delete(rewardKey);
     }, 5000);
-    
+
     // Award the reward based on type
     if (reward.type === 'coins') {
       const coinValue = typeof reward.value === 'number' ? reward.value : 0;
@@ -149,7 +150,7 @@ export const useRewards = (
           // All XP goes to pet (100% of exp reward)
           // Calculate multiple level-ups if needed
           const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, expValue);
-          
+
           return {
             ...prev,
             petXp: progression.newXp,
@@ -181,11 +182,11 @@ export const useRewards = (
       }
     } else if (reward.type === 'item' && reward.itemId) {
       const itemQuantity = typeof reward.value === 'number' ? reward.value : 1;
-      const itemIcon = reward.itemIcon || "/Asset/item/classTicket.png";
+      const itemIcon = reward.itemIcon || getAssetUrl("/Asset/item/classTicket.png");
       const iconUrl = itemIcon.startsWith('/') && !itemIcon.startsWith('/Asset')
         ? `https://api.questcity.cloud/hamster-world${itemIcon}`
         : itemIcon;
-      
+
       triggerRewardAnimation({
         type: 'item',
         value: itemQuantity,
@@ -202,27 +203,27 @@ export const useRewards = (
             const oldPoints = skill.points;
             const oldMaxPoints = skill.maxPoints;
             const newPoints = oldPoints + skillValue;
-            
+
             // Preserve current level - only level up when points reach or exceed maxPoints
             let newLevel = oldLevel;
             let newMaxPoints = oldMaxPoints;
-            
+
             // Check if skill should level up (points reached maxPoints)
             // Cap at level 5 (Diamond) - no progression after Diamond
             if (newPoints >= oldMaxPoints && oldLevel < 5) {
               newLevel = oldLevel + 1;
               newMaxPoints = 10000 * newLevel;
-              
+
               // Trigger level-up animation after state update
               setTimeout(() => {
                 handleSkillLevelUp(skill.name, newLevel, skill.rewards);
               }, 100);
             }
-            
+
             // Cap points at maxPoints for current level (don't exceed until level up)
             // Diamond (level 5) doesn't accumulate points
             const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
-            
+
             return {
               ...skill,
               points: cappedPoints,
@@ -252,11 +253,11 @@ export const useRewards = (
       }
     });
   };
-  
+
   // Helper function to process rewards from grantedRewards object (for main quest rewards after approval)
   const processGrantedRewards = (grantedRewards: any) => {
     if (!grantedRewards) return;
-    
+
     // Process coins
     if (grantedRewards.coins && grantedRewards.coins > 0) {
       setUser(prev => ({
@@ -265,7 +266,7 @@ export const useRewards = (
       }));
       triggerRewardAnimation({ type: 'coins', value: grantedRewards.coins });
     }
-    
+
     // Process rank points
     if (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) {
       setUser(prev => ({
@@ -274,7 +275,7 @@ export const useRewards = (
       }));
       triggerRewardAnimation({ type: 'rank', value: grantedRewards.rankPoints });
     }
-    
+
     // Process leaderboard points
     if (grantedRewards.leaderboardScore && grantedRewards.leaderboardScore > 0) {
       setUser(prev => ({
@@ -283,15 +284,15 @@ export const useRewards = (
       }));
       triggerRewardAnimation({ type: 'leaderboard', value: grantedRewards.leaderboardScore });
     }
-    
+
     // Process items
     if (grantedRewards.items && Array.isArray(grantedRewards.items) && grantedRewards.items.length > 0) {
       grantedRewards.items.forEach((item: any) => {
         if (item.quantity > 0) {
           const iconUrl = item.icon?.startsWith('/') && !item.icon.startsWith('/Asset')
             ? `https://api.questcity.cloud/hamster-world${item.icon}`
-            : item.icon || "/Asset/item/classTicket.png";
-          
+            : item.icon || getAssetUrl("/Asset/item/classTicket.png");
+
           triggerRewardAnimation({
             type: 'item',
             value: item.quantity,
@@ -301,7 +302,7 @@ export const useRewards = (
         }
       });
     }
-    
+
     // Process badge points (no animation, handled separately)
     if (grantedRewards.badgePoints && typeof grantedRewards.badgePoints === 'object') {
       Object.keys(grantedRewards.badgePoints).forEach(skillName => {
@@ -313,17 +314,17 @@ export const useRewards = (
             value: pointsToAdd,
             skillName: displayName
           });
-          
+
           setSkills(prev => prev.map(skill => {
             if (skill.name === displayName) {
               const oldLevel = skill.currentLevel;
               const oldPoints = skill.points;
               const oldMaxPoints = skill.maxPoints;
               const newPoints = oldPoints + pointsToAdd;
-              
+
               let newLevel = oldLevel;
               let newMaxPoints = oldMaxPoints;
-              
+
               if (newPoints >= oldMaxPoints && oldLevel < 5) {
                 newLevel = oldLevel + 1;
                 newMaxPoints = 10000 * newLevel;
@@ -331,9 +332,9 @@ export const useRewards = (
                   handleSkillLevelUp(skill.name, newLevel, skill.rewards);
                 }, 100);
               }
-              
+
               const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
-              
+
               return {
                 ...skill,
                 points: cappedPoints,
@@ -352,19 +353,19 @@ export const useRewards = (
   const handleSkillLevelUp = (skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => {
     // Create unique key for this level-up to prevent duplicates
     const levelUpKey = `${skillName}-${newLevel}`;
-    
+
     // Check if this level-up has already been processed
     if (skillLevelUpProcessed.current.has(levelUpKey)) {
       console.log(`Level-up reward already processed for ${skillName} to level ${newLevel}, skipping`);
       return;
     }
-    
+
     // Mark as processed immediately
     skillLevelUpProcessed.current.add(levelUpKey);
-    
+
     // Trigger level-up animation
     setLevelUpAnimations(prev => new Set(prev).add(skillName));
-    
+
     // Remove animation after it completes
     setTimeout(() => {
       setLevelUpAnimations(prev => {
@@ -373,7 +374,7 @@ export const useRewards = (
         return newSet;
       });
     }, 2000);
-    
+
     // Award level-up rewards (if any) - only once
     if (skillRewards && skillRewards.length > 0) {
       // Award level-up rewards
