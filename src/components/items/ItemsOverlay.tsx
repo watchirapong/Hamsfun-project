@@ -110,15 +110,12 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
     setIsDragging(false);
   };
 
-  // Allow scrolling on content area, prevent only on drag handle
-  // Don't prevent body scrolling - let the content area handle it
+  // Prevent background scrolling when panel is open
   useEffect(() => {
-    if (panelRef.current) {
-      const contentArea = panelRef.current.querySelector('.overflow-y-auto');
-      if (contentArea) {
-        (contentArea as HTMLElement).style.overflowY = 'auto';
-      }
-    }
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, []);
 
   // Add native touch event listeners with passive: false

@@ -320,15 +320,13 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     setIsDragging(false);
   };
 
-  // Allow scrolling on content area, prevent only on drag handle
-  // Don't prevent body scrolling - let the content area handle it
+  // Prevent background scrolling when panel is open
   useEffect(() => {
-    if (showQuestOverlay && panelRef.current) {
-      // Content area can scroll normally - no need to prevent body scroll
-      const contentArea = panelRef.current.querySelector('.overflow-y-auto');
-      if (contentArea) {
-        (contentArea as HTMLElement).style.overflowY = 'auto';
-      }
+    if (showQuestOverlay) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
     }
   }, [showQuestOverlay]);
 
@@ -447,95 +445,62 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         const submission = quest.objectiveSubmissions[index];
                         const status = submission?.status || 'none';
                         const reward = objective.reward;
-                        const rewardAwarded = quest.objectiveRewardsAwarded[index] || false;
                         
                         // Determine visual state
+                        // Note: 'pending' status is shown as completed to user (optimistic UI)
+                        const isPending = status === 'pending';
+                        const isApproved = status === 'approved' || status === 'pending'; // Show pending as approved visually
+                        const isFullyApproved = status === 'approved'; // Fully approved (not just pending)
                         const isRejected = status === 'rejected';
-                        const isSubmitted = status !== 'none'; // Has been submitted
-                        const isSubmittedButNotClaimed = isSubmitted && !rewardAwarded && !isRejected; // Submitted, waiting to claim
-                        const isClaimed = rewardAwarded; // Reward has been claimed
-                        const isNotSubmitted = status === 'none'; // Not yet submitted
+                        const isClickable = isRejected || (status !== 'approved' && status !== 'pending'); // Allow resubmission if rejected
+                        const isSubmitted = status !== 'none'; // Has been submitted (pending, approved, or rejected)
 
-                        // Render based on state
-                        if (isClaimed) {
-                          // Task Completed - Light green box, smaller height
-                          return (
-                            <div 
-                              key={index} 
-                              className={`relative flex items-center justify-between py-1.5 px-3 rounded transition-all ${
-                                theme === 'dark' ? 'bg-green-900/30' : 'bg-green-100'
-                              }`}
-                            >
-                              <span className="flex-1 text-sm font-semibold text-white text-center">
-                                Task Completed
+                        return (
+                          <div 
+                            key={index} 
+                            className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all ${
+                              theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
+                            } ${
+                              isRejected
+                                ? theme === 'dark' ? 'bg-red-900/20 border-red-500' : 'bg-red-50 border-red-200'
+                                : isApproved 
+                                ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' 
+                                : isClickable 
+                                ? theme === 'dark' ? 'bg-gray-800/30 cursor-pointer hover:bg-gray-800/40' : 'bg-white cursor-pointer hover:bg-gray-50' 
+                                : theme === 'dark' ? 'bg-gray-900/10' : 'bg-white'
+                            }`}
+                            onClick={() => isClickable && handleObjectiveClick(quest.id, index)}
+                          >
+                            <div className="flex-1 flex items-center gap-2">
+                              <span className={`text-sm ${
+                                isApproved 
+                                  ? 'text-green-600 font-semibold' 
+                                  : isRejected
+                                  ? 'text-red-600 font-semibold'
+                                  : theme === 'dark' ? 'text-gray-300' : 'text-black'
+                              }`}>
+                                {objective.text}
                               </span>
-                              <Check className="w-5 h-5 text-white flex-shrink-0" />
+                              {isPending && (
+                                <Check className="w-4 h-4 text-green-600" />
+                              )}
+                              {isFullyApproved && (
+                                <div className="flex items-center gap-0.5">
+                                  <Check className="w-4 h-4 text-green-600" />
+                                  <Check className="w-4 h-4 text-green-600" />
+                                </div>
+                              )}
+                              {isRejected && (
+                                <span className="text-xs text-red-600 font-semibold">(Rejected - Click to resubmit)</span>
+                              )}
                             </div>
-                          );
-                        } else if (isSubmittedButNotClaimed) {
-                          // CLAIM REWARD - Light orange box
-                          return (
-                            <div 
-                              key={index} 
-                              className={`relative flex items-center justify-between py-3 px-4 rounded cursor-pointer transition-all ${
-                                theme === 'dark' ? 'bg-orange-900/40 hover:bg-orange-900/50' : 'bg-orange-200 hover:bg-orange-300'
-                              }`}
-                              onClick={() => handleApproveObjective(quest.id, index)}
-                            >
-                              <span className="flex-1 text-sm font-semibold text-white text-center">
-                                CLAIM REWARD
-                              </span>
+                            <div className="flex items-center gap-2">
                               <div className="flex-shrink-0">
                                 {getRewardDisplay(reward)}
                               </div>
                             </div>
-                          );
-                        } else if (isRejected) {
-                          // Rejected - can resubmit
-                          return (
-                            <div 
-                              key={index} 
-                              className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all cursor-pointer ${
-                                theme === 'dark' ? 'bg-red-900/20 border-red-500 hover:bg-red-900/30' : 'bg-red-50 border-red-200 hover:bg-red-100'
-                              }`}
-                              onClick={() => handleObjectiveClick(quest.id, index)}
-                            >
-                              <div className="flex-1 flex items-center gap-2">
-                                <span className="text-sm text-red-600 font-semibold">
-                                  {objective.text}
-                                </span>
-                                <span className="text-xs text-red-600 font-semibold">(Rejected - Click to resubmit)</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex-shrink-0">
-                                  {getRewardDisplay(reward)}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        } else {
-                          // Not submitted - normal clickable state
-                          return (
-                            <div 
-                              key={index} 
-                              className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all cursor-pointer ${
-                                theme === 'dark' ? 'bg-gray-800/30 hover:bg-gray-800/40 border-gray-800' : 'bg-white hover:bg-gray-50 border-gray-200'
-                              }`}
-                              onClick={() => handleObjectiveClick(quest.id, index)}
-                            >
-                              <div className="flex-1">
-                                <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
-                                  {objective.text}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex-shrink-0">
-                                  {getRewardDisplay(reward)}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        }
+                          </div>
+                        );
                       })}
                     </div>
                   </div>
@@ -549,9 +514,30 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         </div>
                       </div>
                       <div className={`relative rounded-lg pt-8 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
-                        {/* Reward Icons */}
-                        <div className="flex justify-center gap-6 pb-4">
-                          {quest.rewards.filter(reward => reward.type !== 'skill').map((reward, index) => {
+                        <button
+                          onClick={() => {
+                            if (areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none') {
+                              handleClaimReward(quest.id);
+                            }
+                          }}
+                          disabled={quest.rewardClaimed || !areAllObjectivesCompleted(quest) || quest.rewardSubmissionStatus === 'pending'}
+                          className={`w-full p-8 rounded-lg transition-all relative ${
+                            quest.rewardClaimed
+                              ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed' : 'bg-gray-100 cursor-not-allowed'
+                              : quest.rewardSubmissionStatus === 'pending'
+                              ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-70' : 'bg-gray-100 cursor-not-allowed opacity-70'
+                              : areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none'
+                              ? theme === 'dark' ? 'bg-green-900/40 border-2 border-green-500 hover:bg-green-900/50 cursor-pointer' : 'bg-green-50 border-2 border-green-200 hover:bg-green-100 cursor-pointer'
+                              : theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-50' : 'bg-gray-100 cursor-not-allowed opacity-50'
+                          }`}
+                        >
+                          {quest.rewardSubmissionStatus === 'pending' && (
+                            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                              <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
+                            </div>
+                          )}
+                          <div className={`flex justify-center gap-6 ${quest.rewardSubmissionStatus === 'pending' ? 'opacity-30' : ''}`}>
+                            {quest.rewards.filter(reward => reward.type !== 'skill').map((reward, index) => {
                               const formatRange = (min?: number, max?: number, value?: number) => {
                                 if (min !== undefined && max !== undefined && min !== max) {
                                   return `${formatShortNumber(min)} - ${formatShortNumber(max)}`;
@@ -639,30 +625,8 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                 </div>
                               );
                             })}
-                        </div>
-                        
-                        {/* CLAIM REWARD Button - Only show when all objectives completed and not yet claimed */}
-                        {areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none' && (
-                          <button
-                            onClick={() => handleClaimReward(quest.id)}
-                            className={`w-full py-3 px-4 rounded-lg transition-all ${
-                              theme === 'dark' ? 'bg-orange-900/40 hover:bg-orange-900/50' : 'bg-orange-200 hover:bg-orange-300'
-                            }`}
-                          >
-                            <span className="text-sm font-semibold text-white">CLAIM REWARD</span>
-                          </button>
-                        )}
-                        
-                        {/* Pending Status */}
-                        {quest.rewardSubmissionStatus === 'pending' && (
-                          <div className={`w-full py-3 px-4 rounded-lg ${
-                            theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'
-                          }`}>
-                            <div className="flex items-center justify-center">
-                              <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
-                            </div>
                           </div>
-                        )}
+                        </button>
                       </div>
                     </div>
                   )}
@@ -681,16 +645,22 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                 <div 
                   key={`completed-${quest.id}`}
                   id={`quest-${quest.id}`}
-                  className={`rounded-xl p-3 mb-4 shadow-sm border transition-all ${
-                    theme === 'dark' ? 'bg-green-900/30 border-green-700' : 'bg-green-100 border-green-200'
-                  }`}
+                  className={`rounded-xl p-4 mb-4 shadow-sm border transition-all opacity-50 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}
                 >
-                  {/* Quest Completed - Light green box with reduced height */}
-                  <div className="flex items-center justify-between">
-                    <span className="flex-1 text-base font-semibold text-white text-center">
-                      {quest.title}
-                    </span>
-                    <Check className="w-6 h-6 text-white flex-shrink-0" />
+                  {/* Quest Header */}
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Check size={16} className="text-purple-600" />
+                      <span className={`text-xs font-semibold ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
+                        {quest.type}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`w-6 h-6 rounded flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                        <span className="text-xs">🎮</span>
+                      </div>
+                      <h3 className={`font-bold text-xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{quest.title}</h3>
+                    </div>
                   </div>
 
                   {/* Objectives */}

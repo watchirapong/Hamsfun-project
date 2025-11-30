@@ -17,10 +17,9 @@ export interface RewardAnimationInstance {
 
 interface RewardAnimationProps {
   animation: RewardAnimationInstance;
-  isPanelClosing?: boolean;
 }
 
-export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation, isPanelClosing = false }) => {
+export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) => {
   // Calculate elapsed time to prevent animation restart on re-render
   const [elapsedTime, setElapsedTime] = React.useState(0);
   const [isPopping, setIsPopping] = React.useState(false);
@@ -32,8 +31,8 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation, isP
       const elapsed = Date.now() - animation.startTime;
       setElapsedTime(Math.min(elapsed, animationDuration));
       
-      // Trigger pop animation near the top or if panel is closing
-      if ((elapsed >= popStartTime || isPanelClosing) && !isPopping) {
+      // Trigger pop animation near the top
+      if (elapsed >= popStartTime && !isPopping) {
         setIsPopping(true);
       }
     };
@@ -42,7 +41,7 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation, isP
     const interval = setInterval(updateElapsed, 16); // ~60fps
     
     return () => clearInterval(interval);
-  }, [animation.startTime, isPopping, popStartTime, isPanelClosing]);
+  }, [animation.startTime, isPopping, popStartTime]);
   
   // Calculate animation delay (negative to skip to current point)
   const animationDelay = elapsedTime > 0 ? -elapsedTime : 0;

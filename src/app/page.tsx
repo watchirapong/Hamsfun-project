@@ -323,11 +323,7 @@ const App: React.FC = () => {
         
         {/* Reward Animations */}
         {rewardAnimations.map((animation) => (
-          <RewardAnimation 
-            key={animation.id} 
-            animation={animation} 
-            isPanelClosing={false}
-          />
+          <RewardAnimation key={animation.id} animation={animation} />
         ))}
         {/* Header */}
         <Header
