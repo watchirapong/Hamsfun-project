@@ -75,11 +75,27 @@ async function apiCallMultipart<T>(
 export const authAPI = {
   // Discord login - redirects to Discord
   discordLogin: (redirectUri?: string) => {
-    const params = new URLSearchParams();
-    if (redirectUri) {
-      params.append('redirectUri', redirectUri);
+    try {
+      const params = new URLSearchParams();
+      // The redirectUri should point to the handover endpoint where the token will be received
+      // Format: {currentOrigin}/auth/handover
+      const currentOrigin = window.location.origin;
+      const handoverUri = `${currentOrigin}/auth/handover`;
+      
+      if (redirectUri) {
+        params.append('redirectUri', redirectUri);
+      } else {
+        // Default to handover endpoint if no redirectUri provided
+        params.append('redirectUri', handoverUri);
+      }
+      
+      const discordAuthUrl = `${API_BASE_URL}/auth/discord?${params.toString()}`;
+      console.log('Redirecting to Discord login:', discordAuthUrl);
+      window.location.href = discordAuthUrl;
+    } catch (error) {
+      console.error('Error initiating Discord login:', error);
+      alert('Failed to initiate Discord login. Please check if the server is running.');
     }
-    window.location.href = `${API_BASE_URL}/auth/discord?${params.toString()}`;
   },
 
   // Developer login (for testing)
@@ -143,6 +159,9 @@ export const dojoAPI = {
 export const itemAPI = {
   // List items
   listItems: () => apiCall<{ message: string; data: any[] }>('/api/v1/items'),
+  
+  // Get item by ID
+  getItemById: (itemId: string) => apiCall<{ message: string; data: any }>(`/api/v1/items/${itemId}`),
 
   // Create item (public - should be careful in production)
   createItem: (itemData: any) =>

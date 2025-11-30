@@ -1,12 +1,15 @@
 import { useState, useRef } from 'react';
 import { ObjectiveReward, User, Skill } from '@/types';
 import { calculatePetLevelProgression } from '@/services/rewardService';
+import { mapApiSkillNameToDisplayName } from '@/utils/rewardHelpers';
 
 export interface RewardAnimationInstance {
   id: string;
-  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal';
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard';
   value: number | string;
   skillName?: string;
+  itemName?: string;
+  itemIcon?: string;
   x: number;
   y: number;
   driftX: number;
@@ -63,9 +66,10 @@ export const useRewards = (
     const animationId = `reward-${Date.now()}-${animationIdCounter.current}-${Math.random().toString(36).substr(2, 9)}`;
     
     // Generate random position within screen bounds (leaving some margin)
+    // Spawn at bottom of screen so bubbles can float upward
     const margin = 100;
     const x = margin + Math.random() * (window.innerWidth - margin * 2);
-    const y = margin + Math.random() * (window.innerHeight * 0.3); // Spawn in upper 30% of screen
+    const y = window.innerHeight - margin - Math.random() * 100; // Spawn near bottom of screen
     
     // Generate random drift direction (-1 or 1) and amount
     const driftDirection = Math.random() > 0.5 ? 1 : -1;
@@ -84,6 +88,8 @@ export const useRewards = (
         type: reward.type,
         value: reward.value || 0,
         skillName: reward.skillName,
+        itemName: reward.itemName,
+        itemIcon: reward.itemIcon,
         x,
         y,
         driftX,
@@ -159,8 +165,33 @@ export const useRewards = (
           ...prev,
           rankPoints: prev.rankPoints + rankValue
         }));
+        triggerRewardAnimation({ type: 'rank', value: rankValue });
         console.log(`Awarded ${rankValue} rank points`);
       }
+    } else if (reward.type === 'leaderboard') {
+      const leaderboardValue = typeof reward.value === 'number' ? reward.value : 0;
+      if (leaderboardValue > 0) {
+        setUser((prev: any) => ({
+          ...prev,
+          leaderboardScore: (prev.leaderboardScore || 0) + leaderboardValue
+        }));
+        triggerRewardAnimation({ type: 'leaderboard', value: leaderboardValue });
+        console.log(`Awarded ${leaderboardValue} leaderboard points`);
+      }
+    } else if (reward.type === 'item' && reward.itemId) {
+      const itemQuantity = typeof reward.value === 'number' ? reward.value : 1;
+      const itemIcon = reward.itemIcon || "/Asset/item/classTicket.png";
+      const iconUrl = itemIcon.startsWith('/') && !itemIcon.startsWith('/Asset')
+        ? `https://api.questcity.cloud/hamster-world${itemIcon}`
+        : itemIcon;
+      
+      triggerRewardAnimation({
+        type: 'item',
+        value: itemQuantity,
+        itemName: reward.itemName || 'Item',
+        itemIcon: iconUrl
+      });
+      console.log(`Awarded ${itemQuantity}x ${reward.itemName || 'Item'}`);
     } else if (reward.type === 'skill' && reward.skillName) {
       const skillValue = typeof reward.value === 'number' ? reward.value : 0;
       if (skillValue > 0) {
@@ -220,6 +251,101 @@ export const useRewards = (
       }
     });
   };
+  
+  // Helper function to process rewards from grantedRewards object (for main quest rewards after approval)
+  const processGrantedRewards = (grantedRewards: any) => {
+    if (!grantedRewards) return;
+    
+    // Process coins
+    if (grantedRewards.coins && grantedRewards.coins > 0) {
+      setUser(prev => ({
+        ...prev,
+        coins: prev.coins + grantedRewards.coins
+      }));
+      triggerRewardAnimation({ type: 'coins', value: grantedRewards.coins });
+    }
+    
+    // Process rank points
+    if (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) {
+      setUser(prev => ({
+        ...prev,
+        rankPoints: prev.rankPoints + grantedRewards.rankPoints
+      }));
+      triggerRewardAnimation({ type: 'rank', value: grantedRewards.rankPoints });
+    }
+    
+    // Process leaderboard points
+    if (grantedRewards.leaderboardScore && grantedRewards.leaderboardScore > 0) {
+      setUser(prev => ({
+        ...prev,
+        leaderboardScore: (prev.leaderboardScore || 0) + grantedRewards.leaderboardScore
+      }));
+      triggerRewardAnimation({ type: 'leaderboard', value: grantedRewards.leaderboardScore });
+    }
+    
+    // Process items
+    if (grantedRewards.items && Array.isArray(grantedRewards.items) && grantedRewards.items.length > 0) {
+      grantedRewards.items.forEach((item: any) => {
+        if (item.quantity > 0) {
+          const iconUrl = item.icon?.startsWith('/') && !item.icon.startsWith('/Asset')
+            ? `https://api.questcity.cloud/hamster-world${item.icon}`
+            : item.icon || "/Asset/item/classTicket.png";
+          
+          triggerRewardAnimation({
+            type: 'item',
+            value: item.quantity,
+            itemName: item.name,
+            itemIcon: iconUrl
+          });
+        }
+      });
+    }
+    
+    // Process badge points (no animation, handled separately)
+    if (grantedRewards.badgePoints && typeof grantedRewards.badgePoints === 'object') {
+      Object.keys(grantedRewards.badgePoints).forEach(skillName => {
+        const pointsToAdd = grantedRewards.badgePoints[skillName];
+        if (pointsToAdd && pointsToAdd > 0) {
+          const displayName = mapApiSkillNameToDisplayName(skillName);
+          triggerRewardAnimation({
+            type: 'skill',
+            value: pointsToAdd,
+            skillName: displayName
+          });
+          
+          setSkills(prev => prev.map(skill => {
+            if (skill.name === displayName) {
+              const oldLevel = skill.currentLevel;
+              const oldPoints = skill.points;
+              const oldMaxPoints = skill.maxPoints;
+              const newPoints = oldPoints + pointsToAdd;
+              
+              let newLevel = oldLevel;
+              let newMaxPoints = oldMaxPoints;
+              
+              if (newPoints >= oldMaxPoints && oldLevel < 5) {
+                newLevel = oldLevel + 1;
+                newMaxPoints = 10000 * newLevel;
+                setTimeout(() => {
+                  handleSkillLevelUp(skill.name, newLevel, skill.rewards);
+                }, 100);
+              }
+              
+              const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
+              
+              return {
+                ...skill,
+                points: cappedPoints,
+                currentLevel: newLevel,
+                maxPoints: newMaxPoints
+              };
+            }
+            return skill;
+          }));
+        }
+      });
+    }
+  };
 
   // Function to handle skill level-up
   const handleSkillLevelUp = (skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => {
@@ -276,6 +402,7 @@ export const useRewards = (
     awardObjectiveReward,
     awardQuestRewards,
     handleSkillLevelUp,
+    processGrantedRewards,
     awardedRewards: awardedRewards.current,
   };
 };

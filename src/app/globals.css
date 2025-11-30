@@ -83,6 +83,17 @@ body {
   }
 }
 
+@keyframes slideDownExpand {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -107,6 +118,10 @@ body {
 
 .animate-slide-down {
   animation: slideDown 0.3s ease-out forwards;
+}
+
+.animate-slide-down-expand {
+  animation: slideDownExpand 0.3s ease-out forwards;
 }
 
 .animate-fade-in {
@@ -159,22 +174,78 @@ body {
   transform: rotateY(180deg);
 }
 
-/* Reward Bubble Animation */
+/* Reward Bubble Animation - Floating Orb with Sway (Smooth, Curved Motion) */
 @keyframes bubbleFloat {
   0% {
-    transform: translate(0, 0) scale(0.8);
+    transform: translate(0, 0) scale(0.6);
     opacity: 0;
   }
-  10% {
+  3% {
+    transform: translate(0, 0) scale(0.9);
+    opacity: 0.7;
+  }
+  6% {
     transform: translate(0, 0) scale(1);
     opacity: 1;
   }
+  12% {
+    transform: translate(-4px, -7vh) scale(1.02);
+    opacity: 1;
+  }
+  20% {
+    transform: translate(calc(var(--drift-x) * 0.18 + 5px), -16vh) scale(1.04);
+    opacity: 1;
+  }
+  30% {
+    transform: translate(calc(var(--drift-x) * 0.32 - 4px), -26vh) scale(1.06);
+    opacity: 0.99;
+  }
+  40% {
+    transform: translate(calc(var(--drift-x) * 0.45 + 5px), -36vh) scale(1.08);
+    opacity: 0.97;
+  }
   50% {
-    transform: translate(calc(var(--drift-x) * 0.5), 50vh) scale(1);
-    opacity: 0.9;
+    transform: translate(calc(var(--drift-x) * 0.55 - 4px), -46vh) scale(1.1);
+    opacity: 0.95;
+  }
+  60% {
+    transform: translate(calc(var(--drift-x) * 0.65 + 5px), -56vh) scale(1.12);
+    opacity: 0.92;
+  }
+  70% {
+    transform: translate(calc(var(--drift-x) * 0.75 - 4px), -66vh) scale(1.14);
+    opacity: 0.87;
+  }
+  80% {
+    transform: translate(calc(var(--drift-x) * 0.85 + 5px), -76vh) scale(1.16);
+    opacity: 0.78;
+  }
+  88% {
+    transform: translate(calc(var(--drift-x) * 0.92 - 3px), -84vh) scale(1.18);
+    opacity: 0.65;
+  }
+  94% {
+    transform: translate(calc(var(--drift-x) * 0.97 - 2px), -90vh) scale(1.22);
+    opacity: 0.45;
   }
   100% {
-    transform: translate(var(--drift-x), 100vh) scale(0.6);
+    transform: translate(var(--drift-x), -100vh) scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Pop animation at the top */
+@keyframes bubblePop {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1.6);
     opacity: 0;
   }
 }

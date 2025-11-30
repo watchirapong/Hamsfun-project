@@ -57,13 +57,13 @@ import { SettingsOverlay } from '@/components/common/SettingsOverlay';
 import { QuestListOverlay } from '@/components/quests/QuestListOverlay';
 import { BadgeOverlay } from '@/components/skills/BadgeOverlay';
 import { LeaderboardOverlay } from '@/components/leaderboard/LeaderboardOverlay';
-import { mockQuests } from '@/data/mockQuests';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useUI } from '@/hooks/useUI';
 import { useItems } from '@/hooks/useItems';
 import { useRewards } from '@/hooks/useRewards';
+import { useRewardPolling } from '@/hooks/useRewardPolling';
 import { initializeApp } from '@/services/appInitialization';
 import { useQuestHandlers } from '@/handlers/questHandlers';
 import { useProfileHandlers } from '@/handlers/profileHandlers';
@@ -174,7 +174,7 @@ const App: React.FC = () => {
     awardedRewards,
   } = useRewards(setUser, setSkills);
   
-  const [questsState, setQuestsState] = useState<Quest[]>(mockQuests);
+  const [questsState, setQuestsState] = useState<Quest[]>([]);
 
   // User and skills are managed by useAuth hook
 
@@ -196,6 +196,17 @@ const App: React.FC = () => {
   // parseItemDate is now in useItems hook
 
   // Items are managed by useItems hook
+
+  // Reward polling for approved rewards
+  useRewardPolling({
+    questsState,
+    setQuestsState,
+    setUser,
+    setSkills,
+    triggerRewardAnimation,
+    handleSkillLevelUp,
+    awardedRewards
+  });
 
   // Quest handlers
   const questHandlers = useQuestHandlers({
@@ -273,7 +284,17 @@ const App: React.FC = () => {
           <p className="text-gray-600 text-center mb-6">Please login to continue</p>
           <div className="space-y-4">
             <button
-              onClick={() => authAPI.discordLogin(window.location.origin)}
+              onClick={() => {
+                try {
+                  // The redirectUri should point to where we want to return after auth
+                  // The backend will redirect to /auth/handover with the token
+                  const redirectUri = `${window.location.origin}/auth/handover`;
+                  authAPI.discordLogin(redirectUri);
+                } catch (error) {
+                  console.error('Discord login error:', error);
+                  alert('Failed to connect to authentication server. Please try again later.');
+                }
+              }}
               className="w-full bg-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
             >
               Login with Discord
@@ -302,7 +323,11 @@ const App: React.FC = () => {
         
         {/* Reward Animations */}
         {rewardAnimations.map((animation) => (
-          <RewardAnimation key={animation.id} animation={animation} />
+          <RewardAnimation 
+            key={animation.id} 
+            animation={animation} 
+            isPanelClosing={false}
+          />
         ))}
         {/* Header */}
         <Header

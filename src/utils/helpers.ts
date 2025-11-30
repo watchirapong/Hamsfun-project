@@ -80,6 +80,56 @@ export const getRankIconPath = (rankName: string): string => {
   return iconMap[rankLower] || 'https://placehold.co/80x80/4A90E2/FFFFFF?text=' + encodeURIComponent(rankName.toUpperCase());
 };
 
+/**
+ * Formats a number with shortened notation (k, m, b, t)
+ * @param num - The number to format
+ * @returns Formatted string (e.g., "1k", "1.52k", "10.25k", "100k", "1m")
+ */
+export const formatShortNumber = (num: number): string => {
+  if (num < 1000) {
+    return num.toString();
+  }
+  
+  if (num < 1000000) {
+    // Thousands (k)
+    const thousands = num / 1000;
+    if (thousands % 1 === 0) {
+      return `${thousands}k`;
+    }
+    // Round to 2 decimal places, but remove trailing zeros
+    const rounded = Math.round(thousands * 100) / 100;
+    return `${rounded}k`;
+  }
+  
+  if (num < 1000000000) {
+    // Millions (m)
+    const millions = num / 1000000;
+    if (millions % 1 === 0) {
+      return `${millions}m`;
+    }
+    const rounded = Math.round(millions * 100) / 100;
+    return `${rounded}m`;
+  }
+  
+  if (num < 1000000000000) {
+    // Billions (b)
+    const billions = num / 1000000000;
+    if (billions % 1 === 0) {
+      return `${billions}b`;
+    }
+    const rounded = Math.round(billions * 100) / 100;
+    return `${rounded}b`;
+  }
+  
+  // Trillions (t)
+  const trillions = num / 1000000000000;
+  if (trillions % 1 === 0) {
+    return `${trillions}t`;
+  }
+  const rounded = Math.round(trillions * 100) / 100;
+  return `${rounded}t`;
+};
+
 // Helper functions for Quest progress
 export const calculateProgress = (quest: Quest): number => {
   if (!quest.objectives || quest.objectives.length === 0) return 0;

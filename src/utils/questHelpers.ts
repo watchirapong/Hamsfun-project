@@ -6,16 +6,17 @@ import { mapApiSkillNameToDisplayName } from './rewardHelpers';
  * @param backendType - The reward type from backend (e.g., "Coin", "RankPoint")
  * @returns The frontend reward type (e.g., "coins", "rank")
  */
-export const mapBackendRewardTypeToFrontend = (backendType: string): 'exp' | 'rank' | 'skill' | 'coins' | 'animal' => {
+export const mapBackendRewardTypeToFrontend = (backendType: string): 'exp' | 'rank' | 'skill' | 'coins' | 'animal' | 'item' | 'leaderboard' => {
   if (backendType === 'Coin') {
     return 'coins';
   } else if (backendType === 'RankPoint') {
     return 'rank';
   } else if (backendType === 'BadgePoint') {
     return 'skill';
+  } else if (backendType === 'Item') {
+    return 'item';
   } else if (backendType === 'LeaderboardScore') {
-    // LeaderboardScore might not be displayed, but we'll include it as coins for now
-    return 'coins';
+    return 'leaderboard';
   }
   return 'coins'; // Default fallback
 };
@@ -47,18 +48,26 @@ export const mapBackendRewardEntryToFrontend = (entry: {
   minAmount?: number;
   maxAmount?: number;
   badgeCategory?: string;
+  itemId?: string;
 }): ObjectiveReward => {
   const frontendType = mapBackendRewardTypeToFrontend(entry.type);
   const value = calculateRewardValue(entry);
   
   const reward: ObjectiveReward = {
     type: frontendType,
-    value: value || 0
+    value: value || 0,
+    minValue: entry.minAmount,
+    maxValue: entry.maxAmount
   };
   
   // Add skillName for BadgePoint type
   if (frontendType === 'skill' && entry.badgeCategory) {
     reward.skillName = mapApiSkillNameToDisplayName(entry.badgeCategory);
+  }
+  
+  // Add itemId for Item type (item details will be fetched separately if needed)
+  if (frontendType === 'item' && entry.itemId) {
+    reward.itemId = entry.itemId;
   }
   
   return reward;

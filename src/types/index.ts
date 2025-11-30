@@ -5,7 +5,7 @@ export interface RankObjective {
   coinCost?: number; // Cost to rank up
 }
 
-export type RankName =
+export type RankName = 
   | 'Meteor I'
   | 'Meteor II'
   | 'Meteor III'
@@ -45,6 +45,7 @@ export interface User {
   petLevel: number;
   petXp: number;
   petMaxXp: number;
+  leaderboardScore?: number; // Leaderboard points
 }
 
 export interface Skill {
@@ -58,9 +59,14 @@ export interface Skill {
 }
 
 export interface ObjectiveReward {
-  type: 'exp' | 'rank' | 'skill' | 'coins' | 'animal';
-  value?: number | string; // Optional for animal type
+  type: 'exp' | 'rank' | 'skill' | 'coins' | 'animal' | 'item' | 'leaderboard';
+  value?: number | string; // Optional for animal type (calculated average or single value), or quantity for items
+  minValue?: number; // Minimum reward value
+  maxValue?: number; // Maximum reward value
   skillName?: string; // Required for skill type to indicate which skill
+  itemId?: string; // Required for item type - the item ID
+  itemName?: string; // Item name for display
+  itemIcon?: string; // Item icon URL
 }
 
 export type ApprovalStatus = 'none' | 'pending' | 'approved' | 'rejected';
@@ -168,7 +174,8 @@ export interface BackpackItem {
   description: string;
   date: string;
   quantity: number;
-  image: string;
+  image: string; // Keep for backward compatibility, but prefer icon
+  icon?: string; // Item icon URL from API
   used: boolean;
   active: boolean;
 }

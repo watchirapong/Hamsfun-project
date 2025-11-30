@@ -575,3 +575,19 @@
   "message": "Quest assigned to 15 users"
 }
 ```
+
+---
+
+## 8. System Schedulers
+
+### 8.1 Daily Shop Reset
+**Schedule:** Every day at 00:00 (Server Time)
+**Description:**
+ระบบจะทำการสุ่มสินค้าในร้านค้าประจำวัน (`dailyShop`) ให้กับผู้ใช้ทุกคนใหม่ โดย:
+1.  ดึงรายการ `ShopProduct` ทั้งหมดที่มีในระบบ
+2.  สุ่มเลือกสินค้าตามน้ำหนัก (`weight`) ให้ครบตามจำนวน `maxItem` ของผู้ใช้นั้นๆ (Default: 5 ชิ้น)
+3.  สุ่มราคา (`price`) และจำนวนสินค้า (`stock`) จากช่วง Min-Max ที่กำหนดไว้ใน `ShopProduct`
+4.  บันทึกข้อมูลลงใน `User.dailyShop.items`
+
+**Note:** การทำงานนี้เป็น Background Process ที่รันอัตโนมัติ ไม่ต้องเรียก API
+

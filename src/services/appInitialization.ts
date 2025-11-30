@@ -408,7 +408,10 @@ export const initializeApp = async (params: InitializeAppParams) => {
           category: quest.category || "General"
         };
       });
-      setQuestsState(mappedQuests);
+      // Only set quests if we got any from the API - don't overwrite with empty array
+      if (mappedQuests.length > 0) {
+        setQuestsState(mappedQuests);
+      }
     } catch (error) {
       console.error('Error fetching active quests:', error);
     }
@@ -502,7 +505,8 @@ export const initializeApp = async (params: InitializeAppParams) => {
         description: inv.itemId?.description || '',
         date: inv.itemId?.date || '',
         quantity: inv.quantity || 1,
-        image: inv.itemId?.image || "/Asset/item/classTicket.png",
+        image: inv.itemId?.icon || inv.itemId?.image || "/Asset/item/classTicket.png",
+        icon: inv.itemId?.icon,
         used: inv.used || false,
         active: inv.active || false
       }));

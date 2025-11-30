@@ -49,21 +49,10 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
   const currentBadgeLevel = selectedSkill.currentLevel >= 2 ? selectedSkill.currentLevel : 2;
   const currentBadgeIconPath = getBadgeIconPath(selectedSkill.name, currentBadgeLevel);
   
-  // Get common badge icon path for background
+  // Get common badge icon path for background (use unranked badge icon)
   const getCommonBadgePath = (skillName: string): string => {
-    const normalizedName = skillName.toLowerCase().trim();
-    
-    if (normalizedName.includes("game") || 
-        normalizedName === "gamedesign" || 
-        normalizedName === "explorer") {
-      return "/Asset/badge/common/game.png";
-    } else if (normalizedName.includes("level") || normalizedName === "leveldesign") {
-      return "/Asset/badge/common/level.png";
-    } else if (normalizedName.includes("programming") || normalizedName.includes("code") || normalizedName.includes("c#")) {
-      return "/Asset/badge/common/programming.png";
-    } else {
-      return "/Asset/badge/common/art.png"; // default
-    }
+    // Use the unranked badge icon (level 1) for the faded background
+    return getBadgeIconPath(skillName, 1);
   };
   
   const commonBadgePath = getCommonBadgePath(selectedSkill.name);
@@ -134,13 +123,14 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
     setIsDragging(false);
   };
 
-  // Prevent background scrolling when panel is open
+  // Allow scrolling on content area, prevent only on drag handle
+  // Don't prevent body scrolling - let the content area handle it
   useEffect(() => {
-    if (selectedSkill) {
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = '';
-      };
+    if (selectedSkill && panelRef.current) {
+      const contentArea = panelRef.current.querySelector('.overflow-y-auto');
+      if (contentArea) {
+        (contentArea as HTMLElement).style.overflowY = 'auto';
+      }
     }
   }, [selectedSkill]);
 

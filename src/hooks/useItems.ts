@@ -66,7 +66,8 @@ export const useItems = () => {
         description: inv.itemId?.description || '',
         date: inv.itemId?.date || '',
         quantity: inv.quantity || 1,
-        image: inv.itemId?.image || "/Asset/item/classTicket.png",
+        image: inv.itemId?.icon || inv.itemId?.image || "/Asset/item/classTicket.png",
+        icon: inv.itemId?.icon,
         used: inv.used || false,
         active: inv.active || false
       }));

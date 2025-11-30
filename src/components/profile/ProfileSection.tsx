@@ -61,7 +61,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                 <div className="flex flex-col">
                   <div className={`w-full rounded-full h-3 mb-2 ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'}`}>
                     <div 
-                      className="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                      className="bg-green-500 h-3 rounded-full transition-all duration-300" 
                       style={{ 
                         width: `${user.nextRankPoints 
                           ? Math.min((user.rankPoints / user.nextRankPoints) * 100, 100) 

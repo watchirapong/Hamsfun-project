@@ -115,7 +115,7 @@ export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> 
       {/* Expandable Member List */}
       {isExpanded && (
         <div 
-          className="ml-4 mb-2 border-l-2 border-gray-200 pl-4 space-y-2 animate-slide-down"
+          className="ml-4 mb-2 border-l-2 border-gray-200 pl-4 space-y-2 animate-slide-down-expand"
         >
           {isLoadingMembers ? (
             <div className="text-center py-2 text-gray-500 text-sm">Loading members...</div>

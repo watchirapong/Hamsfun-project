@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BackpackItem as BackpackItemType } from '@/types';
 import { isItemExpired, hasItemTimePassed, sortItems } from '@/utils/helpers';
+import { getItemIconUrl } from '@/utils/itemHelpers';
 
 interface ItemsOverlayProps {
   items: BackpackItemType[];
@@ -109,12 +110,15 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
     setIsDragging(false);
   };
 
-  // Prevent background scrolling when panel is open
+  // Allow scrolling on content area, prevent only on drag handle
+  // Don't prevent body scrolling - let the content area handle it
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
+    if (panelRef.current) {
+      const contentArea = panelRef.current.querySelector('.overflow-y-auto');
+      if (contentArea) {
+        (contentArea as HTMLElement).style.overflowY = 'auto';
+      }
+    }
   }, []);
 
   // Add native touch event listeners with passive: false
@@ -218,7 +222,15 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
                 className={`flex items-center gap-3 p-4 rounded-xl mb-3 shadow-sm border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'}`}
                 style={{ backgroundColor }}
               >
-                <img src={item.image} alt={item.name} className="w-24 h-18 object-contain rounded-lg" />
+                <img 
+                  src={getItemIconUrl(item.icon || item.image)} 
+                  alt={item.name} 
+                  className="w-24 h-18 object-contain rounded-lg"
+                  onError={(e) => {
+                    // Fallback to default icon if item icon fails to load
+                    (e.target as HTMLImageElement).src = "/Asset/item/classTicket.png";
+                  }}
+                />
                 <div className="flex-1">
                   <div className={`font-semibold text-base mb-1 ${theme === 'dark' && !isUsed && !expired ? 'text-white' : 'text-black'}`}>{item.name}</div>
                   <div className={`text-sm mb-1 ${theme === 'dark' && !isUsed && !expired ? 'text-gray-400' : 'text-gray-600'}`}>{item.description}</div>

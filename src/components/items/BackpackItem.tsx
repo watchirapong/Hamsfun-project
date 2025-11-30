@@ -3,6 +3,7 @@
 import React from 'react';
 import { BackpackItem as BackpackItemType } from '@/types';
 import { isItemExpired, hasItemTimePassed } from '@/utils/helpers';
+import { getItemIconUrl } from '@/utils/itemHelpers';
 
 interface BackpackItemProps {
   item: BackpackItemType;
@@ -28,7 +29,15 @@ export const BackpackItemComponent: React.FC<BackpackItemProps> = ({ item, onUse
       className={`flex items-center gap-3 p-3 rounded-xl mb-2 shadow-sm border border-gray-100`}
       style={{ backgroundColor }}
     >
-      <img src={item.image} alt={item.name} className="w-20 h-14 object-contain" />
+      <img 
+        src={getItemIconUrl(item.icon || item.image)} 
+        alt={item.name} 
+        className="w-20 h-14 object-contain"
+        onError={(e) => {
+          // Fallback to default icon if item icon fails to load
+          (e.target as HTMLImageElement).src = "/Asset/item/classTicket.png";
+        }}
+      />
       <div className="flex-1">
         <div className="font-semibold text-sm text-black">{item.name}</div>
         <div className="text-xs text-gray-500">{item.description}</div>

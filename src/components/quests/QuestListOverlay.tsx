@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Check } from 'lucide-react';
 import { Quest } from '@/types';
-import { areAllObjectivesCompleted, isQuestTrulyCompleted } from '@/utils/helpers';
+import { areAllObjectivesCompleted, isQuestTrulyCompleted, formatShortNumber } from '@/utils/helpers';
+import { getItemDetails, getItemIconUrl } from '@/utils/itemHelpers';
 
 interface QuestListOverlayProps {
   questsState: Quest[];
@@ -72,28 +73,97 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     }
   }, [selectedQuestId, showQuestOverlay, questPanelShouldAnimate]);
 
+  // State to store item details for rewards
+  const [itemDetailsCache, setItemDetailsCache] = useState<Map<string, { name: string; icon: string }>>(new Map());
+  
+  // Fetch item details for all item rewards when quests change
+  useEffect(() => {
+    const fetchItemDetails = async () => {
+      const itemIds = new Set<string>();
+      
+      // Collect all item IDs from quest rewards
+      questsState.forEach(quest => {
+        quest.rewards?.forEach(reward => {
+          if (reward.type === 'item' && reward.itemId) {
+            itemIds.add(reward.itemId);
+          }
+        });
+        quest.objectives?.forEach(objective => {
+          if (objective.reward?.type === 'item' && objective.reward.itemId) {
+            itemIds.add(objective.reward.itemId);
+          }
+        });
+      });
+      
+      // Fetch details for items not in cache
+      const uncachedIds = Array.from(itemIds).filter(id => !itemDetailsCache.has(id));
+      if (uncachedIds.length > 0) {
+        const detailsMap = new Map(itemDetailsCache);
+        await Promise.all(
+          uncachedIds.map(async (itemId) => {
+            const details = await getItemDetails(itemId);
+            if (details) {
+              detailsMap.set(itemId, details);
+            }
+          })
+        );
+        setItemDetailsCache(detailsMap);
+      }
+    };
+    
+    if (questsState.length > 0) {
+      fetchItemDetails();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questsState]);
+  
   // Format reward display helper
   const getRewardDisplay = (reward: any) => {
+    // Helper to format min-max range with shortened notation
+    const formatRange = (min?: number, max?: number, value?: number) => {
+      if (min !== undefined && max !== undefined && min !== max) {
+        return `${formatShortNumber(min)} - ${formatShortNumber(max)}`;
+      } else if (value !== undefined) {
+        return formatShortNumber(value);
+      } else if (min !== undefined) {
+        return formatShortNumber(min);
+      }
+      return '0';
+    };
+    
+    // Get item details from cache if available
+    const getItemInfo = (itemId?: string) => {
+      if (!itemId) return null;
+      return itemDetailsCache.get(itemId) || null;
+    };
+
     if (reward.type === 'exp' && typeof reward.value === 'number') {
+      const displayValue = formatRange(reward.minValue, reward.maxValue, reward.value);
       return (
         <div className="flex flex-col items-center">
-          <div className="w-10 h-10 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold">
-            {reward.value.toLocaleString()} XP
+          <div className="w-10 h-10 rounded-full bg-lime-500 flex items-center justify-center text-white text-xs font-bold text-center px-1">
+            {displayValue} XP
           </div>
         </div>
       );
     } else if (reward.type === 'coins' && typeof reward.value === 'number') {
+      const displayValue = formatRange(reward.minValue, reward.maxValue, reward.value);
       return (
         <div className="flex flex-col items-center">
           <img src="/Asset/item/coin.png" alt="Coins" className="w-8 h-8 object-contain" />
-          <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
+          <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
+            {reward.minValue !== undefined && reward.maxValue !== undefined && reward.minValue !== reward.maxValue 
+              ? `${formatShortNumber(reward.minValue)} - ${formatShortNumber(reward.maxValue)}` 
+              : `x${displayValue}`}
+          </div>
         </div>
       );
     } else if (reward.type === 'skill' && typeof reward.value === 'number') {
+      const displayValue = formatRange(reward.minValue, reward.maxValue, reward.value);
       return (
         <div className="flex flex-col items-center">
-          <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-            {reward.value}
+          <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold text-center px-1">
+            {displayValue}
           </div>
           {reward.skillName && (
             <div className={`text-xs font-semibold mt-1 text-center max-w-[80px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -103,11 +173,49 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
         </div>
       );
     } else if (reward.type === 'rank' && typeof reward.value === 'number') {
+      const displayValue = formatRange(reward.minValue, reward.maxValue, reward.value);
       return (
         <div className="flex flex-col items-center">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center leading-tight whitespace-nowrap">
-            {reward.value.toLocaleString()} RP
+          <div className="w-12 h-12 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center leading-tight px-1">
+            {displayValue} RP
           </div>
+        </div>
+      );
+    } else if (reward.type === 'leaderboard' && typeof reward.value === 'number') {
+      const displayValue = formatRange(reward.minValue, reward.maxValue, reward.value);
+      return (
+        <div className="flex flex-col items-center">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center text-white text-[10px] font-bold shadow-md text-center px-1">
+            {displayValue} LP
+          </div>
+        </div>
+      );
+    } else if (reward.type === 'item' && reward.itemId) {
+      const displayValue = formatRange(reward.minValue, reward.maxValue, typeof reward.value === 'number' ? reward.value : undefined);
+      const itemInfo = getItemInfo(reward.itemId);
+      const itemName = reward.itemName || itemInfo?.name || 'Item';
+      const itemIcon = reward.itemIcon || itemInfo?.icon || "/Asset/item/classTicket.png";
+      const iconUrl = getItemIconUrl(itemIcon);
+      
+      return (
+        <div className="flex flex-col items-center">
+          <img 
+            src={iconUrl} 
+            alt={itemName} 
+            className="w-10 h-10 object-contain"
+            onError={(e) => {
+              // Fallback to default icon if item icon fails to load
+              (e.target as HTMLImageElement).src = "/Asset/item/classTicket.png";
+            }}
+          />
+          <div className={`text-xs font-semibold mt-1 text-center max-w-[80px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+            {itemName}
+          </div>
+          {displayValue && displayValue !== '0' && (
+            <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
+              x{displayValue}
+            </div>
+          )}
         </div>
       );
     } else if (reward.type === 'animal') {
@@ -118,21 +226,6 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
               <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
             </svg>
           </div>
-        </div>
-      );
-    } else if (reward.type === 'item') {
-      return (
-        <div className="flex flex-col items-center">
-          {reward.itemImage ? (
-            <img src={reward.itemImage} alt={reward.itemName || 'Item'} className="w-8 h-8 object-contain" />
-          ) : (
-            <div className={`w-8 h-8 rounded flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
-              <span className="text-lg">🎁</span>
-            </div>
-          )}
-          {reward.quantity && (
-            <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.quantity}</div>
-          )}
         </div>
       );
     }
@@ -227,13 +320,15 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     setIsDragging(false);
   };
 
-  // Prevent background scrolling when panel is open
+  // Allow scrolling on content area, prevent only on drag handle
+  // Don't prevent body scrolling - let the content area handle it
   useEffect(() => {
-    if (showQuestOverlay) {
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = '';
-      };
+    if (showQuestOverlay && panelRef.current) {
+      // Content area can scroll normally - no need to prevent body scroll
+      const contentArea = panelRef.current.querySelector('.overflow-y-auto');
+      if (contentArea) {
+        (contentArea as HTMLElement).style.overflowY = 'auto';
+      }
     }
   }, [showQuestOverlay]);
 
@@ -352,61 +447,95 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         const submission = quest.objectiveSubmissions[index];
                         const status = submission?.status || 'none';
                         const reward = objective.reward;
+                        const rewardAwarded = quest.objectiveRewardsAwarded[index] || false;
                         
                         // Determine visual state
-                        // Note: 'pending' status is shown as completed to user (optimistic UI)
-                        const isPending = status === 'pending';
-                        const isApproved = status === 'approved' || status === 'pending'; // Show pending as approved visually
-                        const isFullyApproved = status === 'approved'; // Fully approved (not just pending)
                         const isRejected = status === 'rejected';
-                        const isClickable = isRejected || (status !== 'approved' && status !== 'pending'); // Allow resubmission if rejected
+                        const isSubmitted = status !== 'none'; // Has been submitted
+                        const isSubmittedButNotClaimed = isSubmitted && !rewardAwarded && !isRejected; // Submitted, waiting to claim
+                        const isClaimed = rewardAwarded; // Reward has been claimed
+                        const isNotSubmitted = status === 'none'; // Not yet submitted
 
-                        return (
-                          <div 
-                            key={index} 
-                            className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all ${
-                              theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
-                            } ${
-                              isRejected
-                                ? theme === 'dark' ? 'bg-red-900/20 border-red-500' : 'bg-red-50 border-red-200'
-                                : isApproved 
-                                ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' 
-                                : isClickable 
-                                ? theme === 'dark' ? 'bg-green-900/30 border-green-500 cursor-pointer hover:bg-green-900/40' : 'bg-green-50 border-green-200 cursor-pointer hover:bg-green-100' 
-                                : ''
-                            }`}
-                            onClick={() => isClickable && handleObjectiveClick(quest.id, index)}
-                          >
-                            <div className="flex-1 flex items-center gap-2">
-                              <span className={`text-sm ${
-                                isApproved 
-                                  ? 'text-green-600 font-semibold' 
-                                  : isRejected
-                                  ? 'text-red-600 font-semibold'
-                                  : theme === 'dark' ? 'text-gray-300' : 'text-black'
-                              }`}>
-                                {objective.text}
+                        // Render based on state
+                        if (isClaimed) {
+                          // Task Completed - Light green box, smaller height
+                          return (
+                            <div 
+                              key={index} 
+                              className={`relative flex items-center justify-between py-1.5 px-3 rounded transition-all ${
+                                theme === 'dark' ? 'bg-green-900/30' : 'bg-green-100'
+                              }`}
+                            >
+                              <span className="flex-1 text-sm font-semibold text-white text-center">
+                                Task Completed
                               </span>
-                              {isPending && (
-                                <Check className="w-4 h-4 text-green-600" />
-                              )}
-                              {isFullyApproved && (
-                                <div className="flex items-center gap-0.5">
-                                  <Check className="w-4 h-4 text-green-600" />
-                                  <Check className="w-4 h-4 text-green-600" />
-                                </div>
-                              )}
-                              {isRejected && (
-                                <span className="text-xs text-red-600 font-semibold">(Rejected - Click to resubmit)</span>
-                              )}
+                              <Check className="w-5 h-5 text-white flex-shrink-0" />
                             </div>
-                            <div className="flex items-center gap-2">
+                          );
+                        } else if (isSubmittedButNotClaimed) {
+                          // CLAIM REWARD - Light orange box
+                          return (
+                            <div 
+                              key={index} 
+                              className={`relative flex items-center justify-between py-3 px-4 rounded cursor-pointer transition-all ${
+                                theme === 'dark' ? 'bg-orange-900/40 hover:bg-orange-900/50' : 'bg-orange-200 hover:bg-orange-300'
+                              }`}
+                              onClick={() => handleApproveObjective(quest.id, index)}
+                            >
+                              <span className="flex-1 text-sm font-semibold text-white text-center">
+                                CLAIM REWARD
+                              </span>
                               <div className="flex-shrink-0">
                                 {getRewardDisplay(reward)}
                               </div>
                             </div>
-                          </div>
-                        );
+                          );
+                        } else if (isRejected) {
+                          // Rejected - can resubmit
+                          return (
+                            <div 
+                              key={index} 
+                              className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all cursor-pointer ${
+                                theme === 'dark' ? 'bg-red-900/20 border-red-500 hover:bg-red-900/30' : 'bg-red-50 border-red-200 hover:bg-red-100'
+                              }`}
+                              onClick={() => handleObjectiveClick(quest.id, index)}
+                            >
+                              <div className="flex-1 flex items-center gap-2">
+                                <span className="text-sm text-red-600 font-semibold">
+                                  {objective.text}
+                                </span>
+                                <span className="text-xs text-red-600 font-semibold">(Rejected - Click to resubmit)</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-shrink-0">
+                                  {getRewardDisplay(reward)}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          // Not submitted - normal clickable state
+                          return (
+                            <div 
+                              key={index} 
+                              className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all cursor-pointer ${
+                                theme === 'dark' ? 'bg-gray-800/30 hover:bg-gray-800/40 border-gray-800' : 'bg-white hover:bg-gray-50 border-gray-200'
+                              }`}
+                              onClick={() => handleObjectiveClick(quest.id, index)}
+                            >
+                              <div className="flex-1">
+                                <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
+                                  {objective.text}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-shrink-0">
+                                  {getRewardDisplay(reward)}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
                       })}
                     </div>
                   </div>
@@ -420,56 +549,84 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         </div>
                       </div>
                       <div className={`relative rounded-lg pt-8 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
-                        <button
-                          onClick={() => {
-                            if (areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none') {
-                              handleClaimReward(quest.id);
-                            }
-                          }}
-                          disabled={quest.rewardClaimed || !areAllObjectivesCompleted(quest) || quest.rewardSubmissionStatus === 'pending'}
-                          className={`w-full p-8 rounded-lg transition-all relative ${
-                            quest.rewardClaimed
-                              ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed' : 'bg-gray-100 cursor-not-allowed'
-                              : quest.rewardSubmissionStatus === 'pending'
-                              ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-70' : 'bg-gray-100 cursor-not-allowed opacity-70'
-                              : areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none'
-                              ? theme === 'dark' ? 'bg-green-900/40 border-2 border-green-500 hover:bg-green-900/50 cursor-pointer' : 'bg-green-50 border-2 border-green-200 hover:bg-green-100 cursor-pointer'
-                              : theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-50' : 'bg-gray-100 cursor-not-allowed opacity-50'
-                          }`}
-                        >
-                          {quest.rewardSubmissionStatus === 'pending' && (
-                            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                              <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
-                            </div>
-                          )}
-                          <div className={`flex justify-center gap-6 ${quest.rewardSubmissionStatus === 'pending' ? 'opacity-30' : ''}`}>
-                            {quest.rewards.filter(reward => reward.type !== 'skill').map((reward, index) => (
-                              <div key={index} className="flex flex-col items-center">
-                                {reward.type === 'exp' && typeof reward.value === 'number' ? (
-                                  <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                    {reward.value.toLocaleString()} XP
-                                  </div>
-                                ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
-                                  <>
-                                    <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
-                                    <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
-                                  </>
-                                ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
-                                  <div className="flex flex-col items-center">
-                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                      {reward.value}
+                        {/* Reward Icons */}
+                        <div className="flex justify-center gap-6 pb-4">
+                          {quest.rewards.filter(reward => reward.type !== 'skill').map((reward, index) => {
+                              const formatRange = (min?: number, max?: number, value?: number) => {
+                                if (min !== undefined && max !== undefined && min !== max) {
+                                  return `${formatShortNumber(min)} - ${formatShortNumber(max)}`;
+                                } else if (value !== undefined) {
+                                  return formatShortNumber(value);
+                                } else if (min !== undefined) {
+                                  return formatShortNumber(min);
+                                }
+                                return '0';
+                              };
+
+                              return (
+                                <div key={index} className="flex flex-col items-center">
+                                  {reward.type === 'exp' && typeof reward.value === 'number' ? (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md text-center px-1">
+                                      {formatRange(reward.minValue, reward.maxValue, reward.value)} XP
                                     </div>
-                                    {reward.skillName && (
-                                      <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
-                                        {reward.skillName}
+                                  ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
+                                    <>
+                                      <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
+                                      <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
+                                        {reward.minValue !== undefined && reward.maxValue !== undefined && reward.minValue !== reward.maxValue 
+                                          ? `${formatShortNumber(reward.minValue)} - ${formatShortNumber(reward.maxValue)}` 
+                                          : `x${formatRange(reward.minValue, reward.maxValue, reward.value)}`}
                                       </div>
-                                    )}
-                                  </div>
-                                ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
-                                  <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                    {reward.value.toLocaleString()} RP
-                                  </div>
-                                ) : reward.type === 'animal' ? (
+                                    </>
+                                  ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
+                                    <div className="flex flex-col items-center">
+                                      <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md text-center px-1">
+                                        {formatRange(reward.minValue, reward.maxValue, reward.value)}
+                                      </div>
+                                      {reward.skillName && (
+                                        <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
+                                          {reward.skillName}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md text-center px-1">
+                                      {formatRange(reward.minValue, reward.maxValue, reward.value)} RP
+                                    </div>
+                                  ) : reward.type === 'leaderboard' && typeof reward.value === 'number' ? (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md text-center px-1">
+                                      {formatRange(reward.minValue, reward.maxValue, reward.value)} LP
+                                    </div>
+                                  ) : reward.type === 'item' && reward.itemId ? (
+                                    (() => {
+                                      const itemInfo = itemDetailsCache.get(reward.itemId);
+                                      const itemName = reward.itemName || itemInfo?.name || 'Item';
+                                      const itemIcon = reward.itemIcon || itemInfo?.icon || "/Asset/item/classTicket.png";
+                                      const iconUrl = getItemIconUrl(itemIcon);
+                                      const quantity = formatRange(reward.minValue, reward.maxValue, typeof reward.value === 'number' ? reward.value : undefined);
+                                      
+                                      return (
+                                        <>
+                                          <img 
+                                            src={iconUrl} 
+                                            alt={itemName} 
+                                            className="w-20 h-20 object-contain mb-2"
+                                            onError={(e) => {
+                                              (e.target as HTMLImageElement).src = "/Asset/item/classTicket.png";
+                                            }}
+                                          />
+                                          <div className={`text-xs font-semibold text-center max-w-[100px] mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
+                                            {itemName}
+                                          </div>
+                                          {quantity && quantity !== '0' && (
+                                            <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
+                                              x{quantity}
+                                            </div>
+                                          )}
+                                        </>
+                                      );
+                                    })()
+                                  ) : reward.type === 'animal' ? (
                                   <>
                                     <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-2 shadow-md ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
                                       <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
@@ -478,29 +635,34 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                     </div>
                                     <div className={`text-xs font-semibold text-center ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>ANIMAL<br/>APPEAR!</div>
                                   </>
-                                ) : reward.type === 'item' ? (
-                                  <>
-                                    {reward.itemImage ? (
-                                      <img src={reward.itemImage} alt={reward.itemName || 'Item'} className="w-12 h-12 object-contain mb-2" />
-                                    ) : (
-                                      <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-2 shadow-md ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                                        <span className="text-4xl">🎁</span>
-                                      </div>
-                                    )}
-                                    {reward.quantity && (
-                                      <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.quantity}</div>
-                                    )}
-                                    {reward.itemName && (
-                                      <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        {reward.itemName}
-                                      </div>
-                                    )}
-                                  </>
                                 ) : null}
-                              </div>
-                            ))}
+                                </div>
+                              );
+                            })}
+                        </div>
+                        
+                        {/* CLAIM REWARD Button - Only show when all objectives completed and not yet claimed */}
+                        {areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none' && (
+                          <button
+                            onClick={() => handleClaimReward(quest.id)}
+                            className={`w-full py-3 px-4 rounded-lg transition-all ${
+                              theme === 'dark' ? 'bg-orange-900/40 hover:bg-orange-900/50' : 'bg-orange-200 hover:bg-orange-300'
+                            }`}
+                          >
+                            <span className="text-sm font-semibold text-white">CLAIM REWARD</span>
+                          </button>
+                        )}
+                        
+                        {/* Pending Status */}
+                        {quest.rewardSubmissionStatus === 'pending' && (
+                          <div className={`w-full py-3 px-4 rounded-lg ${
+                            theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'
+                          }`}>
+                            <div className="flex items-center justify-center">
+                              <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
+                            </div>
                           </div>
-                        </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -519,22 +681,16 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                 <div 
                   key={`completed-${quest.id}`}
                   id={`quest-${quest.id}`}
-                  className={`rounded-xl p-4 mb-4 shadow-sm border transition-all opacity-50 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}
+                  className={`rounded-xl p-3 mb-4 shadow-sm border transition-all ${
+                    theme === 'dark' ? 'bg-green-900/30 border-green-700' : 'bg-green-100 border-green-200'
+                  }`}
                 >
-                  {/* Quest Header */}
-                  <div className="mb-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Check size={16} className="text-purple-600" />
-                      <span className={`text-xs font-semibold ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'}`}>
-                        {quest.type}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-6 h-6 rounded flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                        <span className="text-xs">🎮</span>
-                      </div>
-                      <h3 className={`font-bold text-xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{quest.title}</h3>
-                    </div>
+                  {/* Quest Completed - Light green box with reduced height */}
+                  <div className="flex items-center justify-between">
+                    <span className="flex-1 text-base font-semibold text-white text-center">
+                      {quest.title}
+                    </span>
+                    <Check className="w-6 h-6 text-white flex-shrink-0" />
                   </div>
 
                   {/* Objectives */}
@@ -594,33 +750,82 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                       <div className={`relative rounded-lg pt-2 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
                         <div className={`w-full p-4 rounded-lg cursor-not-allowed ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
                           <div className="flex justify-center gap-6">
-                            {quest.rewards.filter(reward => reward.type !== 'skill').map((reward, index) => (
-                              <div key={index} className="flex flex-col items-center">
-                                {reward.type === 'exp' && typeof reward.value === 'number' ? (
-                                  <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                    {reward.value.toLocaleString()} XP
-                                  </div>
-                                ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
-                                  <>
-                                    <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
-                                    <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.value}</div>
-                                  </>
-                                ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
-                                  <div className="flex flex-col items-center">
-                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                      {reward.value}
+                            {quest.rewards.filter(reward => reward.type !== 'skill').map((reward, index) => {
+                              const formatRange = (min?: number, max?: number, value?: number) => {
+                                if (min !== undefined && max !== undefined && min !== max) {
+                                  return `${formatShortNumber(min)} - ${formatShortNumber(max)}`;
+                                } else if (value !== undefined) {
+                                  return formatShortNumber(value);
+                                } else if (min !== undefined) {
+                                  return formatShortNumber(min);
+                                }
+                                return '0';
+                              };
+
+                              return (
+                                <div key={index} className="flex flex-col items-center">
+                                  {reward.type === 'exp' && typeof reward.value === 'number' ? (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md text-center px-1">
+                                      {formatRange(reward.minValue, reward.maxValue, reward.value)} XP
                                     </div>
-                                    {reward.skillName && (
-                                      <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
-                                        {reward.skillName}
+                                  ) : reward.type === 'coins' && typeof reward.value === 'number' ? (
+                                    <>
+                                      <img src="/Asset/item/coin.png" alt="Coins" className="w-12 h-12 object-contain mb-2" />
+                                      <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
+                                        {reward.minValue !== undefined && reward.maxValue !== undefined && reward.minValue !== reward.maxValue 
+                                          ? `${formatShortNumber(reward.minValue)} - ${formatShortNumber(reward.maxValue)}` 
+                                          : `x${formatRange(reward.minValue, reward.maxValue, reward.value)}`}
                                       </div>
-                                    )}
-                                  </div>
-                                ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
-                                  <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md">
-                                    {reward.value.toLocaleString()} RP
-                                  </div>
-                                ) : reward.type === 'animal' ? (
+                                    </>
+                                  ) : reward.type === 'skill' && typeof reward.value === 'number' ? (
+                                    <div className="flex flex-col items-center">
+                                      <div className="w-20 h-20 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md text-center px-1">
+                                        {formatRange(reward.minValue, reward.maxValue, reward.value)}
+                                      </div>
+                                      {reward.skillName && (
+                                        <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
+                                          {reward.skillName}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ) : reward.type === 'rank' && typeof reward.value === 'number' ? (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-green-400 to-green-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md text-center px-1">
+                                      {formatRange(reward.minValue, reward.maxValue, reward.value)} RP
+                                    </div>
+                                  ) : reward.type === 'leaderboard' && typeof reward.value === 'number' ? (
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md text-center px-1">
+                                      {formatRange(reward.minValue, reward.maxValue, reward.value)} LP
+                                    </div>
+                                  ) : reward.type === 'item' && reward.itemId ? (
+                                    (() => {
+                                      const itemInfo = itemDetailsCache.get(reward.itemId);
+                                      const itemName = reward.itemName || itemInfo?.name || 'Item';
+                                      const itemIcon = reward.itemIcon || itemInfo?.icon || "/Asset/item/classTicket.png";
+                                      const iconUrl = getItemIconUrl(itemIcon);
+                                      const quantity = formatRange(reward.minValue, reward.maxValue, typeof reward.value === 'number' ? reward.value : undefined);
+                                      
+                                      return (
+                                        <>
+                                          <img 
+                                            src={iconUrl} 
+                                            alt={itemName} 
+                                            className="w-20 h-20 object-contain mb-2"
+                                            onError={(e) => {
+                                              (e.target as HTMLImageElement).src = "/Asset/item/classTicket.png";
+                                            }}
+                                          />
+                                          <div className={`text-xs font-semibold text-center max-w-[100px] mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-black'}`}>
+                                            {itemName}
+                                          </div>
+                                          {quantity && quantity !== '0' && (
+                                            <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
+                                              x{quantity}
+                                            </div>
+                                          )}
+                                        </>
+                                      );
+                                    })()
+                                  ) : reward.type === 'animal' ? (
                                   <>
                                     <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-2 shadow-md ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
                                       <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
@@ -629,27 +834,10 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                     </div>
                                     <div className={`text-xs font-semibold text-center ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>ANIMAL<br/>APPEAR!</div>
                                   </>
-                                ) : reward.type === 'item' ? (
-                                  <>
-                                    {reward.itemImage ? (
-                                      <img src={reward.itemImage} alt={reward.itemName || 'Item'} className="w-12 h-12 object-contain mb-2" />
-                                    ) : (
-                                      <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-2 shadow-md ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                                        <span className="text-4xl">🎁</span>
-                                      </div>
-                                    )}
-                                    {reward.quantity && (
-                                      <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>x{reward.quantity}</div>
-                                    )}
-                                    {reward.itemName && (
-                                      <div className={`text-xs font-semibold text-center max-w-[100px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                        {reward.itemName}
-                                      </div>
-                                    )}
-                                  </>
                                 ) : null}
-                              </div>
-                            ))}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
