@@ -540,7 +540,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
       };
     }
   }, [showQuestOverlay, isDragging, dragY]);
-
+  
   return (
     <div className={`fixed inset-0 z-50 flex items-end justify-center ${
       isClosing ? 'animate-fade-out' : 'animate-fade-in'
@@ -625,7 +625,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                               isRejected
                                 ? theme === 'dark' ? 'bg-red-900/20 border-red-500' : 'bg-red-50 border-red-200'
                                 : isApproved 
-                                ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' 
+                                ? theme === 'dark' ? 'bg-white/10 rounded-lg' : 'bg-green-50 rounded-lg' 
                                 : isClickable 
                                 ? theme === 'dark' ? 'bg-gray-800/30 cursor-pointer hover:bg-gray-800/40' : 'bg-white cursor-pointer hover:bg-gray-50' 
                                 : theme === 'dark' ? 'bg-gray-900/10' : 'bg-white'
@@ -633,13 +633,16 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                             onClick={() => isClickable && handleObjectiveClick(quest.id, index)}
                           >
                             <div className="flex-1 flex items-center gap-2 min-w-0 pr-3">
-                              <span className={`text-sm truncate ${
-                                isApproved 
-                                  ? 'text-green-600 font-semibold' 
-                                  : isRejected
-                                  ? 'text-red-600 font-semibold'
-                                  : theme === 'dark' ? 'text-gray-300' : 'text-black'
-                              }`}>
+                              <span 
+                                className={`text-sm truncate ${
+                                  isApproved 
+                                    ? theme === 'dark' ? 'font-semibold' : 'text-green-600 font-semibold'
+                                    : isRejected
+                                    ? 'text-red-600 font-semibold'
+                                    : theme === 'dark' ? 'text-white' : 'text-black'
+                                }`}
+                                style={theme === 'dark' && isApproved ? { color: '#5BFF60' } : undefined}
+                              >
                                 {objective.text}
                               </span>
                               {isPending && (
@@ -699,7 +702,11 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         >
                           {quest.rewardSubmissionStatus === 'pending' && (
                             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                              <span className="text-sm font-semibold text-white bg-black/50 px-3 py-1 rounded">waited…</span>
+                              <span className={`text-sm font-semibold px-3 py-1 rounded ${
+                                theme === 'dark' 
+                                  ? 'text-white bg-purple-400/60' 
+                                  : 'text-white bg-black/50'
+                              }`}>waited…</span>
                             </div>
                           )}
                           <div className={`flex justify-center gap-6 ${quest.rewardSubmissionStatus === 'pending' ? 'opacity-30' : ''}`}>
@@ -855,11 +862,14 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                             }`}
                           >
                             <div className="flex-1 flex items-center gap-2 min-w-0 pr-3">
-                              <span className={`text-sm truncate ${
-                                isApproved 
-                                  ? 'text-green-600 font-semibold' 
-                                  : theme === 'dark' ? 'text-gray-300' : 'text-black'
-                              }`}>
+                              <span 
+                                className={`text-sm truncate ${
+                                  isApproved 
+                                    ? theme === 'dark' ? 'font-semibold' : 'text-green-600 font-semibold'
+                                    : theme === 'dark' ? 'text-white' : 'text-black'
+                                }`}
+                                style={theme === 'dark' && isApproved ? { color: '#5BFF60' } : undefined}
+                              >
                                 {objective.text}
                               </span>
                               {isApproved && (

@@ -7,11 +7,13 @@ import { getBadgeIconPath, getAssetUrl } from '@/utils/helpers';
 interface BadgeOverlayProps {
   selectedSkill: Skill | null;
   setShowBadgeOverlay: React.Dispatch<React.SetStateAction<boolean>>;
+  theme?: 'light' | 'dark';
 }
 
 export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
   selectedSkill,
   setShowBadgeOverlay,
+  theme = 'light',
 }) => {
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -246,20 +248,20 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
     }`}>
       <div 
         ref={panelRef}
-        className={`bg-white w-full max-w-md rounded-t-xl shadow-lg pb-20 ${
+        className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} w-full max-w-md rounded-t-xl shadow-lg pb-20 ${
           !isDragging && dragY === 0 && !isAnimating && !isClosing ? 'animate-slide-up' : ''
         }`}
       >
         {/* iPhone-style home indicator bar */}
         <div className="flex justify-center pt-3 pb-2">
-          <div className="w-12 h-1 bg-gray-400 rounded-full"></div>
+          <div className={`w-12 h-1 rounded-full ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`}></div>
         </div>
 
         {/* Badge Info */}
         <div className="p-4">
           <div className="text-center mb-6">
-            <h3 className="font-bold text-xl mb-2">{selectedSkill.name}</h3>
-            <p className="text-gray-600 text-sm">{selectedSkill.description || 'No description available.'}</p>
+            <h3 className={`font-bold text-xl mb-2 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{selectedSkill.name}</h3>
+            <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{selectedSkill.description || 'No description available.'}</p>
           </div>
 
           {/* Progress Circle - Hidden for Diamond level */}
@@ -280,13 +282,13 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
                   />
                 </div>
                 {/* Outer circle */}
-                <div className="absolute inset-0 rounded-full border-8 border-blue-100" style={{ zIndex: 1 }}></div>
+                <div className={`absolute inset-0 rounded-full border-8 ${theme === 'dark' ? 'border-blue-800' : 'border-blue-100'}`} style={{ zIndex: 1 }}></div>
                 {/* Inner circle with progress */}
                 <div className="absolute inset-0 rounded-full flex items-center justify-center" style={{ zIndex: 2 }}>
                   <div className="w-32 h-32 rounded-full flex items-center justify-center" style={{ zIndex: 3 , opacity: 1 }}>
                     <div className="text-center">
-                      <div className="text-2xl font-bold">{selectedSkill.points.toLocaleString()}</div>
-                      <div className="text-gray-600">/ {selectedSkill.maxPoints.toLocaleString()}</div>
+                      <div className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{selectedSkill.points.toLocaleString()}</div>
+                      <div className={theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}>/ {selectedSkill.maxPoints.toLocaleString()}</div>
                     </div>
                   </div>
                 </div>
@@ -323,26 +325,26 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
           {/* Rewards Section */}
           <div className="mb-6">
             <div className="flex items-center justify-center mb-4">
-              <div className="w-full border-t border-gray-300"></div>
-              <span className="px-4 text-gray-500 text-sm">REWARDS</span>
-              <div className="w-full border-t border-gray-300"></div>
+              <div className={`w-full border-t ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}></div>
+              <span className={`px-4 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>REWARDS</span>
+              <div className={`w-full border-t ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}></div>
             </div>
             
             <div className="flex justify-center gap-6">
               {selectedSkill.rewards.map((reward, index) => (
                 <div key={index} className="flex flex-col items-center">
                   {reward.type === "animal" ? (
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-2">
-                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
                         <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2ZM21 9V7L15 1V5H13V9H11V5H9V1L3 7V9H1V11H3V13H1V15H3V17H1V19H3V21H5V19H7V21H9V19H11V21H13V19H15V21H17V19H19V21H21V19H23V17H21V15H23V13H21V11H23V9H21Z"/>
                       </svg>
                     </div>
                   ) : (
-                    <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-2">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-2 ${theme === 'dark' ? 'bg-yellow-900/30' : 'bg-yellow-100'}`}>
                       <img src={getAssetUrl("/Asset/item/coin.png")} alt="Coins" className="w-6 h-6 object-contain" />
                     </div>
                   )}
-                  <div className="text-center text-sm font-medium">
+                  <div className={`text-center text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
                     {reward.value}
                   </div>
                 </div>

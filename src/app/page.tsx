@@ -355,7 +355,7 @@ const App: React.FC = () => {
 
       {/* Skills Section */}
       <div className="px-4 mb-4">
-        <h2 className="font-bold text-black text-lg mb-3">Complete tasks and Badge</h2>
+        <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Complete tasks and Badge</h2>
         <div className="grid grid-cols-4 gap-4">
           {skills.map((skill, index) => (
             <SkillCard 
@@ -394,7 +394,7 @@ const App: React.FC = () => {
           
       {/* Leaderboard Section */}
       <div className="px-4 mb-4">
-        <h2 className="font-bold text-lg mb-3 text-black">Leader Board</h2>
+        <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Leader Board</h2>
         {leaderboardLoading ? (
           <div className="text-center py-4 text-gray-500">Loading leaderboard...</div>
         ) : leaderboardError ? (
@@ -425,7 +425,7 @@ const App: React.FC = () => {
 
       {/* Backpack Section */}
       <div className="px-4 mb-4">
-        <h2 className="font-bold text-lg mb-3 text-black">Items in Backpack</h2>
+        <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Items in Backpack</h2>
         {sortItems(backpackItems).slice(0, 3).map((item) => (
           <BackpackItemComponent key={item.id} item={item} onUse={handleUseItem} onDelete={handleDeleteItem} />
         ))}
@@ -470,6 +470,7 @@ const App: React.FC = () => {
         <BadgeOverlay
           selectedSkill={selectedSkill}
           setShowBadgeOverlay={setShowBadgeOverlay}
+          theme={theme}
         />
       )}
       
@@ -494,6 +495,7 @@ const App: React.FC = () => {
           setSelectedObjective(null);
           setUploadedImage(null);
         }}
+        theme={theme}
       />
         </div>
       </div>
