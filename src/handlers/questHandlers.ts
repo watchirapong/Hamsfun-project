@@ -451,7 +451,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
     processingObjectives.current.add(processingKey);
     
     // Get the reward from current state BEFORE updating (using object ref to access after callback)
-    const rewardRef = { value: null as ObjectiveReward | null };
+        const rewardRef = { value: null as ObjectiveReward | ObjectiveReward[] | null };
     setQuestsState(prevQuests => {
       // First, check if reward was already awarded by looking at current state
       const currentQuest = prevQuests.find(q => q.id === questId);
@@ -523,19 +523,25 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
     // Use setTimeout to ensure the state update callback has executed and rewardRef is set
     setTimeout(() => {
       if (rewardRef.value) {
-        // Create unique key for this reward to prevent duplicates
-        const rewardKey = `${questId}-${objectiveIndex}`;
+        // Normalize reward to array
+        const rewards = Array.isArray(rewardRef.value) ? rewardRef.value : [rewardRef.value];
         
-        // Check if already awarded
-        if (!awardedRewards.has(rewardKey)) {
-          // Mark as awarded immediately to prevent duplicates
-          awardedRewards.add(rewardKey);
-          // Pass context key to awardObjectiveReward for better duplicate prevention
-          awardObjectiveReward(rewardRef.value, rewardKey);
-          console.log('Reward awarded for objective:', objectiveIndex);
-        } else {
-          console.log('Reward already awarded, skipping duplicate:', rewardKey);
-        }
+        // Award each reward
+        rewards.forEach((reward, rewardIndex) => {
+          // Create unique key for this reward to prevent duplicates
+          const rewardKey = `${questId}-${objectiveIndex}-${rewardIndex}`;
+          
+          // Check if already awarded
+          if (!awardedRewards.has(rewardKey)) {
+            // Mark as awarded immediately to prevent duplicates
+            awardedRewards.add(rewardKey);
+            // Pass context key to awardObjectiveReward for better duplicate prevention
+            awardObjectiveReward(reward, rewardKey);
+            console.log('Reward awarded for objective:', objectiveIndex, 'reward:', rewardIndex);
+          } else {
+            console.log('Reward already awarded, skipping duplicate:', rewardKey);
+          }
+        });
       }
     }, 0);
     

@@ -89,9 +89,12 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
           }
         });
         quest.objectives?.forEach(objective => {
-          if (objective.reward?.type === 'item' && objective.reward.itemId) {
-            itemIds.add(objective.reward.itemId);
-          }
+          const rewards = Array.isArray(objective.reward) ? objective.reward : [objective.reward];
+          rewards.forEach(reward => {
+            if (reward?.type === 'item' && reward.itemId) {
+              itemIds.add(reward.itemId);
+            }
+          });
         });
       });
       
@@ -119,6 +122,11 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
   
   // Format reward display helper
   const getRewardDisplay = (reward: any) => {
+    // Hide badge points (skill) and leaderboard points from UI
+    if (reward.type === 'skill' || reward.type === 'leaderboard') {
+      return null;
+    }
+    
     // Helper to format min-max range with shortened notation
     const formatRange = (min?: number, max?: number, value?: number) => {
       if (min !== undefined && max !== undefined && min !== max) {
@@ -592,7 +600,12 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         const isCompleted = quest.objectiveCompleted[index] || false;
                         const submission = quest.objectiveSubmissions[index];
                         const status = submission?.status || 'none';
-                        const reward = objective.reward;
+                        // Normalize reward to array and filter out hidden rewards
+                        const rewards = Array.isArray(objective.reward) 
+                          ? objective.reward.filter(r => r.type !== 'skill' && r.type !== 'leaderboard')
+                          : (objective.reward && objective.reward.type !== 'skill' && objective.reward.type !== 'leaderboard' 
+                              ? [objective.reward] 
+                              : []);
                         
                         // Determine visual state
                         // Note: 'pending' status is shown as completed to user (optimistic UI)
@@ -606,7 +619,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         return (
                           <div 
                             key={index} 
-                            className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all ${
+                            className={`relative flex items-center justify-between py-2 px-8 border-b last:border-b-0 transition-all ${
                               theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
                             } ${
                               isRejected
@@ -619,8 +632,8 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                             }`}
                             onClick={() => isClickable && handleObjectiveClick(quest.id, index)}
                           >
-                            <div className="flex-1 flex items-center gap-2">
-                              <span className={`text-sm ${
+                            <div className="flex-1 flex items-center gap-2 min-w-0 pr-3">
+                              <span className={`text-sm truncate ${
                                 isApproved 
                                   ? 'text-green-600 font-semibold' 
                                   : isRejected
@@ -630,22 +643,27 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                 {objective.text}
                               </span>
                               {isPending && (
-                                <Check className="w-4 h-4 text-green-600" />
+                                <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
                               )}
                               {isFullyApproved && (
-                                <div className="flex items-center gap-0.5">
+                                <div className="flex items-center gap-0.5 flex-shrink-0">
                                   <Check className="w-4 h-4 text-green-600" />
                                   <Check className="w-4 h-4 text-green-600" />
                                 </div>
                               )}
                               {isRejected && (
-                                <span className="text-xs text-red-600 font-semibold">(Rejected - Click to resubmit)</span>
+                                <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="flex-shrink-0">
-                                {getRewardDisplay(reward)}
-                              </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {rewards.map((reward, rewardIndex) => {
+                                const rewardDisplay = getRewardDisplay(reward);
+                                return rewardDisplay ? (
+                                  <div key={rewardIndex} className="flex-shrink-0">
+                                    {rewardDisplay}
+                                  </div>
+                                ) : null;
+                              })}
                             </div>
                           </div>
                         );
@@ -685,7 +703,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                             </div>
                           )}
                           <div className={`flex justify-center gap-6 ${quest.rewardSubmissionStatus === 'pending' ? 'opacity-30' : ''}`}>
-                            {quest.rewards.filter(reward => reward.type !== 'skill').map((reward, index) => {
+                            {quest.rewards.filter(reward => reward.type !== 'skill' && reward.type !== 'leaderboard').map((reward, index) => {
                               const formatRange = (min?: number, max?: number, value?: number) => {
                                 if (min !== undefined && max !== undefined && min !== max) {
                                   return `${formatShortNumber(min)} - ${formatShortNumber(max)}`;
@@ -818,21 +836,26 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         const isCompleted = quest.objectiveCompleted[index] || false;
                         const submission = quest.objectiveSubmissions[index];
                         const status = submission?.status || 'none';
-                        const reward = objective.reward;
+                        // Normalize reward to array and filter out hidden rewards
+                        const rewards = Array.isArray(objective.reward) 
+                          ? objective.reward.filter(r => r.type !== 'skill' && r.type !== 'leaderboard')
+                          : (objective.reward && objective.reward.type !== 'skill' && objective.reward.type !== 'leaderboard' 
+                              ? [objective.reward] 
+                              : []);
                         
                         const isApproved = status === 'approved';
 
                         return (
                           <div 
                             key={index} 
-                            className={`relative flex items-center justify-between py-2 border-b last:border-b-0 transition-all ${
+                            className={`relative flex items-center justify-between py-2 px-8 border-b last:border-b-0 transition-all ${
                               theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
                             } ${
                               isApproved ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' : ''
                             }`}
                           >
-                            <div className="flex-1 flex items-center gap-2">
-                              <span className={`text-sm ${
+                            <div className="flex-1 flex items-center gap-2 min-w-0 pr-3">
+                              <span className={`text-sm truncate ${
                                 isApproved 
                                   ? 'text-green-600 font-semibold' 
                                   : theme === 'dark' ? 'text-gray-300' : 'text-black'
@@ -840,16 +863,21 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                 {objective.text}
                               </span>
                               {isApproved && (
-                                <div className="flex items-center gap-0.5">
+                                <div className="flex items-center gap-0.5 flex-shrink-0">
                                   <Check className="w-4 h-4 text-green-600" />
                                   <Check className="w-4 h-4 text-green-600" />
                                 </div>
                               )}
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="flex-shrink-0">
-                                {getRewardDisplay(reward)}
-                              </div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                              {rewards.map((reward, rewardIndex) => {
+                                const rewardDisplay = getRewardDisplay(reward);
+                                return rewardDisplay ? (
+                                  <div key={rewardIndex} className="flex-shrink-0">
+                                    {rewardDisplay}
+                                  </div>
+                                ) : null;
+                              })}
                             </div>
                           </div>
                         );
@@ -868,7 +896,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                       <div className={`relative rounded-lg pt-2 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
                         <div className={`w-full p-4 rounded-lg cursor-not-allowed ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
                           <div className="flex justify-center gap-6">
-                            {quest.rewards.filter(reward => reward.type !== 'skill').map((reward, index) => {
+                            {quest.rewards.filter(reward => reward.type !== 'skill' && reward.type !== 'leaderboard').map((reward, index) => {
                               const formatRange = (min?: number, max?: number, value?: number) => {
                                 if (min !== undefined && max !== undefined && min !== max) {
                                   return `${formatShortNumber(min)} - ${formatShortNumber(max)}`;

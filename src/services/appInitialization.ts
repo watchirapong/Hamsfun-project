@@ -241,19 +241,22 @@ export const initializeApp = async (params: InitializeAppParams) => {
             //   }
             // ]
 
-            let reward: any = { type: 'coins', value: 0 };
+            let rewards: ObjectiveReward[] = [];
 
             // Try sq.reward first (single object - for backwards compatibility)
             if (sq.reward && typeof sq.reward === 'object' && sq.reward.type) {
-              reward = sq.reward;
+              rewards = [sq.reward];
             }
             // Try sq.rewards array (actual backend structure)
             else if (Array.isArray(sq.rewards) && sq.rewards.length > 0) {
-              const rewardGroup = sq.rewards[0];
-              if (rewardGroup && Array.isArray(rewardGroup.entries) && rewardGroup.entries.length > 0) {
-                const rewardEntry = rewardGroup.entries[0];
-                reward = mapBackendRewardEntryToFrontend(rewardEntry);
-              }
+              sq.rewards.forEach((rewardGroup: any) => {
+                if (rewardGroup && Array.isArray(rewardGroup.entries)) {
+                  rewardGroup.entries.forEach((entry: any) => {
+                    const mappedReward = mapBackendRewardEntryToFrontend(entry);
+                    rewards.push(mappedReward);
+                  });
+                }
+              });
             }
             // Check if reward data is in the progress entry
             else {
@@ -264,26 +267,40 @@ export const initializeApp = async (params: InitializeAppParams) => {
               });
 
               if (progressEntry?.reward && typeof progressEntry.reward === 'object' && progressEntry.reward.type) {
-                reward = progressEntry.reward;
+                rewards = [progressEntry.reward];
               } else if (Array.isArray(progressEntry?.rewards) && progressEntry.rewards.length > 0) {
-                const rewardGroup = progressEntry.rewards[0];
-                if (rewardGroup && Array.isArray(rewardGroup.entries) && rewardGroup.entries.length > 0) {
-                  const rewardEntry = rewardGroup.entries[0];
-                  reward = mapBackendRewardEntryToFrontend(rewardEntry);
-                }
+                progressEntry.rewards.forEach((rewardGroup: any) => {
+                  if (rewardGroup && Array.isArray(rewardGroup.entries)) {
+                    rewardGroup.entries.forEach((entry: any) => {
+                      const mappedReward = mapBackendRewardEntryToFrontend(entry);
+                      rewards.push(mappedReward);
+                    });
+                  }
+                });
               }
             }
 
-            // Ensure reward has the correct structure
-            if (!reward || typeof reward !== 'object') {
-              reward = { type: 'coins', value: 0 };
+            // If no rewards found, add a default coin reward
+            if (rewards.length === 0) {
+              rewards = [{ type: 'coins', value: 0 }];
             }
-            if (!reward.type) {
-              reward.type = 'coins';
-            }
-            if (typeof reward.value === 'undefined' || reward.value === null) {
-              reward.value = 0;
-            }
+
+            // Ensure all rewards have the correct structure
+            rewards = rewards.map(reward => {
+              if (!reward || typeof reward !== 'object') {
+                return { type: 'coins', value: 0 };
+              }
+              if (!reward.type) {
+                reward.type = 'coins';
+              }
+              if (typeof reward.value === 'undefined' || reward.value === null) {
+                reward.value = 0;
+              }
+              return reward;
+            });
+
+            // Use single reward if only one, otherwise use array
+            const reward = rewards.length === 1 ? rewards[0] : rewards;
 
             return {
               text: sq.title || sq.description,

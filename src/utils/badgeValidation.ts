@@ -151,7 +151,9 @@ export const validateObjectiveBadgePoints = (
     };
   }
 
-  const expectedRewards: ObjectiveReward[] = [objective.reward];
+  // Normalize reward to array
+  const rewards = Array.isArray(objective.reward) ? objective.reward : [objective.reward];
+  const expectedRewards: ObjectiveReward[] = rewards;
   return validateBadgePoints(expectedRewards, grantedBadgePoints, quest.id, objectiveIndex);
 };
 

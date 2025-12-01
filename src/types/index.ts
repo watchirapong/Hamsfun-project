@@ -73,7 +73,7 @@ export type ApprovalStatus = 'none' | 'pending' | 'approved' | 'rejected';
 
 export interface QuestObjective {
   text: string;
-  reward: ObjectiveReward; // Single reward per objective
+  reward: ObjectiveReward | ObjectiveReward[]; // Single or multiple rewards per objective
   subQuestId?: string; // ID from backend to identify the subQuest
 }
 
