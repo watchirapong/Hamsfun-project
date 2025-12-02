@@ -196,6 +196,7 @@ body {
   }
   50% {
     opacity: 0.7;
+    transform: translate(-50%, -50%) scale(0.3);
   }
   100% {
     opacity: 0;
@@ -213,4 +214,32 @@ body {
     opacity: 1;
     transform: scale(1.5);
   }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* slate-300 */
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* slate-400 */
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-thumb {
+  background: #374151; /* gray-700 */
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4b5563; /* gray-600 */
 }
