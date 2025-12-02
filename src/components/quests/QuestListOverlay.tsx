@@ -540,8 +540,6 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
       };
     }
   }, [showQuestOverlay, isDragging, dragY]);
-
-  console.log(uncompletedQuests);
   
   return (
     <div className={`fixed inset-0 z-50 flex items-end justify-center ${
@@ -699,7 +697,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                               ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-70' : 'bg-gray-100 cursor-not-allowed opacity-70'
                               : areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none'
                               ? theme === 'dark' ? 'bg-green-900/40 border-2 border-green-500 hover:bg-green-900/50 cursor-pointer' : 'bg-green-50 border-2 border-green-200 hover:bg-green-100 cursor-pointer'
-                              : theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-25' : 'bg-gray-100 cursor-not-allowed opacity-25'
+                              : theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-15' : 'bg-gray-100 cursor-not-allowed opacity-15'
                           }`}
                         >
                           {quest.rewardSubmissionStatus === 'pending' && (
@@ -820,7 +818,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                 <div 
                   key={`completed-${quest.id}`}
                   id={`quest-${quest.id}`}
-                  className={`rounded-xl p-4 mb-4 shadow-sm border transition-all opacity-25 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}
+                  className={`rounded-xl p-4 mb-4 shadow-sm border transition-all opacity-15 ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}
                 >
                   {/* Quest Header */}
                   <div className="mb-4">

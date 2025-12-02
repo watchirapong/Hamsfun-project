@@ -388,7 +388,7 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
                       Delete
                     </button>
                   )}
-                  {!expired && !isUsed && (
+                  {!expired && !isUsed && item.type !== 'NormalItem' && (
                     <button
                       onClick={() => onUseItem(item.id)}
                       className="px-3 py-1.5 bg-blue-500 text-white text-xs font-semibold rounded-lg hover:bg-blue-600 transition-colors"
