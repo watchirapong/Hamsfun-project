@@ -619,7 +619,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         return (
                           <div 
                             key={index} 
-                            className={`relative flex items-center justify-between py-2 px-8 border-b last:border-b-0 transition-all ${
+                            className={`relative flex items-center justify-between py-2 px-4 border-b last:border-b-0 transition-all ${
                               theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
                             } ${
                               isRejected
