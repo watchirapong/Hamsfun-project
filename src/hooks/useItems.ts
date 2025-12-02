@@ -63,6 +63,7 @@ export const useItems = () => {
       const inventory = await userAPI.getMyInventory();
       const mappedItems = inventory.map((inv: any, idx: number) => ({
         id: idx + 1,
+        type: inv.itemId?.type || 'NormalItem',
         name: inv.itemId?.name || 'Item',
         description: inv.itemId?.description || '',
         date: inv.itemId?.date || '',
