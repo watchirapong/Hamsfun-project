@@ -44,12 +44,12 @@ function AuthHandoverContent() {
   }, [searchParams, router]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
-        <h1 className="text-2xl font-bold text-center mb-4 text-gray-900">Completing Login...</h1>
-        <p className="text-gray-600 text-center">Please wait while we complete your authentication.</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 max-w-md w-full mx-4 transition-colors">
+        <h1 className="text-2xl font-bold text-center mb-4 text-gray-900 dark:text-white transition-colors">Completing Login...</h1>
+        <p className="text-gray-600 dark:text-gray-400 text-center transition-colors">Please wait while we complete your authentication.</p>
         <div className="mt-6 flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
         </div>
       </div>
     </div>
@@ -59,11 +59,11 @@ function AuthHandoverContent() {
 export default function AuthHandoverPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
-          <h1 className="text-2xl font-bold text-center mb-4 text-gray-900">Loading...</h1>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center transition-colors">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 max-w-md w-full mx-4 transition-colors">
+          <h1 className="text-2xl font-bold text-center mb-4 text-gray-900 dark:text-white transition-colors">Loading...</h1>
           <div className="mt-6 flex justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 dark:border-indigo-500"></div>
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Trophy, Gamepad2, Monitor, Paintbrush, Code, ChevronRight, Star, Crown, Users, Ticket, Coins, Edit2, Gift } from 'lucide-react';
+import { Trophy, Gamepad2, Monitor, Paintbrush, Code, ChevronRight, Star, Crown, Users, Ticket, Coins, Edit2, Gift, Moon, Sun } from 'lucide-react';
 import { userAPI, questAPI, authAPI, leaderboardAPI, getToken, setToken, removeToken } from '@/lib/api';
 import { 
   User, 
@@ -72,7 +72,7 @@ import LoadingScreen from '@/components/common/LoadingScreen';
 
 const App: React.FC = () => {
   // Theme management
-  const { theme, setTheme, showSettingsOverlay, setShowSettingsOverlay } = useTheme();
+  const { theme, setTheme, toggleTheme, showSettingsOverlay, setShowSettingsOverlay } = useTheme();
   
   // Authentication and user data
   const { isLoading, setIsLoading, isAuthenticated, setIsAuthenticated, user, setUser, skills, setSkills, handleLogout } = useAuth();
@@ -282,7 +282,24 @@ const App: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <div className={`rounded-xl shadow-lg p-8 max-w-md w-full mx-4 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+        <div className={`rounded-xl shadow-lg p-8 max-w-md w-full mx-4 relative ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
+              theme === 'dark' 
+                ? 'bg-gray-700 hover:bg-gray-600 text-yellow-400' 
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            }`}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? (
+              <Sun size={20} />
+            ) : (
+              <Moon size={20} />
+            )}
+          </button>
+          
           <h1 className={`text-2xl font-bold text-center mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Welcome to HamsterWorld</h1>
           <p className={`text-center mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Please login to continue</p>
           <div className="space-y-4">
