@@ -10,15 +10,16 @@ interface BackpackItemProps {
   item: BackpackItemType;
   onUse: (id: number) => void;
   onDelete: (id: number) => void;
+  theme: 'light' | 'dark';
 }
 
-export const BackpackItemComponent: React.FC<BackpackItemProps> = ({ item, onUse, onDelete }) => {
+export const BackpackItemComponent: React.FC<BackpackItemProps> = ({ item, onUse, onDelete, theme }) => {
   const isUsed = item.used;
   const timePassed = hasItemTimePassed(item.date);
   const expired = isItemExpired(item.date);
   
   // Determine background color
-  let backgroundColor = 'white';
+  let backgroundColor = theme === 'dark' ? '#1f2937' : 'white';
   if (isUsed) {
     backgroundColor = '#e3cd0b'; // Yellow for used
   } else if (expired) {
@@ -27,7 +28,9 @@ export const BackpackItemComponent: React.FC<BackpackItemProps> = ({ item, onUse
   
   return (
     <div 
-      className={`flex items-center gap-3 p-3 rounded-xl mb-2 shadow-sm border border-gray-100`}
+      className={`flex items-center gap-3 p-3 rounded-xl mb-2 shadow-sm border ${
+        theme === 'dark' ? 'border-gray-700' : 'border-gray-100'
+      }`}
       style={{ backgroundColor }}
     >
       <img 
@@ -40,12 +43,20 @@ export const BackpackItemComponent: React.FC<BackpackItemProps> = ({ item, onUse
         }}
       />
       <div className="flex-1">
-        <div className="font-semibold text-sm text-black">{item.name}</div>
-        <div className="text-xs text-gray-500">{item.description}</div>
-        <div className="text-xs text-gray-500">{item.date}</div>
+        <div className={`font-semibold text-sm ${
+          theme === 'dark' && !isUsed && !expired ? 'text-white' : 'text-black'
+        }`}>{item.name}</div>
+        <div className={`text-xs ${
+          theme === 'dark' && !isUsed && !expired ? 'text-gray-400' : 'text-gray-500'
+        }`}>{item.description}</div>
+        <div className={`text-xs ${
+          theme === 'dark' && !isUsed && !expired ? 'text-gray-500' : 'text-gray-500'
+        }`}>{item.date}</div>
       </div>
       <div className="flex items-center gap-2">
-        <div className="text-xs bg-gray-100 px-2 py-1 rounded-full">x{item.quantity}</div>
+        <div className={`text-xs px-2 py-1 rounded-full ${
+          theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100'
+        }`}>x{item.quantity}</div>
         {expired && !isUsed && (
           <button
             onClick={() => onDelete(item.id)}

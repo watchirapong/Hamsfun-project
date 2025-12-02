@@ -8,9 +8,10 @@ import { isQuestTrulyCompleted, getAssetUrl } from '@/utils/helpers';
 interface QuestCardProps {
   quest: Quest;
   onQuestClick: (questId: number) => void;
+  theme: 'light' | 'dark';
 }
 
-export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick }) => {
+export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick, theme }) => {
   const isCompleted = isQuestTrulyCompleted(quest);
   
   // Use objectives count instead of steps
@@ -19,21 +20,31 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick }) => 
 
   return (
     <div 
-      className={`bg-white rounded-xl p-4 mb-3 shadow-sm border border-gray-100 cursor-pointer transition-all ${
+      className={`rounded-xl p-4 mb-3 shadow-sm border cursor-pointer transition-all ${
+        theme === 'dark' 
+          ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' 
+          : 'bg-white border-gray-100 hover:bg-gray-50'
+      } ${
         isCompleted 
           ? 'opacity-50 hover:opacity-60' 
-          : 'hover:bg-gray-50'
+          : ''
       }`}
       onClick={() => onQuestClick(quest.id)}
     >
       <div className="flex justify-between items-start mb-2">
         <div>
-          <span className="text-xs font-semibold text-[#BF5475] py-1 rounded-full flex items-center gap-1">
+          <span className={`text-xs font-semibold py-1 rounded-full flex items-center gap-1 ${
+            theme === 'dark' ? 'text-[#F67BA4]' : 'text-[#BF5475]'
+          }`}>
             <img src={getAssetUrl("/Asset/check-circle.png")} alt="" className="w-3 h-3" />
             {quest.type}
           </span>
-          <h3 className="font-bold text-black text-lg mt-1">{quest.title}</h3>
-          <p className="text-gray-600 text-sm">{quest.description}</p>
+          <h3 className={`font-bold text-lg mt-1 ${
+            theme === 'dark' ? 'text-white' : 'text-black'
+          }`}>{quest.title}</h3>
+          <p className={`text-sm ${
+            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+          }`}>{quest.description}</p>
         </div>
       </div>
       
@@ -52,13 +63,17 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick }) => 
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs relative ${
                   isStepCompleted
                     ? 'bg-[#4CCC51] text-white' 
-                    : 'bg-gray-200 text-gray-600'
+                    : theme === 'dark' ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-600'
                 } ${
                   isNextProgressLevel ? 'ring-2 ring-[#4CCC51] ring-offset-1' : ''
                 }`}>
                   {index + 1}
                 </div>
-                <div className={`h-0.5 flex-1 ${isStepCompleted ? 'bg-[#4CCC51]' : 'bg-gray-200'}`}></div>
+                <div className={`h-0.5 flex-1 ${
+                  isStepCompleted 
+                    ? 'bg-[#4CCC51]' 
+                    : theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                }`}></div>
               </React.Fragment>
             );
           })}
@@ -66,7 +81,7 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick }) => 
           <div className={`w-6 h-6 rounded-full flex items-center justify-center relative ${
             quest.rewardClaimed
               ? 'bg-blue-500 text-white' 
-              : 'bg-gray-200 text-gray-600'
+              : theme === 'dark' ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-600'
           } ${
             completedObjectives === totalObjectives && !quest.rewardClaimed ? 'ring-2 ring-[#4CCC51] ring-offset-1' : ''
           }`}>

@@ -225,6 +225,7 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
               key={item.houseId || item.rank} 
               item={item}
               onFetchMembers={onFetchMembers}
+              theme={theme}
             />
           ))}
         </div>

@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { X, Settings, LogOut, Moon, Sun } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Moon, Sun, LogOut, X } from 'lucide-react';
 
 interface SettingsOverlayProps {
   theme: 'light' | 'dark';
@@ -16,80 +16,300 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   onThemeChange,
   onLogout,
 }) => {
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const startY = useRef(0);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragStartTarget = useRef<HTMLElement | null>(null);
+  const panelHeightRef = useRef<number>(0);
+
+  const handleClose = () => {
+    if (!panelRef.current) return;
+    
+    setIsClosing(true);
+    setIsAnimating(true);
+    setIsDragging(false);
+    
+    // Get current panel height for smooth closing animation
+    const panel = panelRef.current;
+    panelHeightRef.current = panel.offsetHeight;
+    
+    // Animate from current dragY position to full panel height
+    const currentY = dragY;
+    const targetY = panelHeightRef.current;
+    
+    // Set smooth transition and animate to closed position
+    panel.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    panel.style.transform = `translateY(${targetY}px)`;
+    
+    setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+      setIsAnimating(false);
+      setDragY(0);
+    }, 300); // Match animation duration
+  };
+
+  // Get panel height for close threshold (70% of panel height)
+  const getCloseThreshold = () => {
+    if (panelRef.current) {
+      return panelRef.current.offsetHeight * 0.7;
+    }
+    return 400; // Fallback
+  };
+
+  // Native touch event handlers (to allow preventDefault)
+  const handleTouchStartNative = (e: TouchEvent) => {
+    const target = e.target as HTMLElement;
+    dragStartTarget.current = target;
+    
+    // Start panel drag from anywhere
+    // e.preventDefault(); // Don't prevent default immediately to allow clicks
+    startY.current = e.touches[0].clientY;
+    setIsDragging(true);
+  };
+
+  const handleTouchMoveNative = (e: TouchEvent) => {
+    if (!isDragging) {
+      return;
+    }
+    
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - startY.current;
+    
+    // Only drag if moving downwards
+    if (diff > 0) {
+        e.preventDefault(); // Prevent background scrolling while dragging
+        e.stopPropagation(); // Prevent event bubbling
+        // Panel follows drag smoothly
+        setDragY(Math.max(0, diff));
+    }
+  };
+
+  const handleTouchEndNative = () => {
+    if (!isDragging) return;
+    
+    const threshold = getCloseThreshold();
+    if (dragY > threshold) {
+      handleClose();
+    } else {
+      // Snap back smoothly from current position
+      snapBackToOpen();
+    }
+    setIsDragging(false);
+    dragStartTarget.current = null;
+  };
+
+  // Mouse drag handlers (for document events)
+  const handleMouseDown = (e: MouseEvent | React.MouseEvent) => {
+    const target = (e.target as HTMLElement);
+    dragStartTarget.current = target;
+    
+    // Start panel drag from anywhere
+    // e.preventDefault(); // Don't prevent default immediately
+    startY.current = 'clientY' in e ? e.clientY : (e as React.MouseEvent).clientY;
+    setIsDragging(true);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    const currentY = e.clientY;
+    const diff = currentY - startY.current;
+    
+    if (diff > 0) {
+        e.preventDefault(); // Prevent default behavior
+        e.stopPropagation(); // Prevent event bubbling
+        // Panel follows drag smoothly
+        setDragY(Math.max(0, diff));
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging) return;
+    
+    const threshold = getCloseThreshold();
+    if (dragY > threshold) {
+      handleClose();
+    } else {
+      // Snap back smoothly from current position
+      snapBackToOpen();
+    }
+    setIsDragging(false);
+    dragStartTarget.current = null;
+  };
+  
+  // Smooth snap-back animation from current drag position
+  const snapBackToOpen = () => {
+    if (!panelRef.current) return;
+    
+    setIsAnimating(true);
+    const panel = panelRef.current;
+    
+    // Animate from current dragY position back to 0
+    panel.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    panel.style.transform = 'translateY(0)';
+    
+    // Update state after animation completes
+    setTimeout(() => {
+      setDragY(0);
+      setIsAnimating(false);
+    }, 300);
+  };
+
+  // Prevent background scrolling when panel is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
+  // Add native touch event listeners to document for global drag detection
+  useEffect(() => {
+    if (!onClose) return; // Only when overlay is open (onClose exists)
+
+    const handleTouchStart = (e: TouchEvent) => {
+      handleTouchStartNative(e);
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      handleTouchMoveNative(e);
+    };
+    const handleTouchEnd = (e: TouchEvent) => {
+      handleTouchEndNative();
+    };
+
+    document.addEventListener('touchstart', handleTouchStart, { passive: false });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isDragging, dragY]);
+
+  // Directly update transform style to override CSS animations
+  useEffect(() => {
+    if (!panelRef.current) return;
+    
+    const panel = panelRef.current;
+    
+    // Don't interfere if we're animating (closing or snapping back)
+    if (isAnimating) {
+      return;
+    }
+    
+    if (isDragging || dragY > 0) {
+      // Remove animation classes to prevent conflicts
+      panel.classList.remove('animate-slide-up', 'animate-slide-down');
+      // Directly set transform during drag (no transition)
+      panel.style.transform = `translateY(${dragY}px)`;
+      panel.style.transition = 'none';
+    } else if (dragY === 0 && !isClosing) {
+      // Panel is open and at rest
+      panel.classList.remove('animate-slide-up', 'animate-slide-down');
+      panel.style.transform = 'translateY(0)';
+      panel.style.transition = '';
+    }
+  }, [isDragging, dragY, isClosing, isAnimating]);
+
+  useEffect(() => {
+    // Attach mouse events to document for global drag detection
+    document.addEventListener('mousedown', handleMouseDown as any);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown as any);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [onClose, isDragging, dragY]);
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in p-4">
-      <div className={`w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden transform transition-all scale-100 ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}>
+    <div className={`fixed inset-0 z-50 flex items-end justify-center ${
+      isClosing ? 'animate-fade-out' : 'animate-fade-in'
+    } ${theme === 'dark' ? 'bg-black/80' : 'bg-black/50'}`}>
+      <div 
+        ref={panelRef}
+        className={`w-full max-w-md rounded-t-xl shadow-lg pb-10 transition-colors ${
+          !isDragging && dragY === 0 && !isAnimating && !isClosing ? 'animate-slide-up' : ''
+        } ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
+        onClick={(e) => e.stopPropagation()} // Prevent clicks inside panel from closing (if we had click-outside-to-close)
+      >
+        {/* iPhone-style home indicator bar */}
+        <div className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing">
+          <div className={`w-12 h-1 rounded-full ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`}></div>
+        </div>
+
         {/* Header */}
-        <div className={`p-6 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-100'} flex justify-between items-center`}>
-          <h2 className="font-bold text-xl flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Settings
-          </h2>
+        <div 
+          className={`p-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}
+        >
+          <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Settings</h2>
           <button 
-            onClick={onClose}
-            className={`p-2 rounded-full transition-colors ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
+            onClick={handleClose}
+            className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-6">
+        {/* Settings Options */}
+        <div className="p-4 space-y-4">
           {/* Theme Toggle */}
-          <div className={`p-4 rounded-xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-900/50' : 'border-gray-100 bg-gray-50'}`}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-semibold">Appearance</span>
-              <span className={`text-xs px-2 py-1 rounded-full ${theme === 'dark' ? 'bg-indigo-900 text-indigo-200' : 'bg-indigo-100 text-indigo-700'}`}>
-                {theme === 'light' ? 'Light Mode' : 'Dark Mode'}
-              </span>
+          <div className={`flex items-center justify-between p-4 rounded-xl border ${theme === 'dark' ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className="flex items-center gap-3">
+              {theme === 'dark' ? (
+                <Moon className="text-indigo-400" size={24} />
+              ) : (
+                <Sun className="text-amber-500" size={24} />
+              )}
+              <div>
+                <div className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                  {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                </div>
+                <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Adjust the appearance
+                </div>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => onThemeChange('light')}
-                className={`flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${
-                  theme === 'light' 
-                    ? 'bg-white shadow-md border-2 border-indigo-500 text-indigo-600' 
-                    : 'hover:bg-gray-200/50 text-gray-500'
-                }`}
-              >
-                <Sun size={18} />
-                <span className="font-medium">Light</span>
-              </button>
-              <button
-                onClick={() => onThemeChange('dark')}
-                className={`flex-1 py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all ${
-                  theme === 'dark' 
-                    ? 'bg-gray-700 shadow-md border-2 border-indigo-400 text-indigo-300' 
-                    : 'hover:bg-gray-200/50 text-gray-500'
-                }`}
-              >
-                <Moon size={18} />
-                <span className="font-medium">Dark</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Account Actions */}
-          <div className="space-y-3">
-            <h3 className={`text-sm font-semibold uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-              Account
-            </h3>
             <button
-              onClick={onLogout}
-              className="w-full py-3.5 px-4 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors flex items-center justify-center gap-2 font-semibold group"
+              onClick={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                theme === 'dark' 
+                  ? 'bg-gray-700 text-white hover:bg-gray-600' 
+                  : 'bg-white text-gray-900 border border-gray-300 hover:bg-gray-50'
+              }`}
             >
-              <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
-              Log Out
+              Switch to {theme === 'dark' ? 'Light' : 'Dark'}
             </button>
           </div>
-        </div>
-        
-        {/* Footer */}
-        <div className={`p-4 text-center text-xs ${theme === 'dark' ? 'text-gray-500 bg-gray-900/30' : 'text-gray-400 bg-gray-50'}`}>
-          HamsterWorld v1.0.0
+
+          {/* Logout Button */}
+          <button
+            onClick={() => {
+                onLogout();
+                handleClose();
+            }}
+            className={`w-full flex items-center justify-center gap-2 p-4 rounded-xl font-semibold transition-colors border ${
+              theme === 'dark' 
+                ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20' 
+                : 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'
+            }`}
+          >
+            <LogOut size={20} />
+            Log Out
+          </button>
+          
+          <div className={`text-center text-xs mt-8 ${theme === 'dark' ? 'text-gray-600' : 'text-gray-400'}`}>
+            Version 1.0.0
+          </div>
         </div>
       </div>
     </div>
   );
 };
-

@@ -68,6 +68,7 @@ import { initializeApp } from '@/services/appInitialization';
 import { useQuestHandlers } from '@/handlers/questHandlers';
 import { useProfileHandlers } from '@/handlers/profileHandlers';
 import { useSkillHandlers } from '@/handlers/skillHandlers';
+import LoadingScreen from '@/components/common/LoadingScreen';
 
 const App: React.FC = () => {
   // Theme management
@@ -268,25 +269,22 @@ const App: React.FC = () => {
   const { handleSkillCardClick } = skillHandlers;
 
 
+
+// ... (existing imports)
+
+// Inside App component:
   // Show loading screen
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-    }
+    return <LoadingScreen theme={theme} />;
+  }
 
   // Show login screen if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
-          <h1 className="text-2xl font-bold text-center mb-6 text-gray-900">Welcome to HamsterWorld</h1>
-          <p className="text-gray-600 text-center mb-6">Please login to continue</p>
+      <div className={`min-h-screen flex items-center justify-center ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'}`}>
+        <div className={`rounded-xl shadow-lg p-8 max-w-md w-full mx-4 ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+          <h1 className={`text-2xl font-bold text-center mb-6 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Welcome to HamsterWorld</h1>
+          <p className={`text-center mb-6 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Please login to continue</p>
           <div className="space-y-4">
             <button
               onClick={() => {
@@ -379,6 +377,7 @@ const App: React.FC = () => {
               key={quest.id} 
               quest={quest} 
               onQuestClick={handleQuestCardClick}
+              theme={theme}
             />
           ))}
         <button 
@@ -409,6 +408,7 @@ const App: React.FC = () => {
                 key={item.houseId || item.rank} 
                 item={item}
                 onFetchMembers={handleFetchHouseMembers}
+                theme={theme}
               />
             ))}
             {houseLeaderboard.length > 5 && (
@@ -427,7 +427,13 @@ const App: React.FC = () => {
       <div className="px-4 mb-4">
         <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Items in Backpack</h2>
         {sortItems(backpackItems).slice(0, 3).map((item) => (
-          <BackpackItemComponent key={item.id} item={item} onUse={handleUseItem} onDelete={handleDeleteItem} />
+          <BackpackItemComponent 
+            key={item.id} 
+            item={item} 
+            onUse={handleUseItem} 
+            onDelete={handleDeleteItem} 
+            theme={theme}
+          />
         ))}
         <button 
           className="w-full bg-[#4EAAFF] text-white py-3 rounded-xl font-medium hover:bg-blue-600 transition-colors"

@@ -16,7 +16,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var savedTheme = localStorage.getItem('app_theme');
+                  var systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  if (savedTheme === 'dark' || (!savedTheme && systemTheme)) {
+                    document.documentElement.classList.add('dark');
+                    document.body.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                    document.body.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className={`${inter.className} h-full m-0 p-0`}>
         {children}
       </body>

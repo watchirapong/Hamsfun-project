@@ -7,11 +7,13 @@ import { HouseMemberItem } from './HouseMemberItem';
 interface HouseLeaderboardItemProps {
   item: HouseLeaderboardItemType;
   onFetchMembers?: (houseId: string) => Promise<HouseMember[]>;
+  theme: 'light' | 'dark';
 }
 
 export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> = ({ 
   item, 
-  onFetchMembers 
+  onFetchMembers,
+  theme
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [members, setMembers] = useState<HouseMember[]>(item.members || []);
@@ -39,7 +41,7 @@ export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> 
       };
     }
     return {
-      textColor: '#000000',
+      textColor: theme === 'dark' ? '#ffffff' : '#000000',
       textGlowColor: 'transparent',
       cardGlowColor: 'transparent',
     };
@@ -74,18 +76,24 @@ export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> 
   return (
     <div>
       <div 
-        className="flex items-center gap-3 p-3 bg-white rounded-xl mb-2 shadow-sm border border-gray-100 cursor-pointer transition-all"
+        className={`flex items-center gap-3 p-3 rounded-xl mb-2 shadow-sm border cursor-pointer transition-all ${
+          theme === 'dark' 
+            ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' 
+            : 'bg-white border-gray-100 hover:bg-gray-50'
+        }`}
         style={isTopThree ? {
           boxShadow: `0 0 8px ${rankStyle.cardGlowColor}`,
         } : {}}
         onClick={handleClick}
       >
         <div 
-          className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full font-bold text-sm"
+          className={`w-8 h-8 flex items-center justify-center rounded-full font-bold text-sm ${
+            theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+          }`}
           style={isTopThree ? {
             color: rankStyle.textColor,
             textShadow: `0 0 8px ${rankStyle.textGlowColor}`,
-          } : {}}
+          } : { color: rankStyle.textColor }}
         >
           {item.rank}
         </div>
@@ -95,18 +103,20 @@ export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> 
             style={isTopThree ? {
               color: rankStyle.textColor,
               textShadow: `0 0 8px ${rankStyle.textGlowColor}`,
-            } : { color: '#000000' }}
+            } : { color: rankStyle.textColor }}
           >
             {item.houseName}
           </div>
-          <div className="text-xs text-gray-400 opacity-70">{item.memberCount} members</div>
+          <div className={`text-xs opacity-70 ${
+            theme === 'dark' ? 'text-gray-400' : 'text-gray-400'
+          }`}>{item.memberCount} members</div>
         </div>
         <div 
           className="font-bold text-sm"
           style={isTopThree ? {
             color: rankStyle.textColor,
             textShadow: `0 0 8px ${rankStyle.textGlowColor}`,
-          } : { color: '#000000' }}
+          } : { color: rankStyle.textColor }}
         >
           {item.houseScore.toLocaleString()}
         </div>
@@ -115,7 +125,9 @@ export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> 
       {/* Expandable Member List */}
       {isExpanded && (
         <div 
-          className="ml-4 mb-2 border-l-2 border-gray-200 pl-4 space-y-2 animate-slide-down-expand"
+          className={`ml-4 mb-2 border-l-2 pl-4 space-y-2 animate-slide-down-expand ${
+            theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+          }`}
         >
           {isLoadingMembers ? (
             <div className="text-center py-2 text-gray-500 text-sm">Loading members...</div>
@@ -127,6 +139,7 @@ export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> 
                 key={member._id || index} 
                 member={member} 
                 rank={index + 1}
+                theme={theme}
               />
             ))
           )}

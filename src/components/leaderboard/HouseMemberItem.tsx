@@ -6,9 +6,10 @@ import { HouseMember } from '@/types';
 interface HouseMemberItemProps {
   member: HouseMember;
   rank: number;
+  theme: 'light' | 'dark';
 }
 
-export const HouseMemberItem: React.FC<HouseMemberItemProps> = ({ member, rank }) => {
+export const HouseMemberItem: React.FC<HouseMemberItemProps> = ({ member, rank, theme }) => {
   // Determine colors and glow for top 3 ranks
   const getRankStyle = () => {
     if (rank === 1) {
@@ -28,7 +29,7 @@ export const HouseMemberItem: React.FC<HouseMemberItemProps> = ({ member, rank }
       };
     }
     return {
-      textColor: '#000000',
+      textColor: theme === 'dark' ? '#ffffff' : '#000000',
       textGlowColor: 'transparent',
     };
   };
@@ -38,13 +39,17 @@ export const HouseMemberItem: React.FC<HouseMemberItemProps> = ({ member, rank }
   const petLevel = member.petLevel || member.rank?.points || 0;
 
   return (
-    <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+    <div className={`flex items-center gap-2 p-2 rounded-lg ${
+      theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'
+    }`}>
       <div 
-        className="w-6 h-6 flex items-center justify-center bg-gray-200 rounded-full font-bold text-xs"
+        className={`w-6 h-6 flex items-center justify-center rounded-full font-bold text-xs ${
+          theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+        }`}
         style={isTopThree ? {
           color: rankStyle.textColor,
           textShadow: `0 0 6px ${rankStyle.textGlowColor}`,
-        } : {}}
+        } : { color: rankStyle.textColor }}
       >
         {rank}
       </div>
@@ -54,7 +59,7 @@ export const HouseMemberItem: React.FC<HouseMemberItemProps> = ({ member, rank }
           style={isTopThree ? {
             color: rankStyle.textColor,
             textShadow: `0 0 6px ${rankStyle.textGlowColor}`,
-          } : { color: '#000000' }}
+          } : { color: rankStyle.textColor }}
         >
           {member.discordNickname || member.discordUsername}
         </div>
@@ -65,7 +70,7 @@ export const HouseMemberItem: React.FC<HouseMemberItemProps> = ({ member, rank }
         style={isTopThree ? {
           color: rankStyle.textColor,
           textShadow: `0 0 6px ${rankStyle.textGlowColor}`,
-        } : { color: '#000000' }}
+        } : { color: rankStyle.textColor }}
       >
         {member.leaderboardScore.toLocaleString()}
       </div>
