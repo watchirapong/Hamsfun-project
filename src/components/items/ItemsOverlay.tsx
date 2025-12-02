@@ -10,8 +10,8 @@ interface ItemsOverlayProps {
   items: BackpackItemType[];
   theme: 'light' | 'dark';
   onClose: () => void;
-  onUseItem: (itemId: number) => void;
-  onDeleteItem: (itemId: number) => void;
+  onUseItem: (itemId: string) => void;
+  onDeleteItem: (itemId: string) => void;
 }
 
 export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
@@ -388,7 +388,7 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
                       Delete
                     </button>
                   )}
-                  {!expired && !isUsed && item.type !== 'NormalItem' && (
+                  {!expired && !isUsed && (
                     <button
                       onClick={() => onUseItem(item.id)}
                       className="px-3 py-1.5 bg-blue-500 text-white text-xs font-semibold rounded-lg hover:bg-blue-600 transition-colors"

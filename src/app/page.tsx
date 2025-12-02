@@ -389,6 +389,7 @@ const App: React.FC = () => {
         {questsState
           .filter(quest => !isQuestTrulyCompleted(quest))
           .slice(0, 2)
+          .reverse()
           .map((quest) => (
             <QuestCard 
               key={quest.id} 

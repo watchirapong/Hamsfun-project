@@ -98,22 +98,22 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       const rect = el.getBoundingClientRect();
       return rect.height > 200; // Likely the main quest list container
     }) as HTMLElement;
-    
+
     if (questListContainer) {
       scrollPositionRef.current = {
         container: questListContainer,
         scrollTop: questListContainer.scrollTop
       };
     }
-    
+
     const quest = questsState.find(q => q.id === questId);
     if (!quest) return;
-    
+
     // Ensure objectiveSubmissions array exists and has enough entries
     if (!quest.objectiveSubmissions) {
       quest.objectiveSubmissions = [];
     }
-    
+
     // Initialize submission if it doesn't exist
     if (!quest.objectiveSubmissions[objectiveIndex]) {
       quest.objectiveSubmissions[objectiveIndex] = {
@@ -121,14 +121,14 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
         status: 'none'
       };
     }
-    
+
     const submission = quest.objectiveSubmissions[objectiveIndex];
     // Allow upload if: not approved, not pending (user can resubmit if rejected)
     // Note: pending is shown as completed to user, but we still allow resubmission if rejected
     if (submission && (submission.status === 'none' || submission.status === 'rejected')) {
       // Cancel all reward animations when opening a new submission modal
       setRewardAnimations([]);
-      
+
       setSelectedObjective({ questId, objectiveIndex });
       setUploadedImage(submission.imageUrl || null);
       setShowImageUploadModal(true);
@@ -150,7 +150,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
   // Handler to submit image
   const handleSubmitImage = async () => {
     if (!selectedObjective) return;
-    
+
     // Image is optional according to API guide, but we'll require it for better UX
     if (!uploadedImage) {
       alert('Please upload an image proof before submitting.');
@@ -163,7 +163,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       const rect = el.getBoundingClientRect();
       return rect.height > 200;
     }) as HTMLElement;
-    
+
     if (questListContainer) {
       scrollPositionRef.current = {
         container: questListContainer,
@@ -173,7 +173,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
 
     const quest = questsState.find(q => q.id === selectedObjective.questId);
     if (!quest) return;
-    
+
     const objective = quest.objectives[selectedObjective.objectiveIndex];
     if (!objective) return;
 
@@ -188,7 +188,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
     try {
       // Convert base64 image to blob/file
       const formData = new FormData();
-      
+
       // If uploadedImage is a base64 string, convert it to a blob
       if (typeof uploadedImage === 'string' && uploadedImage.startsWith('data:')) {
         const response = await fetch(uploadedImage);
@@ -204,11 +204,11 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
           formData.append('imageProof', blob, 'submission.png');
         }
       }
-      
+
       if (description) {
         formData.append('description', description);
       }
-      
+
       // Add subQuestId to formData if available
       if (objective.subQuestId) {
         formData.append('subQuestId', objective.subQuestId);
@@ -216,22 +216,22 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
 
       // Submit to API and get response with grantedRewards
       const submitResponse: any = await questAPI.submitQuest(quest.id.toString(), formData);
-      
+
       // Log full response to debug
       console.log('API submitResponse (full):', JSON.stringify(submitResponse, null, 2));
       console.log('API submitResponse keys:', Object.keys(submitResponse || {}));
-      
+
       // Check if rewards were granted by the backend
       // According to API guide: grantedRewards is only present if rewards were actually granted
       // Only show reward UI when grantedRewards is present
       const grantedRewards = submitResponse?.grantedRewards;
       console.log('grantedRewards from API:', grantedRewards);
-      
+
       const hasGrantedRewards = hasValidGrantedRewards(grantedRewards);
       console.log('hasGrantedRewards calculated as:', hasGrantedRewards);
 
       const processingKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
-      
+
       // Prevent duplicate processing
       if (processingObjectives.current.has(processingKey)) {
         console.log('Already processing this objective, skipping duplicate');
@@ -255,31 +255,31 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
             while (newRewardsAwarded.length < q.objectives.length) {
               newRewardsAwarded.push(false);
             }
-            
+
             // Mark as awarded only if backend granted rewards
             if (hasGrantedRewards && newRewardsAwarded[selectedObjective.objectiveIndex] !== true) {
               newRewardsAwarded[selectedObjective.objectiveIndex] = true;
             }
-            
+
             const newSubmissions = [...q.objectiveSubmissions];
             newSubmissions[selectedObjective.objectiveIndex] = {
               imageUrl: uploadedImage,
               status: 'pending' // Status is pending in backend, but user sees it as completed
             };
-            
+
             const newCompleted = [...q.objectiveCompleted];
             newCompleted[selectedObjective.objectiveIndex] = true; // Visually show as completed
-            
+
             const updatedQuest = {
               ...q,
               objectiveSubmissions: newSubmissions,
               objectiveCompleted: newCompleted,
               objectiveRewardsAwarded: newRewardsAwarded
             };
-            
+
             // Update step progress
             setTimeout(() => updateQuestStep(selectedObjective.questId), 0);
-            
+
             return updatedQuest;
           }
           return q;
@@ -291,15 +291,15 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
         console.log('Processing rewards - hasGrantedRewards:', hasGrantedRewards, 'rewards:', grantedRewards);
         // Process rewards immediately (synchronously) before closing modal
         const rewardKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
-        
+
         // Check if already awarded
         if (!awardedRewards.has(rewardKey)) {
           // Mark as awarded immediately to prevent duplicates
           awardedRewards.add(rewardKey);
-          
+
           // Use grantedRewards from API response
           const rewardsToProcess = grantedRewards;
-          
+
           // Validate badge points before processing
           const currentQuest = questsState.find(q => q.id === selectedObjective.questId);
           if (currentQuest && rewardsToProcess?.badgePoints) {
@@ -308,7 +308,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
               selectedObjective.objectiveIndex,
               rewardsToProcess.badgePoints
             );
-            
+
             if (!validation.isValid) {
               console.error('Badge points validation failed:', validation);
               // Log mismatches but still process rewards (backend is source of truth)
@@ -316,57 +316,57 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
                 console.error(`Badge mismatch: ${mismatch.skillName} - Expected: ${mismatch.expected}, Received: ${mismatch.received}`);
               });
             }
-            
+
             if (validation.warnings.length > 0) {
               console.warn('Badge points validation warnings:', validation.warnings);
             }
           }
-          
+
           // Process badge points from API response first (if any)
           if (rewardsToProcess && rewardsToProcess.badgePoints && typeof rewardsToProcess.badgePoints === 'object') {
             // Log the badge points being processed for verification
             console.log('Processing badge points from backend:', rewardsToProcess.badgePoints);
-            
+
             processBadgePointsFromApi(
               rewardsToProcess.badgePoints,
               setSkills,
               triggerRewardAnimation,
               handleSkillLevelUp
             );
-            
+
             // Refresh badge data from backend to ensure sync after processing
             // This ensures frontend state matches backend exactly
             setTimeout(async () => {
               await refreshBadgeDataFromBackend(setSkills);
             }, 1000); // Wait 1 second for backend to process
           }
-          
+
           // Also award coins and rank points from API response
           if (rewardsToProcess && rewardsToProcess.coins) {
             processCoinsFromApi(rewardsToProcess.coins, setUser, triggerRewardAnimation);
           }
-          
+
           if (rewardsToProcess && rewardsToProcess.rankPoints) {
             processRankPointsFromApi(rewardsToProcess.rankPoints, setUser, triggerRewardAnimation);
           }
-          
+
           // Process leaderboard points from API response
           if (rewardsToProcess && rewardsToProcess.leaderboardScore) {
             processLeaderboardPointsFromApi(rewardsToProcess.leaderboardScore, setUser, triggerRewardAnimation);
           }
-          
+
           // Process items from API response
           if (rewardsToProcess && rewardsToProcess.items && Array.isArray(rewardsToProcess.items)) {
             processItemsFromApi(rewardsToProcess.items, triggerRewardAnimation, getItemIconUrl);
           }
-          
+
           console.log('Reward awarded for objective:', selectedObjective.objectiveIndex, 'hasGrantedRewards:', hasGrantedRewards);
-          
+
           // Clean up after 5 seconds
           setTimeout(() => {
             awardedRewards.delete(rewardKey);
           }, 5000);
-          
+
           // Close modal after rewards are processed (give time for animations to start)
           setTimeout(() => {
             setShowImageUploadModal(false);
@@ -376,7 +376,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
           }, 300);
         } else {
           console.log('Reward already awarded, skipping duplicate:', rewardKey);
-          
+
           // Close modal even if reward was already awarded
           setTimeout(() => {
             setShowImageUploadModal(false);
@@ -385,7 +385,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
             setDescription('');
           }, 100);
         }
-        
+
         // Clear processing flag
         setTimeout(() => {
           processingObjectives.current.delete(processingKey);
@@ -396,7 +396,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
         setTimeout(() => {
           processingObjectives.current.delete(processingKey);
         }, 100);
-        
+
         // Close modal even if no rewards (resubmission case)
         setTimeout(() => {
           setShowImageUploadModal(false);
@@ -426,7 +426,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
         error: errorMessage,
         errorStack: error?.stack
       });
-      
+
       // Don't close modal on error so user can retry
       alert(`Failed to submit quest: ${errorMessage}. Please check the console for details.`);
       if (selectedObjective) {
@@ -440,26 +440,26 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
   // Handler for admin approval (instant confirm for testing)
   const handleApproveObjective = useCallback((questId: number, objectiveIndex: number) => {
     const processingKey = `${questId}-${objectiveIndex}`;
-    
+
     // Prevent duplicate execution (React StrictMode in dev causes double calls)
     if (processingObjectives.current.has(processingKey)) {
       console.log('Already processing this objective, skipping duplicate call');
       return;
     }
-    
+
     // Mark as processing immediately
     processingObjectives.current.add(processingKey);
-    
+
     // Get the reward from current state BEFORE updating (using object ref to access after callback)
-        const rewardRef = { value: null as ObjectiveReward | ObjectiveReward[] | null };
+    const rewardRef = { value: null as ObjectiveReward | ObjectiveReward[] | null };
     setQuestsState(prevQuests => {
       // First, check if reward was already awarded by looking at current state
       const currentQuest = prevQuests.find(q => q.id === questId);
       if (currentQuest) {
         const existingRewardsAwarded = currentQuest.objectiveRewardsAwarded || [];
         // Ensure array is long enough
-        const rewardsAwarded = existingRewardsAwarded.length >= objectiveIndex + 1 
-          ? existingRewardsAwarded[objectiveIndex] 
+        const rewardsAwarded = existingRewardsAwarded.length >= objectiveIndex + 1
+          ? existingRewardsAwarded[objectiveIndex]
           : false;
 
         if (rewardsAwarded === true) {
@@ -467,14 +467,14 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
           console.log('Reward already awarded, skipping');
           return prevQuests; // Return unchanged state if already awarded
         }
-        
+
         // Get the reward from current quest state and store in ref (executes synchronously within callback)
         const objective = currentQuest.objectives[objectiveIndex];
         if (objective) {
           rewardRef.value = objective.reward;
         }
       }
-      
+
       // Now update the state
       return prevQuests.map(quest => {
         if (quest.id === questId) {
@@ -485,16 +485,16 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
           while (newRewardsAwarded.length < quest.objectives.length) {
             newRewardsAwarded.push(false);
           }
-          
+
           // Double-check: if already awarded, don't proceed
           if (newRewardsAwarded[objectiveIndex] === true) {
             processingObjectives.current.delete(processingKey);
             return quest;
           }
-          
+
           // Mark as awarded immediately
           newRewardsAwarded[objectiveIndex] = true;
-          
+
           const newSubmissions = [...quest.objectiveSubmissions];
           newSubmissions[objectiveIndex] = {
             ...newSubmissions[objectiveIndex],
@@ -509,10 +509,10 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
             objectiveCompleted: newCompleted,
             objectiveRewardsAwarded: newRewardsAwarded
           };
-          
+
           // Update step progress
           setTimeout(() => updateQuestStep(questId), 0);
-          
+
           return updatedQuest;
         }
         return quest;
@@ -525,12 +525,12 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       if (rewardRef.value) {
         // Normalize reward to array
         const rewards = Array.isArray(rewardRef.value) ? rewardRef.value : [rewardRef.value];
-        
+
         // Award each reward
         rewards.forEach((reward, rewardIndex) => {
           // Create unique key for this reward to prevent duplicates
           const rewardKey = `${questId}-${objectiveIndex}-${rewardIndex}`;
-          
+
           // Check if already awarded
           if (!awardedRewards.has(rewardKey)) {
             // Mark as awarded immediately to prevent duplicates
@@ -544,7 +544,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
         });
       }
     }, 0);
-    
+
     // Clear processing flag after a delay
     setTimeout(() => {
       processingObjectives.current.delete(processingKey);
@@ -555,87 +555,87 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
   const handleClaimReward = async (questId: number) => {
     const quest = questsState.find(q => q.id === questId);
     if (!quest) return;
-    
+
     // Check if all objectives are completed and reward not already claimed
     if (!areAllObjectivesCompleted(quest) || quest.rewardClaimed) {
       return;
     }
-    
+
     // Check if already pending
     if (quest.rewardSubmissionStatus === 'pending') {
       alert('Quest completion reward is already pending approval.');
       return;
     }
-    
+
     try {
       // Submit main quest completion (without subQuestId = submits main quest)
       const formData = new FormData();
-      
+
       // Submit to API - no subQuestId means main quest submission
       const submitResponse: any = await questAPI.submitQuest(quest.id.toString(), formData);
-      
+
       // Check if rewards were granted by the backend
       const grantedRewards = submitResponse?.grantedRewards;
       const hasGrantedRewards = hasValidGrantedRewards(grantedRewards);
-      
+
       // Process rewards from API response
       if (hasGrantedRewards) {
         // Validate badge points before processing
         const validation = validateQuestCompletionBadgePoints(quest, grantedRewards.badgePoints);
-        
+
         if (!validation.isValid) {
           console.error('Quest completion badge points validation failed:', validation);
           validation.mismatches.forEach(mismatch => {
             console.error(`Badge mismatch: ${mismatch.skillName} - Expected: ${mismatch.expected}, Received: ${mismatch.received}`);
           });
         }
-        
+
         if (validation.warnings.length > 0) {
           console.warn('Quest completion badge points validation warnings:', validation.warnings);
         }
-        
+
         // Process badge points from API response
         if (grantedRewards.badgePoints && typeof grantedRewards.badgePoints === 'object') {
           // Log the badge points being processed for verification
           console.log('Processing quest completion badge points from backend:', grantedRewards.badgePoints);
-          
+
           processBadgePointsFromApi(
             grantedRewards.badgePoints,
             setSkills,
             triggerRewardAnimation,
             handleSkillLevelUp
           );
-          
+
           // Refresh badge data from backend to ensure sync after processing
           // This ensures frontend state matches backend exactly
           setTimeout(async () => {
             await refreshBadgeDataFromBackend(setSkills);
           }, 1000); // Wait 1 second for backend to process
         }
-        
+
         // Process coins from API response
         if (grantedRewards.coins) {
           processCoinsFromApi(grantedRewards.coins, setUser, triggerRewardAnimation);
         }
-        
+
         // Process rank points from API response
         if (grantedRewards.rankPoints) {
           processRankPointsFromApi(grantedRewards.rankPoints, setUser, triggerRewardAnimation);
         }
-        
+
         // Process leaderboard points from API response
         if (grantedRewards.leaderboardScore) {
           processLeaderboardPointsFromApi(grantedRewards.leaderboardScore, setUser, triggerRewardAnimation);
         }
-        
+
         // Process items from API response
         if (grantedRewards.items && Array.isArray(grantedRewards.items)) {
           processItemsFromApi(grantedRewards.items, triggerRewardAnimation, getItemIconUrl);
         }
       }
-      
+
       // Update local state to show pending status
-      setQuestsState(prevQuests => 
+      setQuestsState(prevQuests =>
         prevQuests.map(q => {
           if (q.id === questId) {
             return {
@@ -648,7 +648,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
           return q;
         })
       );
-      
+
       console.log('Main quest completion submitted:', submitResponse);
     } catch (error: any) {
       console.error('Error submitting quest completion:', error);
@@ -660,23 +660,23 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
   // Handler for admin approval of reward (instant confirm for testing)
   const handleApproveReward = useCallback((questId: number) => {
     const processingKey = `quest-reward-${questId}`;
-    
+
     // Prevent duplicate execution (React StrictMode in dev causes double calls)
     if (processingObjectives.current.has(processingKey)) {
       console.log('Already processing quest reward, skipping duplicate call');
       return;
     }
-    
+
     // Mark as processing immediately
     processingObjectives.current.add(processingKey);
-    
+
     // Get the rewards from current state BEFORE updating (using object ref to access after callback)
     const rewardsRef = { value: null as ObjectiveReward[] | null };
-    
+
     setQuestsState(prevQuests => {
       // Normalize questId for comparison (handle string/number differences)
       const normalizedQuestId = String(questId);
-      
+
       // First, check if reward was already awarded by looking at current state
       const currentQuest = prevQuests.find(q => String(q.id) === normalizedQuestId);
       if (currentQuest) {
@@ -686,13 +686,13 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
           console.log('Quest reward already awarded, skipping');
           return prevQuests; // Return unchanged state if already awarded
         }
-        
+
         // Store rewards to award outside of state update
         if (currentQuest.rewards && currentQuest.rewards.length > 0) {
           rewardsRef.value = currentQuest.rewards;
         }
       }
-      
+
       // Now update the state
       return prevQuests.map(quest => {
         if (String(quest.id) === normalizedQuestId) {
@@ -701,7 +701,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
             processingObjectives.current.delete(processingKey);
             return quest;
           }
-          
+
           return {
             ...quest,
             rewardClaimed: true,
@@ -713,7 +713,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
         return quest;
       });
     });
-    
+
     // Award rewards outside of state update to ensure it only happens once
     setTimeout(() => {
       if (rewardsRef.value && rewardsRef.value.length > 0) {
@@ -723,7 +723,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
           const rewardKey = `quest-${questId}-reward-${index}`;
           return awardedRewards.has(rewardKey);
         });
-        
+
         if (!hasAnyRewardAwarded) {
           // Award all rewards (including badge points) - they will be filtered in UI
           awardQuestRewards(rewardsRef.value, questId);
@@ -732,7 +732,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
           console.log('Quest rewards already awarded, skipping duplicate:', questId);
         }
       }
-      
+
       // Clear processing flag after a delay
       setTimeout(() => {
         processingObjectives.current.delete(processingKey);

@@ -163,6 +163,14 @@ Array of Inventory Objects (see `inventory` field in **Get My Profile**).
 }
 ```
 
+> [!NOTE]
+> **Item Types & Effects:**
+> - **Stackable / Consumable:** Quantity decreases by 1. Effect is applied immediately.
+> - **Ticket:** Status changes to 'Approving'. A TicketSubmission is created.
+> - **QuestItem:** Grants the associated Quest to the user.
+>   - If the user already has the quest (Active/Completed), it returns an error.
+>   - If successful, the item is consumed (Quantity - 1) and the quest is added to `activeQuests`.
+
 ### 2.5 Get Active Quests
 **URL:** `GET /api/v1/users/me/active-quests`
 **Description:** Retrieves quests currently in progress.
@@ -222,6 +230,8 @@ Array of Active Quest Objects (see `activeQuests` field in **Get My Profile**).
     "description": "String",
     "icon": "String (URL)",
     "type": "String ('Main', 'Daily', 'Weekly', 'Special')",
+    "nextQuest": "String (Quest ID) or null",
+    "previousQuest": "String (Quest ID) or null",
     "subQuests": [
       {
         "title": "String",
@@ -252,155 +262,19 @@ Array of Active Quest Objects (see `activeQuests` field in **Get My Profile**).
 ]
 ```
 
-### 3.2 Submit Quest
-**URL:** `POST /api/v1/quests/:id/submit`
-**Description:** Submits proof for a quest or sub-quest.
-**Content-Type:** `multipart/form-data`
-
-**Form Fields:**
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `imageProof` | File | No | Image file as proof. |
-| `description` | String | No | Additional notes. |
-| `subQuestId` | String | No | ID of the sub-quest. If omitted, submits the Main Quest. |
-
-**Response Structure:**
-```json
-{
-  "message": "String",
-  "submission": {
-    "_id": "String",
-    "status": "String ('Pending')",
-    "imageProof": "String (URL)",
-    "description": "String",
-    "type": "String ('Quest')",
-    "questId": "String",
-    "subQuestId": "String or null",
-    "userId": "String",
-    "createdAt": "Date String"
-  },
-  "grantedRewards": {
-    "coins": "Number",
-    "rankPoints": "Number",
-    "badgePoints": {
-      "[BadgeCategory]": "Number"
-    },
-    "items": [
-      {
-        "itemId": "String",
-        "name": "String",
-        "quantity": "Number"
-      }
-    ]
-  }
-}
-```
-*Note: `grantedRewards` is only present if rewards were automatically granted (e.g., for Sub-Quests).*
-
----
-
-## 4. Items
-**Header:** `Authorization: Bearer <TOKEN>` (Optional for GET)
-
-### 4.1 Get All Items
-**URL:** `GET /api/v1/items`
-**Description:** Retrieves a list of all game items.
-
-**Response Structure:**
-```json
-{
-  "message": "success",
-  "data": [
-    {
-      "_id": "String",
-      "name": "String",
-      "description": "String",
-      "icon": "String (URL)",
-      "type": "String",
-      "canStack": "Boolean",
-      "createdAt": "Date String",
-      "updatedAt": "Date String"
-    }
-  ]
-}
-```
-
-### 4.2 Get Item by ID
-**URL:** `GET /api/v1/items/:id`
-**Description:** Retrieves details of a specific item.
-
-**Response Structure:**
-```json
-{
-  "message": "success",
-  "data": {
-    // Same fields as item object in Get All Items
-  }
-}
-```
-
----
-
-## 5. Dojos
-**Header:** `Authorization: Bearer <TOKEN>`
-
-### 5.1 Get All Dojos
-**URL:** `GET /api/v1/dojos`
-**Description:** Retrieves a list of all Dojos.
-
-**Response Structure:**
-```json
-[
-  {
-    "_id": "String",
-    "name": "String",
-    "status": "String ('Prepare', 'Open', 'Closed')",
-    "whitelist": ["String (User ID)"],
-    "specialQuestId": "String (Quest ID) or null",
-    "startTime": "Date String",
-    "endTime": "Date String",
-    "createdAt": "Date String",
-    "updatedAt": "Date String"
-  }
-]
-```
-
-### 5.2 Get Dojo Status
-**URL:** `GET /api/v1/dojos/:id/status`
-**Description:** Checks if the user has access to a specific Dojo.
-
-**Response Structure:**
-```json
-{
-  "dojoId": "String",
-  "name": "String",
-  "access": "String ('Granted', 'Denied')"
-}
-```
-
----
-
-## 6. Leaderboard
-**Header:** `Authorization: Bearer <TOKEN>` (Optional)
-
-### 6.1 Get Leaderboard
+### 3.2 Leaderboard
 **URL:** `GET /api/v1/leaderboard`
-**Description:** Retrieves the current leaderboard for Users and Houses.
+**Description:** Retrieves the global leaderboard.
 
 **Response Structure:**
 ```json
 {
   "users": [
     {
-      "_id": "String",
       "discordUsername": "String",
       "discordNickname": "String",
       "leaderboardScore": "Number",
-      "rank": {
-        "currentTier": "String"
-      },
-      "badges": { ... },
-      "roles": [ ... ]
+      "rank": { "currentTier": "String" }
     }
   ],
   "houses": [
@@ -424,3 +298,44 @@ Array of Active Quest Objects (see `activeQuests` field in **Get My Profile**).
 ```
 
 ---
+
+## 4. Real-Time Updates (WebSocket)
+
+The server supports real-time updates via Socket.IO.
+
+### 4.1 Connection
+
+- **URL:** `http://<SERVER_IP>:5000`
+- **Auth:** JWT Token (Same as API)
+    - Pass via `auth.token` object or `Authorization` header.
+
+**Client Example (JS):**
+```javascript
+import { io } from "socket.io-client";
+
+const socket = io("http://localhost:5000", {
+  auth: {
+    token: "YOUR_JWT_TOKEN"
+  }
+});
+
+socket.on("connect", () => {
+  console.log("Connected:", socket.id);
+});
+```
+
+### 4.2 Events
+
+#### `quest_updated`
+Emitted when a quest submission is reviewed (Approved/Rejected).
+
+**Payload:**
+```json
+{
+  "type": "Quest",
+  "status": "Approved", // or "Rejected"
+  "questId": "65672...",
+  "submissionId": "65673...",
+  "reason": "Feedback message" // (Optional, if rejected)
+}
+```

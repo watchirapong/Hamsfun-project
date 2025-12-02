@@ -40,12 +40,12 @@ export const useItems = () => {
   const [backpackItems, setBackpackItems] = useState<BackpackItem[]>([]);
 
   // Handle item usage - only 1 used item at a time across all types
-  const handleUseItem = async (itemId: number) => {
+  const handleUseItem = async (itemId: string) => {
     const item = backpackItems.find(i => i.id === itemId);
     if (!item) return;
 
     try {
-      await userAPI.useItem(itemId.toString());
+      await userAPI.useItem(itemId);
 
       // Update local state
       setBackpackItems(prevItems => {
@@ -62,7 +62,7 @@ export const useItems = () => {
       // Refresh inventory from API
       const inventory = await userAPI.getMyInventory();
       const mappedItems = inventory.map((inv: any, idx: number) => ({
-        id: idx + 1,
+        id: inv._id,
         type: inv.itemId?.type || 'NormalItem',
         name: inv.itemId?.name || 'Item',
         description: inv.itemId?.description || '',
@@ -81,7 +81,7 @@ export const useItems = () => {
   };
 
   // Handle item deletion
-  const handleDeleteItem = (itemId: number) => {
+  const handleDeleteItem = (itemId: string) => {
     setBackpackItems(prevItems => prevItems.filter(item => item.id !== itemId));
   };
 

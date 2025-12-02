@@ -8,8 +8,8 @@ import { getAssetUrl } from '@/utils/helpers';
 
 interface BackpackItemProps {
   item: BackpackItemType;
-  onUse: (id: number) => void;
-  onDelete: (id: number) => void;
+  onUse: (id: string) => void;
+  onDelete: (id: string) => void;
   theme: 'light' | 'dark';
 }
 

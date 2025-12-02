@@ -169,7 +169,7 @@ export interface HouseLeaderboardItem {
 }
 
 export interface BackpackItem {
-  id: number;
+  id: string;
   type: string;
   name: string;
   description: string;

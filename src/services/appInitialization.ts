@@ -517,7 +517,8 @@ export const initializeApp = async (params: InitializeAppParams) => {
       const inventory = await userAPI.getMyInventory();
       // Map backend inventory to frontend BackpackItem interface
       const mappedItems = inventory.map((inv: any, idx: number) => ({
-        id: idx + 1,
+        id: inv._id,
+        type: inv.itemId?.type || 'NormalItem',
         name: inv.itemId?.name || 'Item',
         description: inv.itemId?.description || '',
         date: inv.itemId?.date || '',
