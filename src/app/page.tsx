@@ -352,7 +352,7 @@ const App: React.FC = () => {
       />
 
       {/* Skills Section */}
-      <div className="px-4 mb-4">
+      <div className="px-4 py-4">
         <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Complete tasks and Badge</h2>
         <div className="grid grid-cols-4 gap-4">
           {skills.map((skill, index) => (
@@ -367,7 +367,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Quests Section */}
-      <div className="px-4 mb-4">
+      <div className="px-4 py-4">
         {/* Show first 2 uncompleted quests on main page (including those with all objectives done but reward not claimed) */}
         {questsState
           .filter(quest => !isQuestTrulyCompleted(quest))
@@ -392,7 +392,7 @@ const App: React.FC = () => {
           </div>
           
       {/* Leaderboard Section */}
-      <div className="px-4 mb-4">
+      <div className="px-4 py-4">
         <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Leader Board</h2>
         {leaderboardLoading ? (
           <div className="text-center py-4 text-gray-500">Loading leaderboard...</div>
@@ -424,7 +424,7 @@ const App: React.FC = () => {
           </div>
 
       {/* Backpack Section */}
-      <div className="px-4 mb-4">
+      <div className="px-4 py-4">
         <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Items in Backpack</h2>
         {sortItems(backpackItems).slice(0, 3).map((item) => (
           <BackpackItemComponent 
