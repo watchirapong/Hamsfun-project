@@ -33,9 +33,30 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
   handleApproveObjective,
   handleApproveReward,
 }) => {
-  // Separate completed and uncompleted quests
-  const uncompletedQuests = questsState.filter(q => !isQuestTrulyCompleted(q));
-  const completedQuests = questsState.filter(q => isQuestTrulyCompleted(q));
+  // Separate completed and uncompleted quests, then sort so Main Quests appear first
+  const uncompletedQuests = questsState
+    .filter(q => !isQuestTrulyCompleted(q))
+    .sort((a, b) => {
+      // Main Quests first
+      const aIsMain = a.type === "Main Quest";
+      const bIsMain = b.type === "Main Quest";
+      if (aIsMain && !bIsMain) return -1;
+      if (!aIsMain && bIsMain) return 1;
+      // If both are Main Quests or both are not, maintain original order
+      return 0;
+    });
+  
+  const completedQuests = questsState
+    .filter(q => isQuestTrulyCompleted(q))
+    .sort((a, b) => {
+      // Main Quests first
+      const aIsMain = a.type === "Main Quest";
+      const bIsMain = b.type === "Main Quest";
+      if (aIsMain && !bIsMain) return -1;
+      if (!aIsMain && bIsMain) return 1;
+      // If both are Main Quests or both are not, maintain original order
+      return 0;
+    });
   
   // Track if panel should animate (only on manual open)
   const [shouldAnimate, setShouldAnimate] = useState(false);
@@ -572,7 +593,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
           {/* Uncompleted Quests */}
           {uncompletedQuests.length > 0 && (
             <>
-              {uncompletedQuests.reverse().map((quest) => (
+              {uncompletedQuests.map((quest) => (
                 <div 
                   key={`uncompleted-${quest.id}`}
                   id={`quest-${quest.id}`}
@@ -814,7 +835,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
               <div className={`text-xs font-semibold uppercase mb-2 mt-6 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
                 Completed
               </div>
-              {completedQuests.reverse().map((quest) => (
+              {completedQuests.map((quest) => (
                 <div 
                   key={`completed-${quest.id}`}
                   id={`quest-${quest.id}`}

@@ -189,20 +189,20 @@ body {
 /* Bubble Particle Expansion - Soft Circular Movement */
 @keyframes bubbleParticleExpand {
   0% {
-    transform: translate(-50%, -50%) scale(0);
+    transform: translate(-50%, -50%) translate(0, 0) scale(0);
     opacity: 1;
   }
   20% {
     opacity: 0.9;
-    transform: translate(-50%, -50%) scale(1.2);
+    transform: translate(-50%, -50%) translate(0, 0) scale(1.2);
   }
   50% {
     opacity: 0.7;
-    transform: translate(-50%, -50%) scale(0.3);
+    transform: translate(-50%, -50%) translate(0, 0) scale(0.8);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.3);
+    transform: translate(-50%, -50%) translate(0, 0) scale(0.3);
   }
 }
 

@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { ObjectiveReward, User, Skill } from '@/types';
 import { calculatePetLevelProgression } from '@/services/rewardService';
 import { mapApiSkillNameToDisplayName } from '@/utils/rewardHelpers';
 import { getAssetUrl } from '@/utils/helpers';
+import { RewardNotificationData } from '@/components/common/RewardNotification';
 
 export interface RewardAnimationInstance {
   id: string;
@@ -18,12 +19,26 @@ export interface RewardAnimationInstance {
   forceBurst?: boolean; // Flag to force immediate burst (e.g., on panel close)
 }
 
+export interface PendingReward {
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard';
+  value: number | string;
+  skillName?: string;
+  itemName?: string;
+  itemIcon?: string;
+  itemId?: string;
+}
+
 export const useRewards = (
   setUser: React.Dispatch<React.SetStateAction<User>>,
   setSkills: React.Dispatch<React.SetStateAction<Skill[]>>
 ) => {
   const [rewardAnimations, setRewardAnimations] = useState<RewardAnimationInstance[]>([]);
   const [levelUpAnimations, setLevelUpAnimations] = useState<Set<string>>(new Set());
+  const [rewardNotifications, setRewardNotifications] = useState<RewardNotificationData[]>([]);
+  const [pendingRewards, setPendingRewards] = useState<PendingReward[]>([]);
+  
+  // Ref for unique notification ID counter
+  const notificationIdCounter = useRef<number>(0);
 
   // Ref to track reward animations in progress to prevent duplicates
   const rewardAnimationsInProgress = useRef<Set<string>>(new Set());
@@ -37,17 +52,50 @@ export const useRewards = (
   // Ref to track skill level-ups to prevent duplicate rewards
   const skillLevelUpProcessed = useRef<Set<string>>(new Set());
 
+  // Ref to store handleSkillLevelUp function for use in applyRewardImmediately
+  const handleSkillLevelUpRef = useRef<((skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => void) | null>(null);
+
+  // Function to trigger reward notification
+  const triggerRewardNotification = (reward: ObjectiveReward) => {
+    notificationIdCounter.current += 1;
+    const notificationId = `notification-${Date.now()}-${notificationIdCounter.current}`;
+    
+    const notification: RewardNotificationData = {
+      id: notificationId,
+      type: reward.type,
+      value: reward.value || 0,
+      skillName: reward.skillName,
+      itemName: reward.itemName,
+      itemIcon: reward.itemIcon,
+    };
+    
+    setRewardNotifications(prev => [...prev, notification]);
+  };
+
+  // Function to remove reward notification
+  const removeRewardNotification = (id: string) => {
+    setRewardNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
   // Function to trigger reward animation
   const triggerRewardAnimation = (reward: ObjectiveReward) => {
     console.log('triggerRewardAnimation called with:', reward);
-    const rewardKey = `${reward.type}-${reward.value || 0}-${reward.skillName || ''}`;
+    
+    // Also trigger notification
+    triggerRewardNotification(reward);
+    
+    // Create a more specific reward key that includes item details to prevent duplicates
+    const rewardKey = `${reward.type}-${reward.value || 0}-${reward.skillName || ''}-${reward.itemName || ''}-${reward.itemId || ''}`;
     const now = Date.now();
 
-    // Check if this exact reward animation was triggered recently (within last 1000ms)
+    // Check if this exact reward animation was triggered recently (within last 2000ms)
+    // Increased window to catch duplicates from different code paths
     const recentReward = Array.from(rewardAnimationsInProgress.current).find(key => {
-      if (key.startsWith(rewardKey + '-')) {
+      // Extract the base key (without timestamp) for comparison
+      const baseKey = key.substring(0, key.lastIndexOf('-'));
+      if (baseKey === rewardKey) {
         const timestamp = parseInt(key.split('-').pop() || '0');
-        return now - timestamp < 1000;
+        return now - timestamp < 2000; // Increased to 2000ms
       }
       return false;
     });
@@ -106,10 +154,102 @@ export const useRewards = (
       setRewardAnimations(prev => prev.filter(anim => anim.id !== animationId));
       // Remove from in-progress set after animation completes
       rewardAnimationsInProgress.current.delete(rewardKeyWithTimestamp);
-    }, 5600); // 5 seconds float + 600ms burst
+    }, 8000); // Increased to 8 seconds to ensure cleanup happens after all animations complete
   };
 
-  // Helper function to award objective reward
+  // Function to apply a reward immediately (moved outside for reuse)
+  const applyRewardImmediately = useCallback((reward: PendingReward) => {
+    if (reward.type === 'coins') {
+      const coinValue = typeof reward.value === 'number' ? reward.value : 0;
+      if (coinValue > 0) {
+        setUser(prev => ({
+          ...prev,
+          coins: prev.coins + coinValue
+        }));
+        console.log(`Applied ${coinValue} coins`);
+      }
+    } else if (reward.type === 'exp') {
+      const expValue = typeof reward.value === 'number' ? reward.value : 0;
+      if (expValue > 0) {
+        setUser(prev => {
+          const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, expValue);
+          return {
+            ...prev,
+            petXp: progression.newXp,
+            petLevel: progression.newLevel,
+            petMaxXp: progression.newMaxXp
+          };
+        });
+        console.log(`Applied ${expValue} XP to pet`);
+      }
+    } else if (reward.type === 'rank') {
+      const rankValue = typeof reward.value === 'number' ? reward.value : 0;
+      if (rankValue > 0) {
+        setUser(prev => ({
+          ...prev,
+          rankPoints: prev.rankPoints + rankValue
+        }));
+        console.log(`Applied ${rankValue} rank points`);
+      }
+    } else if (reward.type === 'leaderboard') {
+      const leaderboardValue = typeof reward.value === 'number' ? reward.value : 0;
+      if (leaderboardValue > 0) {
+        setUser((prev: any) => ({
+          ...prev,
+          leaderboardScore: (prev.leaderboardScore || 0) + leaderboardValue
+        }));
+        console.log(`Applied ${leaderboardValue} leaderboard points`);
+      }
+    } else if (reward.type === 'skill' && reward.skillName) {
+      const skillValue = typeof reward.value === 'number' ? reward.value : 0;
+      if (skillValue > 0) {
+        setSkills(prev => prev.map(skill => {
+          if (skill.name === reward.skillName) {
+            const oldLevel = skill.currentLevel;
+            const oldPoints = skill.points;
+            const oldMaxPoints = skill.maxPoints;
+            const newPoints = oldPoints + skillValue;
+
+            let newLevel = oldLevel;
+            let newMaxPoints = oldMaxPoints;
+
+            if (newPoints >= oldMaxPoints && oldLevel < 5) {
+              newLevel = oldLevel + 1;
+              newMaxPoints = 10000 * newLevel;
+              setTimeout(() => {
+                if (handleSkillLevelUpRef.current) {
+                  handleSkillLevelUpRef.current(skill.name, newLevel, skill.rewards);
+                }
+              }, 100);
+            }
+
+            const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
+
+            return {
+              ...skill,
+              points: cappedPoints,
+              currentLevel: newLevel,
+              maxPoints: newMaxPoints
+            };
+          }
+          return skill;
+        }));
+        console.log(`Applied ${skillValue} points to ${reward.skillName} skill`);
+      }
+    }
+  }, [setUser, setSkills, handleSkillLevelUpRef]);
+
+  // Function to apply pending rewards with animations (TEMPORARILY DISABLED - rewards apply immediately now)
+  const applyPendingRewards = useCallback(() => {
+    // This function is kept for compatibility but does nothing since rewards apply immediately
+    setPendingRewards(prev => {
+      if (prev.length === 0) return prev;
+      // Clear any remaining pending rewards (shouldn't happen now)
+      return [];
+    });
+  }, []);
+
+  // Helper function to award objective reward (TEMPORARILY DISABLED: applies rewards immediately instead of queuing)
   const awardObjectiveReward = (reward: ObjectiveReward, contextKey?: string) => {
     // Create a unique key for this reward with context to prevent duplicates
     const rewardKey = contextKey
@@ -133,112 +273,19 @@ export const useRewards = (
       awardedRewards.current.delete(rewardKey);
     }, 5000);
 
-    // Award the reward based on type
-    if (reward.type === 'coins') {
-      const coinValue = typeof reward.value === 'number' ? reward.value : 0;
-      if (coinValue > 0) {
-        setUser(prev => ({
-          ...prev,
-          coins: prev.coins + coinValue
-        }));
-        console.log(`Awarded ${coinValue} coins`);
-      }
-    } else if (reward.type === 'exp') {
-      const expValue = typeof reward.value === 'number' ? reward.value : 0;
-      if (expValue > 0) {
-        setUser(prev => {
-          // All XP goes to pet (100% of exp reward)
-          // Calculate multiple level-ups if needed
-          const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, expValue);
-
-          return {
-            ...prev,
-            petXp: progression.newXp,
-            petLevel: progression.newLevel,
-            petMaxXp: progression.newMaxXp
-          };
-        });
-        console.log(`Awarded ${expValue} XP to pet`);
-      }
-    } else if (reward.type === 'rank') {
-      const rankValue = typeof reward.value === 'number' ? reward.value : 0;
-      if (rankValue > 0) {
-        setUser(prev => ({
-          ...prev,
-          rankPoints: prev.rankPoints + rankValue
-        }));
-        triggerRewardAnimation({ type: 'rank', value: rankValue });
-        console.log(`Awarded ${rankValue} rank points`);
-      }
-    } else if (reward.type === 'leaderboard') {
-      const leaderboardValue = typeof reward.value === 'number' ? reward.value : 0;
-      if (leaderboardValue > 0) {
-        setUser((prev: any) => ({
-          ...prev,
-          leaderboardScore: (prev.leaderboardScore || 0) + leaderboardValue
-        }));
-        triggerRewardAnimation({ type: 'leaderboard', value: leaderboardValue });
-        console.log(`Awarded ${leaderboardValue} leaderboard points`);
-      }
-    } else if (reward.type === 'item' && reward.itemId) {
-      const itemQuantity = typeof reward.value === 'number' ? reward.value : 1;
-      const itemIcon = reward.itemIcon || getAssetUrl("/Asset/item/classTicket.png");
-      const iconUrl = itemIcon.startsWith('/') && !itemIcon.startsWith('/Asset')
-        ? `https://api.questcity.cloud/hamster-world${itemIcon}`
-        : itemIcon;
-
-      triggerRewardAnimation({
-        type: 'item',
-        value: itemQuantity,
-        itemName: reward.itemName || 'Item',
-        itemIcon: iconUrl
-      });
-      console.log(`Awarded ${itemQuantity}x ${reward.itemName || 'Item'}`);
-    } else if (reward.type === 'skill' && reward.skillName) {
-      const skillValue = typeof reward.value === 'number' ? reward.value : 0;
-      if (skillValue > 0) {
-        setSkills(prev => prev.map(skill => {
-          if (skill.name === reward.skillName) {
-            const oldLevel = skill.currentLevel;
-            const oldPoints = skill.points;
-            const oldMaxPoints = skill.maxPoints;
-            const newPoints = oldPoints + skillValue;
-
-            // Preserve current level - only level up when points reach or exceed maxPoints
-            let newLevel = oldLevel;
-            let newMaxPoints = oldMaxPoints;
-
-            // Check if skill should level up (points reached maxPoints)
-            // Cap at level 5 (Diamond) - no progression after Diamond
-            if (newPoints >= oldMaxPoints && oldLevel < 5) {
-              newLevel = oldLevel + 1;
-              newMaxPoints = 10000 * newLevel;
-
-              // Trigger level-up animation after state update
-              setTimeout(() => {
-                handleSkillLevelUp(skill.name, newLevel, skill.rewards);
-              }, 100);
-            }
-
-            // Cap points at maxPoints for current level (don't exceed until level up)
-            // Diamond (level 5) doesn't accumulate points
-            const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
-
-            return {
-              ...skill,
-              points: cappedPoints,
-              currentLevel: newLevel,
-              maxPoints: newMaxPoints
-            };
-          }
-          return skill;
-        }));
-        console.log(`Awarded ${skillValue} points to ${reward.skillName} skill`);
-      }
-    } else if (reward.type === 'animal') {
-      // Award animal (special reward) - could add to a collection or show notification
-      console.log('Awarded animal:', reward.value);
-    }
+    // TEMPORARILY DISABLED: Apply reward immediately instead of queuing
+    // Apply reward immediately
+    const pendingReward: PendingReward = {
+      type: reward.type,
+      value: reward.value || 0,
+      skillName: reward.skillName,
+      itemName: reward.itemName,
+      itemIcon: reward.itemIcon,
+      itemId: reward.itemId,
+    };
+    
+    applyRewardImmediately(pendingReward);
+    console.log(`Applied reward immediately: ${reward.type} - ${reward.value}`);
   };
 
   // Helper function to award quest completion rewards
@@ -255,102 +302,72 @@ export const useRewards = (
   };
 
   // Helper function to process rewards from grantedRewards object (for main quest rewards after approval)
-  const processGrantedRewards = (grantedRewards: any) => {
+  const processGrantedRewards = (grantedRewards: any, contextKey?: string) => {
     if (!grantedRewards) return;
 
-    // Process coins
+    // Process coins - use awardObjectiveReward for proper deduplication
     if (grantedRewards.coins && grantedRewards.coins > 0) {
-      setUser(prev => ({
-        ...prev,
-        coins: prev.coins + grantedRewards.coins
-      }));
-      triggerRewardAnimation({ type: 'coins', value: grantedRewards.coins });
+      const rewardKey = contextKey ? `${contextKey}-coins` : `granted-coins-${Date.now()}`;
+      awardObjectiveReward({ type: 'coins', value: grantedRewards.coins }, rewardKey);
     }
 
-    // Process rank points
+    // Process rank points - use awardObjectiveReward for proper deduplication
     if (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) {
-      setUser(prev => ({
-        ...prev,
-        rankPoints: prev.rankPoints + grantedRewards.rankPoints
-      }));
-      triggerRewardAnimation({ type: 'rank', value: grantedRewards.rankPoints });
+      const rewardKey = contextKey ? `${contextKey}-rank` : `granted-rank-${Date.now()}`;
+      awardObjectiveReward({ type: 'rank', value: grantedRewards.rankPoints }, rewardKey);
     }
 
-    // Process leaderboard points
+    // Process leaderboard points - use awardObjectiveReward for proper deduplication
     if (grantedRewards.leaderboardScore && grantedRewards.leaderboardScore > 0) {
-      setUser(prev => ({
-        ...prev,
-        leaderboardScore: (prev.leaderboardScore || 0) + grantedRewards.leaderboardScore
-      }));
-      triggerRewardAnimation({ type: 'leaderboard', value: grantedRewards.leaderboardScore });
+      const rewardKey = contextKey ? `${contextKey}-leaderboard` : `granted-leaderboard-${Date.now()}`;
+      awardObjectiveReward({ type: 'leaderboard', value: grantedRewards.leaderboardScore }, rewardKey);
     }
 
-    // Process items
+    // Process items - use awardObjectiveReward for proper deduplication
     if (grantedRewards.items && Array.isArray(grantedRewards.items) && grantedRewards.items.length > 0) {
-      grantedRewards.items.forEach((item: any) => {
+      grantedRewards.items.forEach((item: any, index: number) => {
         if (item.quantity > 0) {
           const iconUrl = item.icon?.startsWith('/') && !item.icon.startsWith('/Asset')
             ? `https://api.questcity.cloud/hamster-world${item.icon}`
             : item.icon || getAssetUrl("/Asset/item/classTicket.png");
 
-          triggerRewardAnimation({
+          const rewardKey = contextKey 
+            ? `${contextKey}-item-${index}` 
+            : `granted-item-${Date.now()}-${index}`;
+          
+          awardObjectiveReward({
             type: 'item',
             value: item.quantity,
             itemName: item.name,
-            itemIcon: iconUrl
-          });
+            itemIcon: iconUrl,
+            itemId: item.itemId
+          }, rewardKey);
         }
       });
     }
 
-    // Process badge points (no animation, handled separately)
+    // Process badge points - use awardObjectiveReward for proper deduplication
     if (grantedRewards.badgePoints && typeof grantedRewards.badgePoints === 'object') {
-      Object.keys(grantedRewards.badgePoints).forEach(skillName => {
+      Object.keys(grantedRewards.badgePoints).forEach((skillName, index) => {
         const pointsToAdd = grantedRewards.badgePoints[skillName];
         if (pointsToAdd && pointsToAdd > 0) {
           const displayName = mapApiSkillNameToDisplayName(skillName);
-          triggerRewardAnimation({
+          const rewardKey = contextKey 
+            ? `${contextKey}-skill-${skillName}` 
+            : `granted-skill-${Date.now()}-${index}`;
+          
+          awardObjectiveReward({
             type: 'skill',
             value: pointsToAdd,
             skillName: displayName
-          });
-
-          setSkills(prev => prev.map(skill => {
-            if (skill.name === displayName) {
-              const oldLevel = skill.currentLevel;
-              const oldPoints = skill.points;
-              const oldMaxPoints = skill.maxPoints;
-              const newPoints = oldPoints + pointsToAdd;
-
-              let newLevel = oldLevel;
-              let newMaxPoints = oldMaxPoints;
-
-              if (newPoints >= oldMaxPoints && oldLevel < 5) {
-                newLevel = oldLevel + 1;
-                newMaxPoints = 10000 * newLevel;
-                setTimeout(() => {
-                  handleSkillLevelUp(skill.name, newLevel, skill.rewards);
-                }, 100);
-              }
-
-              const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
-
-              return {
-                ...skill,
-                points: cappedPoints,
-                currentLevel: newLevel,
-                maxPoints: newMaxPoints
-              };
-            }
-            return skill;
-          }));
+          }, rewardKey);
         }
       });
     }
   };
 
   // Function to handle skill level-up
-  const handleSkillLevelUp = (skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => {
+  const handleSkillLevelUp = useCallback((skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => {
     // Create unique key for this level-up to prevent duplicates
     const levelUpKey = `${skillName}-${newLevel}`;
 
@@ -393,13 +410,20 @@ export const useRewards = (
         }
       });
     }
-  };
+  }, [setUser, triggerRewardAnimation]);
+
+  // Update ref when handleSkillLevelUp changes
+  handleSkillLevelUpRef.current = handleSkillLevelUp;
 
   return {
     rewardAnimations,
     setRewardAnimations,
     levelUpAnimations,
     setLevelUpAnimations,
+    rewardNotifications,
+    removeRewardNotification,
+    pendingRewards,
+    applyPendingRewards,
     triggerRewardAnimation,
     awardObjectiveReward,
     awardQuestRewards,

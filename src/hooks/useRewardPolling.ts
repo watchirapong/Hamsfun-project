@@ -13,6 +13,7 @@ interface UseRewardPollingParams {
   triggerRewardAnimation: (reward: any) => void;
   handleSkillLevelUp: (skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => void;
   awardedRewards: Set<string>;
+  awardObjectiveReward: (reward: any, contextKey?: string) => void;
 }
 
 /**
@@ -27,7 +28,8 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
     setSkills,
     triggerRewardAnimation,
     handleSkillLevelUp,
-    awardedRewards
+    awardedRewards,
+    awardObjectiveReward
   } = params;
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -80,34 +82,8 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
               pendingQuest.rewards.forEach((reward, index) => {
                 const individualKey = `quest-${pendingQuest.id}-reward-${index}`;
                 if (!awardedRewards.has(individualKey)) {
-                  // Award the reward based on its type
-                  if (reward.type === 'coins' && typeof reward.value === 'number') {
-                    processCoinsFromApi(reward.value, setUser, triggerRewardAnimation);
-                  } else if (reward.type === 'rank' && typeof reward.value === 'number') {
-                    processRankPointsFromApi(reward.value, setUser, triggerRewardAnimation);
-                  } else if (reward.type === 'leaderboard' && typeof reward.value === 'number') {
-                    processLeaderboardPointsFromApi(reward.value, setUser, triggerRewardAnimation);
-                  } else if (reward.type === 'item' && reward.itemId) {
-                    const itemQuantity = typeof reward.value === 'number' ? reward.value : 1;
-                    const itemIcon = reward.itemIcon || getAssetUrl("/Asset/item/classTicket.png");
-                    const iconUrl = getItemIconUrl(itemIcon);
-                    processItemsFromApi([{
-                      itemId: reward.itemId,
-                      name: reward.itemName || 'Item',
-                      quantity: itemQuantity,
-                      icon: iconUrl
-                    }], triggerRewardAnimation, getItemIconUrl);
-                  } else if (reward.type === 'skill' && reward.skillName) {
-                    const skillValue = typeof reward.value === 'number' ? reward.value : 0;
-                    if (skillValue > 0) {
-                      processBadgePointsFromApi(
-                        { [reward.skillName]: skillValue },
-                        setSkills,
-                        triggerRewardAnimation,
-                        handleSkillLevelUp
-                      );
-                    }
-                  }
+                  // Queue the reward instead of applying immediately
+                  awardObjectiveReward(reward, individualKey);
                 }
               });
 
@@ -196,33 +172,8 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
                   existingQuest.rewards.forEach((reward: any, index: number) => {
                     const individualKey = `quest-${existingQuest.id}-reward-${index}`;
                     if (!awardedRewards.has(individualKey)) {
-                      if (reward.type === 'coins' && typeof reward.value === 'number') {
-                        processCoinsFromApi(reward.value, setUser, triggerRewardAnimation);
-                      } else if (reward.type === 'rank' && typeof reward.value === 'number') {
-                        processRankPointsFromApi(reward.value, setUser, triggerRewardAnimation);
-                      } else if (reward.type === 'leaderboard' && typeof reward.value === 'number') {
-                        processLeaderboardPointsFromApi(reward.value, setUser, triggerRewardAnimation);
-                      } else if (reward.type === 'item' && reward.itemId) {
-                        const itemQuantity = typeof reward.value === 'number' ? reward.value : 1;
-                        const itemIcon = reward.itemIcon || getAssetUrl("/Asset/item/classTicket.png");
-                        const iconUrl = getItemIconUrl(itemIcon);
-                        processItemsFromApi([{
-                          itemId: reward.itemId,
-                          name: reward.itemName || 'Item',
-                          quantity: itemQuantity,
-                          icon: iconUrl
-                        }], triggerRewardAnimation, getItemIconUrl);
-                      } else if (reward.type === 'skill' && reward.skillName) {
-                        const skillValue = typeof reward.value === 'number' ? reward.value : 0;
-                        if (skillValue > 0) {
-                          processBadgePointsFromApi(
-                            { [reward.skillName]: skillValue },
-                            setSkills,
-                            triggerRewardAnimation,
-                            handleSkillLevelUp
-                          );
-                        }
-                      }
+                      // Queue the reward instead of applying immediately
+                      awardObjectiveReward(reward, individualKey);
                     }
                   });
 

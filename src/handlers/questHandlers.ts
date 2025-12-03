@@ -31,6 +31,7 @@ interface QuestHandlersParams {
   description: string;
   awardObjectiveReward: (reward: ObjectiveReward, contextKey?: string) => void;
   awardQuestRewards: (rewards: ObjectiveReward[], questId: number) => void;
+  applyPendingRewards: () => void;
 }
 
 /**
@@ -60,6 +61,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
     description,
     awardObjectiveReward,
     awardQuestRewards,
+    applyPendingRewards,
   } = params;
 
   // Helper function to update quest step based on approved objectives
@@ -341,23 +343,33 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
             }, 1000); // Wait 1 second for backend to process
           }
 
-          // Also award coins and rank points from API response
+          // Queue rewards instead of applying immediately (they'll be applied when panel closes)
           if (rewardsToProcess && rewardsToProcess.coins) {
-            processCoinsFromApi(rewardsToProcess.coins, setUser, triggerRewardAnimation);
+            awardObjectiveReward({ type: 'coins', value: rewardsToProcess.coins }, `objective-${selectedObjective.questId}-${selectedObjective.objectiveIndex}-coins`);
           }
 
           if (rewardsToProcess && rewardsToProcess.rankPoints) {
-            processRankPointsFromApi(rewardsToProcess.rankPoints, setUser, triggerRewardAnimation);
+            awardObjectiveReward({ type: 'rank', value: rewardsToProcess.rankPoints }, `objective-${selectedObjective.questId}-${selectedObjective.objectiveIndex}-rank`);
           }
 
           // Process leaderboard points from API response
           if (rewardsToProcess && rewardsToProcess.leaderboardScore) {
-            processLeaderboardPointsFromApi(rewardsToProcess.leaderboardScore, setUser, triggerRewardAnimation);
+            awardObjectiveReward({ type: 'leaderboard', value: rewardsToProcess.leaderboardScore }, `objective-${selectedObjective.questId}-${selectedObjective.objectiveIndex}-leaderboard`);
           }
 
           // Process items from API response
           if (rewardsToProcess && rewardsToProcess.items && Array.isArray(rewardsToProcess.items)) {
-            processItemsFromApi(rewardsToProcess.items, triggerRewardAnimation, getItemIconUrl);
+            rewardsToProcess.items.forEach((item: any) => {
+              if (item.quantity > 0) {
+                awardObjectiveReward({
+                  type: 'item',
+                  value: item.quantity,
+                  itemName: item.name,
+                  itemIcon: getItemIconUrl(item.icon),
+                  itemId: item.itemId,
+                }, `objective-${selectedObjective.questId}-${selectedObjective.objectiveIndex}-item-${item.itemId}`);
+              }
+            });
           }
 
           console.log('Reward awarded for objective:', selectedObjective.objectiveIndex, 'hasGrantedRewards:', hasGrantedRewards);

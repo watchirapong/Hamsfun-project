@@ -24,9 +24,11 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
   const [currentPosition, setCurrentPosition] = React.useState({ y: 0, scale: 0.6, opacity: 0 });
   const [isPopping, setIsPopping] = React.useState(false);
   const [shouldBurst, setShouldBurst] = React.useState(false);
+  const [showParticles, setShowParticles] = React.useState(true);
   const animationDuration = 7000; // 5 seconds total for slower float
   const targetHeight = window.innerHeight * 0.8; // 80% of screen height
   const popStartTime = animationDuration * 0.8; // Start pop at 80% of animation
+  const burstAnimationDuration = 600; // Duration of burst animation in ms
   
   // Easing function for smooth float
   const easeOutCubic = (t: number): number => {
@@ -80,8 +82,12 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
       
       setCurrentPosition({ y, scale, opacity });
       
-      // Trigger burst at 80% progress
-      if (progress >= popStartTime / animationDuration && !isPopping && !shouldBurst) {
+      // Trigger burst when bubble reaches near the top (when absolute y position is close to targetHeight)
+      // Check if the bubble has moved up by at least 75% of targetHeight
+      const currentHeight = Math.abs(y);
+      const burstThreshold = targetHeight * 0.75; // Burst when 75% of the way to top
+      
+      if (currentHeight >= burstThreshold && !isPopping && !shouldBurst) {
         setIsPopping(true);
         setShouldBurst(true);
       }
@@ -92,6 +98,17 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
     
     return () => clearInterval(interval);
   }, [animation.startTime, animation.forceBurst, isPopping, shouldBurst, popStartTime, targetHeight]);
+
+  // Clean up particles after burst animation completes
+  React.useEffect(() => {
+    if (isPopping && shouldBurst) {
+      const cleanupTimer = setTimeout(() => {
+        setShowParticles(false);
+      }, burstAnimationDuration);
+
+      return () => clearTimeout(cleanupTimer);
+    }
+  }, [isPopping, shouldBurst, burstAnimationDuration]);
   
   const getIcon = () => {
     switch (animation.type) {
@@ -201,20 +218,31 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
         {isPopping && (
           <>
             {/* Central soft glow pulse */}
-            <div 
-              className="absolute rounded-full bg-gradient-to-br from-blue-200/50 via-cyan-200/40 to-white/50 blur-3xl"
-              style={{
-                width: '120px',
-                height: '120px',
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                animation: 'glowPulse 500ms ease-out forwards',
-              }}
-            />
+            {showParticles && (
+              <>
+                <style>{`
+                  @keyframes glowPulse-${animation.id} {
+                    0% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+                    50% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); }
+                    100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
+                  }
+                `}</style>
+                <div 
+                  className="absolute rounded-full bg-gradient-to-br from-blue-200/50 via-cyan-200/40 to-white/50 blur-3xl"
+                  style={{
+                    width: '120px',
+                    height: '120px',
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    animation: `glowPulse-${animation.id} 500ms ease-out forwards`,
+                  }}
+                />
+              </>
+            )}
             
             {/* Main bubble particles - soft circular expansion */}
-            {[...Array(6)].map((_, i) => {
+            {showParticles && [...Array(6)].map((_, i) => {
               const angle = (i * 360) / 6;
               const radian = (angle * Math.PI) / 180;
               const baseDistance = 50;
@@ -223,27 +251,51 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
               const x = Math.cos(radian) * finalDistance;
               const y = Math.sin(radian) * finalDistance;
               
+              // Create unique keyframe animation for each particle using animation.id
+              const animationName = `bubbleParticleExpand-${animation.id}-${i}`;
+              
               return (
-                <div
-                  key={i}
-                  className="absolute rounded-full bg-gradient-to-br from-blue-100/90 via-cyan-100/80 to-white/90 blur-md"
-                  style={{
-                    width: `${sizeVariation}px`,
-                    height: `${sizeVariation}px`,
-                    left: '50%',
-                    top: '50%',
-                    transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.3)`,
-                    opacity: 0,
-                    animation: `bubbleParticleExpand 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
-                    animationDelay: `${i * 30}ms`,
-                    boxShadow: '0 0 15px rgba(135, 206, 250, 0.6), 0 0 30px rgba(135, 206, 250, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.8)',
-                  }}
-                />
+                <React.Fragment key={i}>
+                  <style>{`
+                    @keyframes ${animationName} {
+                      0% {
+                        transform: translate(-50%, -50%) translate(0, 0) scale(0);
+                        opacity: 1;
+                      }
+                      20% {
+                        opacity: 0.9;
+                        transform: translate(-50%, -50%) translate(${x}px, ${y}px) scale(1.2);
+                      }
+                      50% {
+                        opacity: 0.7;
+                        transform: translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.8);
+                      }
+                      100% {
+                        opacity: 0;
+                        transform: translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.3);
+                      }
+                    }
+                  `}</style>
+                  <div
+                    className="absolute rounded-full bg-gradient-to-br from-blue-100/90 via-cyan-100/80 to-white/90 blur-md"
+                    style={{
+                      width: `${sizeVariation}px`,
+                      height: `${sizeVariation}px`,
+                      left: '50%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%) translate(0, 0) scale(0)',
+                      opacity: 0,
+                      animation: `${animationName} 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                      animationDelay: `${i * 30}ms`,
+                      boxShadow: '0 0 15px rgba(135, 206, 250, 0.6), 0 0 30px rgba(135, 206, 250, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.8)',
+                    }}
+                  />
+                </React.Fragment>
               );
             })}
             
             {/* Secondary smaller bubbles for detail */}
-            {[...Array(10)].map((_, i) => {
+            {showParticles && [...Array(10)].map((_, i) => {
               const angle = (i * 360) / 10 + 18; // Offset by 18 degrees
               const radian = (angle * Math.PI) / 180;
               const baseDistance = 35;
@@ -251,51 +303,95 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
               const size = 6 + (i % 2) * 2; // 6px or 8px
               const x = Math.cos(radian) * finalDistance;
               const y = Math.sin(radian) * finalDistance;
+              const animationName = `bubbleParticleExpand-small-${animation.id}-${i}`;
               
               return (
-                <div
-                  key={`small-${i}`}
-                  className="absolute rounded-full bg-white/70 blur-sm"
-                  style={{
-                    width: `${size}px`,
-                    height: `${size}px`,
-                    left: '50%',
-                    top: '50%',
-                    transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.3)`,
-                    opacity: 0,
-                    animation: `bubbleParticleExpand 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
-                    animationDelay: `${i * 20}ms`,
-                    boxShadow: '0 0 8px rgba(255, 255, 255, 0.9), inset 0 0 4px rgba(255, 255, 255, 1)',
-                  }}
-                />
+                <React.Fragment key={`small-${i}`}>
+                  <style>{`
+                    @keyframes ${animationName} {
+                      0% {
+                        transform: translate(-50%, -50%) translate(0, 0) scale(0);
+                        opacity: 1;
+                      }
+                      20% {
+                        opacity: 0.9;
+                        transform: translate(-50%, -50%) translate(${x}px, ${y}px) scale(1.2);
+                      }
+                      50% {
+                        opacity: 0.7;
+                        transform: translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.8);
+                      }
+                      100% {
+                        opacity: 0;
+                        transform: translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.3);
+                      }
+                    }
+                  `}</style>
+                  <div
+                    className="absolute rounded-full bg-white/70 blur-sm"
+                    style={{
+                      width: `${size}px`,
+                      height: `${size}px`,
+                      left: '50%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%) translate(0, 0) scale(0)',
+                      opacity: 0,
+                      animation: `${animationName} 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                      animationDelay: `${i * 20}ms`,
+                      boxShadow: '0 0 8px rgba(255, 255, 255, 0.9), inset 0 0 4px rgba(255, 255, 255, 1)',
+                    }}
+                  />
+                </React.Fragment>
               );
             })}
             
             {/* Tiny sparkle particles */}
-            {[...Array(8)].map((_, i) => {
+            {showParticles && [...Array(8)].map((_, i) => {
               const angle = (i * 360) / 8 + 22.5;
               const radian = (angle * Math.PI) / 180;
               const baseDistance = 25;
               const finalDistance = baseDistance * 2.5;
               const x = Math.cos(radian) * finalDistance;
               const y = Math.sin(radian) * finalDistance;
+              const animationName = `bubbleParticleExpand-sparkle-${animation.id}-${i}`;
               
               return (
-                <div
-                  key={`sparkle-${i}`}
-                  className="absolute rounded-full bg-white blur-xs"
-                  style={{
-                    width: '3px',
-                    height: '3px',
-                    left: '50%',
-                    top: '50%',
-                    transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.3)`,
-                    opacity: 0,
-                    animation: `bubbleParticleExpand 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
-                    animationDelay: `${i * 15}ms`,
-                    boxShadow: '0 0 6px rgba(255, 255, 255, 1)',
-                  }}
-                />
+                <React.Fragment key={`sparkle-${i}`}>
+                  <style>{`
+                    @keyframes ${animationName} {
+                      0% {
+                        transform: translate(-50%, -50%) translate(0, 0) scale(0);
+                        opacity: 1;
+                      }
+                      20% {
+                        opacity: 0.9;
+                        transform: translate(-50%, -50%) translate(${x}px, ${y}px) scale(1.2);
+                      }
+                      50% {
+                        opacity: 0.7;
+                        transform: translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.8);
+                      }
+                      100% {
+                        opacity: 0;
+                        transform: translate(-50%, -50%) translate(${x}px, ${y}px) scale(0.3);
+                      }
+                    }
+                  `}</style>
+                  <div
+                    className="absolute rounded-full bg-white blur-xs"
+                    style={{
+                      width: '3px',
+                      height: '3px',
+                      left: '50%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%) translate(0, 0) scale(0)',
+                      opacity: 0,
+                      animation: `${animationName} 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
+                      animationDelay: `${i * 15}ms`,
+                      boxShadow: '0 0 6px rgba(255, 255, 255, 1)',
+                    }}
+                  />
+                </React.Fragment>
               );
             })}
           </>

@@ -78,9 +78,13 @@ export const authAPI = {
     try {
       const params = new URLSearchParams();
       // The redirectUri should point to the handover endpoint where the token will be received
-      // Format: {currentOrigin}/auth/handover
+      // Format: {currentOrigin}{basePath}/auth/handover
       const currentOrigin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-      const handoverUri = `${currentOrigin}/auth/handover`;
+      // Get basePath from environment variable or detect from current path
+      // In development, basePath is typically empty; in production it's /hamster-quest
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || 
+        (window.location.pathname.startsWith('/hamster-quest') ? '/hamster-quest' : '');
+      const handoverUri = `${currentOrigin}${basePath}/auth/handover`;
 
       if (redirectUri) {
         params.append('redirectUri', redirectUri);
@@ -91,6 +95,7 @@ export const authAPI = {
 
       const discordAuthUrl = `${API_BASE_URL}/auth/discord?${params.toString()}`;
       console.log('Redirecting to Discord login:', discordAuthUrl);
+      console.log('Handover URI:', handoverUri);
       window.location.href = discordAuthUrl;
     } catch (error) {
       console.error('Error initiating Discord login:', error);

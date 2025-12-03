@@ -48,6 +48,7 @@ import { ProfileSection } from '@/components/profile/ProfileSection';
 import { QuestCard } from '@/components/quests/QuestCard';
 import { SkillCard } from '@/components/skills/SkillCard';
 import { RewardAnimation } from '@/components/common/RewardAnimation';
+import { RewardNotificationContainer } from '@/components/common/RewardNotification';
 import { LeaderboardItemComponent } from '@/components/common/LeaderboardItem';
 import { HouseLeaderboardItemComponent } from '@/components/leaderboard/HouseLeaderboardItem';
 import { BackpackItemComponent } from '@/components/items/BackpackItem';
@@ -137,19 +138,6 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // Cancel reward animations when quest overlay closes
-  useEffect(() => {
-    if (!showQuestOverlay) {
-      // Trigger burst on all active animations before clearing
-      setRewardAnimations(prev => prev.map(anim => ({ ...anim, forceBurst: true })));
-      
-      // Clear animations after burst completes (600ms)
-      setTimeout(() => {
-        setRewardAnimations([]);
-      }, 600);
-    }
-  }, [showQuestOverlay]);
-
   // Restore scroll position when image upload modal closes
   useEffect(() => {
     if (!showImageUploadModal && scrollPositionRef.current.container) {
@@ -173,12 +161,34 @@ const App: React.FC = () => {
     rewardAnimations,
     setRewardAnimations,
     levelUpAnimations,
+    rewardNotifications,
+    removeRewardNotification,
+    applyPendingRewards,
     triggerRewardAnimation,
     awardObjectiveReward,
     awardQuestRewards,
     handleSkillLevelUp,
     awardedRewards,
   } = useRewards(setUser, setSkills);
+
+  // TEMPORARILY DISABLED: Apply pending rewards when quest overlay closes
+  // Rewards now apply immediately instead of being queued
+  // useEffect(() => {
+  //   if (!showQuestOverlay) {
+  //     // Trigger burst on all active animations before clearing
+  //     setRewardAnimations(prev => prev.map(anim => ({ ...anim, forceBurst: true })));
+  //     
+  //     // Apply pending rewards after a short delay to allow animations to complete
+  //     setTimeout(() => {
+  //       applyPendingRewards();
+  //     }, 300);
+  //     
+  //     // Clear animations after burst completes (600ms)
+  //     setTimeout(() => {
+  //       setRewardAnimations([]);
+  //     }, 600);
+  //   }
+  // }, [showQuestOverlay, applyPendingRewards, setRewardAnimations]);
   
   const [questsState, setQuestsState] = useState<Quest[]>([]);
 
@@ -211,7 +221,8 @@ const App: React.FC = () => {
     setSkills,
     triggerRewardAnimation,
     handleSkillLevelUp,
-    awardedRewards
+    awardedRewards,
+    awardObjectiveReward
   });
 
   // Quest handlers
@@ -238,6 +249,7 @@ const App: React.FC = () => {
     description,
     awardObjectiveReward,
     awardQuestRewards,
+    applyPendingRewards,
   });
 
   const {
@@ -325,7 +337,7 @@ const App: React.FC = () => {
     );
   }
 
-  console.log("Quest:", selectedObjective);
+  //console.log("Quest:", selectedObjective);
 
   return (
     <>
@@ -347,6 +359,13 @@ const App: React.FC = () => {
         {rewardAnimations.map((animation) => (
           <RewardAnimation key={animation.id} animation={animation} />
         ))}
+        
+        {/* Reward Notifications */}
+        <RewardNotificationContainer
+          notifications={rewardNotifications}
+          onRemove={removeRewardNotification}
+        />
+        
         {/* Header */}
         <Header
         description={description}
@@ -388,10 +407,19 @@ const App: React.FC = () => {
       {/* Quests Section */}
       <div className="px-4 py-4">
         {/* Show first 2 uncompleted quests on main page (including those with all objectives done but reward not claimed) */}
+        {/* Sort so Main Quests appear first */}
         {questsState
           .filter(quest => !isQuestTrulyCompleted(quest))
+          .sort((a, b) => {
+            // Main Quests first
+            const aIsMain = a.type === "Main Quest";
+            const bIsMain = b.type === "Main Quest";
+            if (aIsMain && !bIsMain) return -1;
+            if (!aIsMain && bIsMain) return 1;
+            // If both are Main Quests or both are not, maintain original order
+            return 0;
+          })
           .slice(0, 2)
-          .reverse()
           .map((quest) => (
             <QuestCard 
               key={quest.id} 
