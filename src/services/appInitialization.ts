@@ -305,7 +305,8 @@ export const initializeApp = async (params: InitializeAppParams) => {
             return {
               text: sq.title || sq.description,
               reward: reward,
-              subQuestId: sq._id || sq.id // Store subQuest ID for API submission
+              subQuestId: sq._id || sq.id, // Store subQuest ID for API submission
+              description: sq.description // Store subQuest description
             };
           }) || [],
           objectiveCompleted: (() => {
@@ -469,7 +470,8 @@ export const initializeApp = async (params: InitializeAppParams) => {
           completed: true,
           objectives: quest.subQuests?.map((sq: any) => ({
             text: sq.title || sq.description,
-            reward: sq.reward || { type: 'coins', value: 0 }
+            reward: sq.reward || { type: 'coins', value: 0 },
+            description: sq.description || quest.description
           })) || [],
           objectiveCompleted: cq.subQuestsProgress?.map(() => true) || [],
           objectiveSubmissions: cq.subQuestsProgress?.map((p: any) => ({

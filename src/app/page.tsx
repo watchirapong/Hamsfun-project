@@ -325,6 +325,8 @@ const App: React.FC = () => {
     );
   }
 
+  console.log("Quest:", selectedObjective);
+
   return (
     <>
       {/* Full screen background with theme */}
@@ -520,7 +522,19 @@ const App: React.FC = () => {
           setUploadedImage(null);
         }}
         theme={theme}
-        description={selectedObjective ? questsState.find(q => q.id === selectedObjective.questId)?.description : undefined}
+        description={
+          selectedObjective 
+            ? (() => {
+                const quest = questsState.find(q => q.id === selectedObjective.questId);
+                
+                if (quest?.objectives[selectedObjective.objectiveIndex]?.description) {
+                  return quest.objectives[selectedObjective.objectiveIndex].description;
+                }
+                
+                return quest?.description;
+              })()
+            : undefined
+        }
       />
         </div>
       </div>
