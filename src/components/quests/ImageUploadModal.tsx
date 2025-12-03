@@ -10,6 +10,7 @@ interface ImageUploadModalProps {
   onSubmit: () => void;
   onClose: () => void;
   theme?: 'light' | 'dark';
+  description?: string;
 }
 
 export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
@@ -19,25 +20,45 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   onSubmit,
   onClose,
   theme = 'light',
+  description,
 }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
-      <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-6 w-full max-w-md mx-4 animate-slide-up`}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Import your image</h2>
-          <button
-            onClick={onClose}
-            className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100'}`}
-          >
-            <X size={20} />
-          </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex flex-col items-center justify-center animate-fade-in">
+      {description && (
+        <div className={`mb-3 p-3 rounded-xl shadow-lg w-full max-w-xs mx-4 animate-slide-up ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-700'}`}>
+          <div className="flex justify-between items-center mb-1">
+            <h3 className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Description</h3>
+            <button
+              onClick={onClose}
+              className={`p-1.5 rounded-full ${theme === 'dark' ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100'}`}
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <p className="text-sm font-medium">
+            {description}
+          </p>
+        </div>
+      )}
+
+      <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-4 w-full max-w-xs mx-4 animate-slide-up`}>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Import your image</h2>
+          {!description && (
+            <button
+              onClick={onClose}
+              className={`p-1.5 rounded-full ${theme === 'dark' ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100'}`}
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
         
-        <div className="mb-4">
-          <label htmlFor="image-upload-input" className="block text-center mb-4 cursor-pointer">
-            <div className={`border-2 border-dashed rounded-lg p-8 transition-colors ${
+        <div className="mb-3">
+          <label htmlFor="image-upload-input" className="block text-center cursor-pointer">
+            <div className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
               theme === 'dark' 
                 ? 'border-gray-600 hover:border-blue-400' 
                 : 'border-gray-300 hover:border-blue-500'
@@ -46,16 +67,16 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                 <img 
                   src={uploadedImage} 
                   alt="Uploaded" 
-                  className="max-w-full max-h-64 mx-auto rounded"
+                  className="max-w-full max-h-48 mx-auto rounded"
                 />
               ) : (
                 <div className="text-center">
                   <div className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-400'} mb-2`}>
-                    <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-10 h-10 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Click to select image</span>
+                  <span className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Click to select image</span>
                 </div>
               )}
             </div>
@@ -72,7 +93,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
         <button
           onClick={onSubmit}
           disabled={!uploadedImage}
-          className={`w-full py-3 rounded-lg font-medium transition-colors ${
+          className={`w-full py-2.5 rounded-lg font-medium text-sm transition-colors ${
             uploadedImage
               ? 'bg-blue-500 hover:bg-blue-600 text-white cursor-pointer'
               : theme === 'dark'

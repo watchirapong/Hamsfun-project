@@ -520,6 +520,7 @@ const App: React.FC = () => {
           setUploadedImage(null);
         }}
         theme={theme}
+        description={selectedObjective ? questsState.find(q => q.id === selectedObjective.questId)?.description : undefined}
       />
         </div>
       </div>
