@@ -1,5 +1,5 @@
 import { Gamepad2, Monitor, Paintbrush, Code } from 'lucide-react';
-import { userAPI, getToken, setToken } from '@/lib/api';
+import { userAPI, getToken, setToken, removeToken } from '@/lib/api';
 import { User, Skill, Quest, BackpackItem, ObjectiveReward, ApprovalStatus } from '@/types';
 import { getRankIconPath, getAssetUrl } from '@/utils/helpers';
 import {
@@ -186,8 +186,15 @@ export const initializeApp = async (params: InitializeAppParams) => {
         const defaultSkills = getDefaultSkills();
         setSkills(defaultSkills);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching profile:', error);
+      // Handle 401 Unauthorized or 400 Bad Request
+      if (error.status === 401 || error.status === 400) {
+        console.log('Authentication failed (401/400), redirecting to login...');
+        removeToken();
+        setIsAuthenticated(false);
+        return;
+      }
     }
 
     // Fetch active quests

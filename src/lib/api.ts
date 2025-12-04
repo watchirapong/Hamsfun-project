@@ -16,6 +16,17 @@ export const removeToken = (): void => {
   localStorage.removeItem('auth_token');
 };
 
+// Custom API Error class
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 // Helper function to make API calls
 async function apiCall<T>(
   endpoint: string,
@@ -39,7 +50,7 @@ async function apiCall<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'An error occurred' }));
-    throw new Error(error.message || `HTTP error! status: ${response.status}`);
+    throw new ApiError(error.message || `HTTP error! status: ${response.status}`, response.status);
   }
 
   return response.json();
@@ -65,7 +76,7 @@ async function apiCallMultipart<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'An error occurred' }));
-    throw new Error(error.message || `HTTP error! status: ${response.status}`);
+    throw new ApiError(error.message || `HTTP error! status: ${response.status}`, response.status);
   }
 
   return response.json();
@@ -82,7 +93,7 @@ export const authAPI = {
       const currentOrigin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
       // Get basePath from environment variable or detect from current path
       // In development, basePath is typically empty; in production it's /hamster-quest
-      const basePath = process.env.NEXT_PUBLIC_BASE_PATH || 
+      const basePath = process.env.NEXT_PUBLIC_BASE_PATH ||
         (window.location.pathname.startsWith('/hamster-quest') ? '/hamster-quest' : '');
       const handoverUri = `${currentOrigin}${basePath}/auth/handover`;
 

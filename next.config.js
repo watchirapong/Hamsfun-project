@@ -3,10 +3,8 @@ const nextConfig = {
   output: "standalone",
 
   // Only use basePath in production
-  ...(process.env.NODE_ENV === 'production' && {
-    basePath: "/hamster-quest",
-    assetPrefix: "/hamster-quest",
-  }),
+  basePath: "/hamster-quest",
+  assetPrefix: "/hamster-quest",
   trailingSlash: true,
 
   images: {

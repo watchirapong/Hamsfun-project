@@ -69,6 +69,7 @@ import { initializeApp } from '@/services/appInitialization';
 import { useQuestHandlers } from '@/handlers/questHandlers';
 import { useProfileHandlers } from '@/handlers/profileHandlers';
 import { useSkillHandlers } from '@/handlers/skillHandlers';
+import { socketService } from '@/services/socketService';
 import LoadingScreen from '@/components/common/LoadingScreen';
 
 const App: React.FC = () => {
@@ -137,6 +138,42 @@ const App: React.FC = () => {
       setBackpackItems
     });
   }, []);
+
+  // Initialize WebSocket connection
+  useEffect(() => {
+    if (isAuthenticated) {
+      const token = getToken();
+      if (token) {
+        const socket = socketService.connect({
+          url: process.env.NEXT_PUBLIC_SOCKET_URL || 'https://api.questcity.cloud',
+          path: process.env.NEXT_PUBLIC_SOCKET_PATH || '/hamster-world/socket.io',
+          token: token
+        });
+
+        socket.on('quest_updated', (data: any) => {
+          console.log('Quest Update Received:', data);
+          // Refresh quests to get the latest status
+          initializeApp({
+            setIsLoading: () => {}, // Don't show loading screen for background refresh
+            setIsAuthenticated,
+            setUser,
+            setSkills,
+            setQuestsState,
+            setBackpackItems
+          });
+          
+          // You could also show a notification here
+          if (data.status === 'Approved') {
+            // triggerRewardAnimation or show notification
+          }
+        });
+
+        return () => {
+          socketService.disconnect();
+        };
+      }
+    }
+  }, [isAuthenticated]);
 
   // Restore scroll position when image upload modal closes
   useEffect(() => {
