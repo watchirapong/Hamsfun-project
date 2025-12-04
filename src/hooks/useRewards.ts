@@ -36,7 +36,7 @@ export const useRewards = (
   const [levelUpAnimations, setLevelUpAnimations] = useState<Set<string>>(new Set());
   const [rewardNotifications, setRewardNotifications] = useState<RewardNotificationData[]>([]);
   const [pendingRewards, setPendingRewards] = useState<PendingReward[]>([]);
-  
+
   // Ref for unique notification ID counter
   const notificationIdCounter = useRef<number>(0);
 
@@ -59,7 +59,7 @@ export const useRewards = (
   const triggerRewardNotification = (reward: ObjectiveReward) => {
     notificationIdCounter.current += 1;
     const notificationId = `notification-${Date.now()}-${notificationIdCounter.current}`;
-    
+
     const notification: RewardNotificationData = {
       id: notificationId,
       type: reward.type,
@@ -68,7 +68,7 @@ export const useRewards = (
       itemName: reward.itemName,
       itemIcon: reward.itemIcon,
     };
-    
+
     setRewardNotifications(prev => [...prev, notification]);
   };
 
@@ -80,10 +80,10 @@ export const useRewards = (
   // Function to trigger reward animation
   const triggerRewardAnimation = (reward: ObjectiveReward) => {
     console.log('triggerRewardAnimation called with:', reward);
-    
+
     // Also trigger notification
     triggerRewardNotification(reward);
-    
+
     // Create a more specific reward key that includes item details to prevent duplicates
     const rewardKey = `${reward.type}-${reward.value || 0}-${reward.skillName || ''}-${reward.itemName || ''}-${reward.itemId || ''}`;
     const now = Date.now();
@@ -283,7 +283,7 @@ export const useRewards = (
       itemIcon: reward.itemIcon,
       itemId: reward.itemId,
     };
-    
+
     applyRewardImmediately(pendingReward);
     console.log(`Applied reward immediately: ${reward.type} - ${reward.value}`);
   };
@@ -328,13 +328,13 @@ export const useRewards = (
       grantedRewards.items.forEach((item: any, index: number) => {
         if (item.quantity > 0) {
           const iconUrl = item.icon?.startsWith('/') && !item.icon.startsWith('/Asset')
-            ? `https://api.questcity.cloud/hamster-world${item.icon}`
+            ? `${process.env.NEXT_BACKEND_URL}${item.icon}`
             : item.icon || getAssetUrl("/Asset/item/classTicket.png");
 
-          const rewardKey = contextKey 
-            ? `${contextKey}-item-${index}` 
+          const rewardKey = contextKey
+            ? `${contextKey}-item-${index}`
             : `granted-item-${Date.now()}-${index}`;
-          
+
           awardObjectiveReward({
             type: 'item',
             value: item.quantity,
@@ -352,10 +352,10 @@ export const useRewards = (
         const pointsToAdd = grantedRewards.badgePoints[skillName];
         if (pointsToAdd && pointsToAdd > 0) {
           const displayName = mapApiSkillNameToDisplayName(skillName);
-          const rewardKey = contextKey 
-            ? `${contextKey}-skill-${skillName}` 
+          const rewardKey = contextKey
+            ? `${contextKey}-skill-${skillName}`
             : `granted-skill-${Date.now()}-${index}`;
-          
+
           awardObjectiveReward({
             type: 'skill',
             value: pointsToAdd,

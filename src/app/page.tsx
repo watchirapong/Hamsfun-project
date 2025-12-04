@@ -146,7 +146,7 @@ const App: React.FC = () => {
       if (token) {
         const socket = socketService.connect({
           url: process.env.NEXT_PUBLIC_SOCKET_URL || 'https://api.questcity.cloud',
-          path: process.env.NEXT_PUBLIC_SOCKET_PATH || '/hamster-world/socket.io',
+          path: process.env.NEXT_PUBLIC_SOCKET_PATH || '/hamster-world-api/socket.io',
           token: token
         });
 

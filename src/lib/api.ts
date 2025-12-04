@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://api.questcity.cloud/hamster-world';
+const API_BASE_URL = process.env.NEXT_BACKEND_URL;
 
 // Token management
 export const getToken = (): string | null => {

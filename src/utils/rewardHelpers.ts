@@ -205,7 +205,7 @@ export const processItemsFromApi = (
         const iconUrl = getItemIconUrl
           ? getItemIconUrl(item.icon)
           : (item.icon?.startsWith('/') && !item.icon.startsWith('/Asset')
-            ? `https://api.questcity.cloud/hamster-world${item.icon}`
+            ? `${process.env.NEXT_BACKEND_URL}${item.icon}`
             : item.icon || getAssetUrl("/Asset/item/classTicket.png"));
 
         triggerRewardAnimation({
