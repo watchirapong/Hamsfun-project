@@ -337,8 +337,6 @@ const App: React.FC = () => {
     );
   }
 
-  //console.log("Quest:", selectedObjective);
-
   return (
     <>
       {/* Full screen background with theme */}
