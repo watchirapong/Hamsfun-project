@@ -10,6 +10,7 @@ interface LeaderboardOverlayProps {
   theme: 'light' | 'dark';
   onClose: () => void;
   onFetchMembers?: (houseId: string) => Promise<any[]>;
+  currentUserDiscordUsername?: string;
 }
 
 const USERS_PER_PAGE = 100;
@@ -19,6 +20,7 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   theme,
   onClose,
   onFetchMembers,
+  currentUserDiscordUsername,
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [dragY, setDragY] = useState(0);
@@ -226,6 +228,7 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
               item={item}
               onFetchMembers={onFetchMembers}
               theme={theme}
+              currentUserDiscordUsername={currentUserDiscordUsername}
             />
           ))}
         </div>

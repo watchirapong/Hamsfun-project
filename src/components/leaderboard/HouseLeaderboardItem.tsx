@@ -1,23 +1,28 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { HouseLeaderboardItem as HouseLeaderboardItemType, HouseMember } from '@/types';
 import { HouseMemberItem } from './HouseMemberItem';
+import { getRankFromScore, getRankPriority } from '@/utils/rankHelpers';
 
 interface HouseLeaderboardItemProps {
   item: HouseLeaderboardItemType;
   onFetchMembers?: (houseId: string) => Promise<HouseMember[]>;
   theme: 'light' | 'dark';
+  currentUserDiscordUsername?: string; // Optional: to detect rank changes
 }
 
 export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> = ({ 
   item, 
   onFetchMembers,
-  theme
+  theme,
+  currentUserDiscordUsername
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [members, setMembers] = useState<HouseMember[]>(item.members || []);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [memberRankMap, setMemberRankMap] = useState<Map<string, string>>(new Map());
+  const previousRankMapRef = useRef<Map<string, string>>(new Map());
 
   // Determine colors and glow for top 3 ranks
   const getRankStyle = () => {
@@ -50,10 +55,51 @@ export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> 
   const rankStyle = getRankStyle();
   const isTopThree = item.rank <= 3;
 
+  // Sort members by rank (S->G), then alphabetically by username
+  const sortMembersByRank = (membersList: HouseMember[]): HouseMember[] => {
+    return [...membersList].sort((a, b) => {
+      const rankA = getRankFromScore(a.leaderboardScore);
+      const rankB = getRankFromScore(b.leaderboardScore);
+      
+      // First sort by rank priority (S highest, G lowest)
+      const priorityDiff = getRankPriority(rankB) - getRankPriority(rankA);
+      if (priorityDiff !== 0) {
+        return priorityDiff;
+      }
+      
+      // If same rank, sort alphabetically by username
+      const usernameA = (a.discordNickname || a.discordUsername || '').toLowerCase();
+      const usernameB = (b.discordNickname || b.discordUsername || '').toLowerCase();
+      return usernameA.localeCompare(usernameB);
+    });
+  };
+
+  // Update rank map when members change
+  useEffect(() => {
+    if (members.length > 0) {
+      const newRankMap = new Map<string, string>();
+      members.forEach(member => {
+        const rank = getRankFromScore(member.leaderboardScore);
+        newRankMap.set(member._id, rank);
+      });
+      
+      setMemberRankMap(newRankMap);
+    }
+  }, [members]);
+
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering parent click (overlay open)
     
     if (isExpanded) {
+      // When closing, save current ranks as previous for next time
+      if (members.length > 0) {
+        const currentRankMap = new Map<string, string>();
+        members.forEach(member => {
+          const rank = getRankFromScore(member.leaderboardScore);
+          currentRankMap.set(member._id, rank);
+        });
+        previousRankMapRef.current = currentRankMap;
+      }
       setIsExpanded(false);
     } else {
       setIsExpanded(true);
@@ -63,14 +109,36 @@ export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> 
         setIsLoadingMembers(true);
         try {
           const fetchedMembers = await onFetchMembers(item.houseId);
-          setMembers(fetchedMembers);
+          // Sort members by rank
+          const sortedMembers = sortMembersByRank(fetchedMembers);
+          setMembers(sortedMembers);
         } catch (error) {
           console.error('Failed to fetch house members:', error);
         } finally {
           setIsLoadingMembers(false);
         }
+      } else if (members.length > 0) {
+        // Re-sort existing members
+        const sortedMembers = sortMembersByRank(members);
+        setMembers(sortedMembers);
       }
     }
+  };
+
+  // Check if a member's rank has increased (for animation)
+  const shouldAnimateMember = (member: HouseMember): boolean => {
+    if (!currentUserDiscordUsername) return false;
+    
+    const memberUsername = member.discordNickname || member.discordUsername;
+    if (memberUsername !== currentUserDiscordUsername) return false;
+    
+    const previousRank = previousRankMapRef.current.get(member._id);
+    const currentRank = getRankFromScore(member.leaderboardScore);
+    
+    if (!previousRank) return false; // First time viewing, no animation
+    
+    // Check if rank improved (higher priority = better rank)
+    return getRankPriority(currentRank) > getRankPriority(previousRank as any);
   };
 
   return (
@@ -134,12 +202,12 @@ export const HouseLeaderboardItemComponent: React.FC<HouseLeaderboardItemProps> 
           ) : members.length === 0 ? (
             <div className="text-center py-2 text-gray-500 text-sm">No members found</div>
           ) : (
-            members.map((member, index) => (
+            members.map((member) => (
               <HouseMemberItem 
-                key={member._id || index} 
+                key={member._id} 
                 member={member} 
-                rank={index + 1}
                 theme={theme}
+                shouldAnimate={shouldAnimateMember(member)}
               />
             ))
           )}

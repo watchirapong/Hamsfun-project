@@ -238,8 +238,8 @@ const App: React.FC = () => {
   const handleFetchHouseMembers = async (houseId: string) => {
     try {
       const members = await leaderboardAPI.getHouseMembers(houseId);
-      // Sort members by leaderboardScore (descending)
-      return members.sort((a: any, b: any) => (b.leaderboardScore || 0) - (a.leaderboardScore || 0));
+      // Sort will be handled by HouseLeaderboardItem component
+      return members;
     } catch (error) {
       console.error('Failed to fetch house members:', error);
       return [];
@@ -492,6 +492,7 @@ const App: React.FC = () => {
                 item={item}
                 onFetchMembers={handleFetchHouseMembers}
                 theme={theme}
+                currentUserDiscordUsername={user.name}
               />
             ))}
             {houseLeaderboard.length > 5 && (
@@ -570,6 +571,7 @@ const App: React.FC = () => {
           theme={theme}
           onClose={() => setShowLeaderboardOverlay(false)}
           onFetchMembers={handleFetchHouseMembers}
+          currentUserDiscordUsername={user.name}
         />
       )}
 

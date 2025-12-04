@@ -93,7 +93,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
         <button
           onClick={onSubmit}
           disabled={!uploadedImage}
-          className={`w-full py-2.5 rounded-lg font-medium text-sm transition-colors ${
+          className={`w-full py-1.5 px-3 rounded-lg font-medium text-xs transition-colors ${
             uploadedImage
               ? 'bg-blue-500 hover:bg-blue-600 text-white cursor-pointer'
               : theme === 'dark'

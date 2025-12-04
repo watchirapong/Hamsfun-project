@@ -227,17 +227,17 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
                     100% { opacity: 0; transform: translate(-50%, -50%) scale(2); }
                   }
                 `}</style>
-                <div 
-                  className="absolute rounded-full bg-gradient-to-br from-blue-200/50 via-cyan-200/40 to-white/50 blur-3xl"
-                  style={{
-                    width: '120px',
-                    height: '120px',
-                    left: '50%',
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
+            <div 
+              className="absolute rounded-full bg-gradient-to-br from-blue-200/50 via-cyan-200/40 to-white/50 blur-3xl"
+              style={{
+                width: '120px',
+                height: '120px',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
                     animation: `glowPulse-${animation.id} 500ms ease-out forwards`,
-                  }}
-                />
+              }}
+            />
               </>
             )}
             
@@ -277,19 +277,19 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
                     }
                   `}</style>
                   <div
-                    className="absolute rounded-full bg-gradient-to-br from-blue-100/90 via-cyan-100/80 to-white/90 blur-md"
-                    style={{
-                      width: `${sizeVariation}px`,
-                      height: `${sizeVariation}px`,
-                      left: '50%',
-                      top: '50%',
+                  className="absolute rounded-full bg-gradient-to-br from-blue-100/90 via-cyan-100/80 to-white/90 blur-md"
+                  style={{
+                    width: `${sizeVariation}px`,
+                    height: `${sizeVariation}px`,
+                    left: '50%',
+                    top: '50%',
                       transform: 'translate(-50%, -50%) translate(0, 0) scale(0)',
-                      opacity: 0,
+                    opacity: 0,
                       animation: `${animationName} 600ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
-                      animationDelay: `${i * 30}ms`,
-                      boxShadow: '0 0 15px rgba(135, 206, 250, 0.6), 0 0 30px rgba(135, 206, 250, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.8)',
-                    }}
-                  />
+                    animationDelay: `${i * 30}ms`,
+                    boxShadow: '0 0 15px rgba(135, 206, 250, 0.6), 0 0 30px rgba(135, 206, 250, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.8)',
+                  }}
+                />
                 </React.Fragment>
               );
             })}
@@ -328,19 +328,19 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
                     }
                   `}</style>
                   <div
-                    className="absolute rounded-full bg-white/70 blur-sm"
-                    style={{
-                      width: `${size}px`,
-                      height: `${size}px`,
-                      left: '50%',
-                      top: '50%',
+                  className="absolute rounded-full bg-white/70 blur-sm"
+                  style={{
+                    width: `${size}px`,
+                    height: `${size}px`,
+                    left: '50%',
+                    top: '50%',
                       transform: 'translate(-50%, -50%) translate(0, 0) scale(0)',
-                      opacity: 0,
+                    opacity: 0,
                       animation: `${animationName} 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
-                      animationDelay: `${i * 20}ms`,
-                      boxShadow: '0 0 8px rgba(255, 255, 255, 0.9), inset 0 0 4px rgba(255, 255, 255, 1)',
-                    }}
-                  />
+                    animationDelay: `${i * 20}ms`,
+                    boxShadow: '0 0 8px rgba(255, 255, 255, 0.9), inset 0 0 4px rgba(255, 255, 255, 1)',
+                  }}
+                />
                 </React.Fragment>
               );
             })}
@@ -378,19 +378,19 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation }) =
                     }
                   `}</style>
                   <div
-                    className="absolute rounded-full bg-white blur-xs"
-                    style={{
-                      width: '3px',
-                      height: '3px',
-                      left: '50%',
-                      top: '50%',
+                  className="absolute rounded-full bg-white blur-xs"
+                  style={{
+                    width: '3px',
+                    height: '3px',
+                    left: '50%',
+                    top: '50%',
                       transform: 'translate(-50%, -50%) translate(0, 0) scale(0)',
-                      opacity: 0,
+                    opacity: 0,
                       animation: `${animationName} 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards`,
-                      animationDelay: `${i * 15}ms`,
-                      boxShadow: '0 0 6px rgba(255, 255, 255, 1)',
-                    }}
-                  />
+                    animationDelay: `${i * 15}ms`,
+                    boxShadow: '0 0 6px rgba(255, 255, 255, 1)',
+                  }}
+                />
                 </React.Fragment>
               );
             })}

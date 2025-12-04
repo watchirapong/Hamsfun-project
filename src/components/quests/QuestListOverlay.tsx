@@ -653,30 +653,38 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                             }`}
                             onClick={() => isClickable && handleObjectiveClick(quest.id, index)}
                           >
-                            <div className="flex-1 flex items-center gap-2 min-w-0 pr-3">
-                              <span 
-                                className={`text-sm truncate ${
-                                  isApproved 
-                                    ? theme === 'dark' ? 'font-semibold' : 'text-green-600 font-semibold'
-                                    : isRejected
-                                    ? 'text-red-600 font-semibold'
-                                    : theme === 'dark' ? 'text-white' : 'text-black'
-                                }`}
-                                style={theme === 'dark' && isApproved ? { color: '#5BFF60' } : undefined}
-                              >
-                                {objective.text}
-                              </span>
-                              {isPending && (
-                                <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-                              )}
-                              {isFullyApproved && (
-                                <div className="flex items-center gap-0.5 flex-shrink-0">
-                                  <Check className="w-4 h-4 text-green-600" />
-                                  <Check className="w-4 h-4 text-green-600" />
-                                </div>
-                              )}
-                              {isRejected && (
-                                <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
+                            <div className="flex-1 flex flex-col gap-1 min-w-0 pr-3">
+                              <div className="flex items-center gap-2">
+                                <span 
+                                  className={`text-sm truncate ${
+                                    isApproved 
+                                      ? theme === 'dark' ? 'font-semibold' : 'text-green-600 font-semibold'
+                                      : isRejected
+                                      ? 'text-red-600 font-semibold'
+                                      : theme === 'dark' ? 'text-white' : 'text-black'
+                                  }`}
+                                  style={theme === 'dark' && isApproved ? { color: '#5BFF60' } : undefined}
+                                >
+                                  {objective.text}
+                                </span>
+                                {isPending && (
+                                  <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                )}
+                                {isFullyApproved && (
+                                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                                    <Check className="w-4 h-4 text-green-600" />
+                                    <Check className="w-4 h-4 text-green-600" />
+                                  </div>
+                                )}
+                                {isRejected && (
+                                  <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
+                                )}
+                              </div>
+                              {/* Tap to details label for clickable objectives */}
+                              {isClickable && !isRejected && (
+                                <span className={`text-xs italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                                  tap to details
+                                </span>
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -849,12 +857,20 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         {quest.type}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       <div className={`w-6 h-6 rounded flex items-center justify-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'}`}>
                         <span className="text-xs">🎮</span>
                       </div>
                       <h3 className={`font-bold text-xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{quest.title}</h3>
                     </div>
+                    {/* Quest Description - Prominent */}
+                    {quest.description && (
+                      <div className={`mb-4 px-3 py-2 rounded-lg ${theme === 'dark' ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                        <p className={`text-base leading-relaxed ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+                          {quest.description}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Objectives */}
