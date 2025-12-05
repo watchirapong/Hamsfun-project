@@ -1,0 +1,27 @@
+{
+    "version":  "0.1.0",
+    "name":  "hamsfun-project-vite-react",
+    "scripts":  {
+                    "preview":  "vite preview",
+                    "build":  "vite build",
+                    "dev":  "vite"
+                },
+    "devDependencies":  {
+                            "vite":  "^5.4.0",
+                            "tailwindcss":  "^3.4.4",
+                            "autoprefixer":  "^10.4.19",
+                            "postcss":  "^8.4.38",
+                            "@vitejs/plugin-react":  "^4.3.1"
+                        },
+    "type":  "module",
+    "dependencies":  {
+                         "react-dom":  "^18.3.1",
+                         "lucide-react":  "^0.554.0",
+                         "react-cookie":  "^8.0.1",
+                         "socket.io-client":  "^4.8.1",
+                         "react-router-dom":  "^6.26.0",
+                         "react":  "^18.3.1",
+                         "mongoose":  "^8.19.3"
+                     },
+    "private":  true
+}
