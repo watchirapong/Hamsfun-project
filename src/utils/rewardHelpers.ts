@@ -205,7 +205,7 @@ export const processItemsFromApi = (
         const iconUrl = getItemIconUrl
           ? getItemIconUrl(item.icon)
           : (item.icon?.startsWith('/') && !item.icon.startsWith('/Asset')
-            ? `${process.env.NEXT_BACKEND_URL}${item.icon}`
+            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}${item.icon}`
             : item.icon || getAssetUrl("/Asset/item/classTicket.png"));
 
         triggerRewardAnimation({

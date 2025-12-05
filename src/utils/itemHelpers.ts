@@ -76,7 +76,7 @@ export const getItemIconUrl = (itemIcon?: string): string => {
 
   // If icon is a relative path (starts with /) but not a local asset, prepend API base URL
   if (itemIcon.startsWith('/') && !itemIcon.startsWith('/Asset')) {
-    return `${process.env.NEXT_BACKEND_URL}${itemIcon}`;
+    return `${process.env.NEXT_PUBLIC_BACKEND_URL}${itemIcon}`;
   }
 
   // If it's already a full URL, return as-is

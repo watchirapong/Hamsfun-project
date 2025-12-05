@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_BACKEND_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 // Token management
 export const getToken = (): string | null => {
@@ -91,11 +91,7 @@ export const authAPI = {
       // The redirectUri should point to the handover endpoint where the token will be received
       // Format: {currentOrigin}{basePath}/auth/handover
       const currentOrigin = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-      // Get basePath from environment variable or detect from current path
-      // In development, basePath is typically empty; in production it's /hamster-quest
-      const basePath = process.env.NEXT_PUBLIC_BASE_PATH ||
-        (window.location.pathname.startsWith('/hamster-quest') ? '/hamster-quest' : '');
-      const handoverUri = `${currentOrigin}${basePath}/auth/handover`;
+      const handoverUri = `${currentOrigin}/auth/handover`;
 
       if (redirectUri) {
         params.append('redirectUri', redirectUri);

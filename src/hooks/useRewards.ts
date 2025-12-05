@@ -328,7 +328,7 @@ export const useRewards = (
       grantedRewards.items.forEach((item: any, index: number) => {
         if (item.quantity > 0) {
           const iconUrl = item.icon?.startsWith('/') && !item.icon.startsWith('/Asset')
-            ? `${process.env.NEXT_BACKEND_URL}${item.icon}`
+            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}${item.icon}`
             : item.icon || getAssetUrl("/Asset/item/classTicket.png");
 
           const rewardKey = contextKey
