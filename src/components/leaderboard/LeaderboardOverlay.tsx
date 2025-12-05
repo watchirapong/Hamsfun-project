@@ -29,6 +29,7 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   const [expandedHouseId, setExpandedHouseId] = useState<string | null>(null);
   const startY = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   const totalPages = Math.ceil(houseLeaderboard.length / USERS_PER_PAGE);
   const startIndex = (currentPage - 1) * USERS_PER_PAGE;
@@ -50,14 +51,28 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
     return 400;
   };
 
+  // Check if target is inside header area (only header allows dragging)
+  const isInsideHeader = (target: HTMLElement): boolean => {
+    if (!headerRef.current) return false;
+    return headerRef.current.contains(target) || target.closest('.drag-handle') !== null;
+  };
+
   // Native touch event handlers
   const handleTouchStartNative = (e: TouchEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('.drag-handle')) {
-      e.preventDefault();
-      startY.current = e.touches[0].clientY;
-      setIsDragging(true);
+    
+    // Only allow dragging from header area
+    if (!isInsideHeader(target)) {
+      // Not in header - let normal behavior happen
+      return;
     }
+    
+    // Only preventDefault if event is cancelable
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+    startY.current = e.touches[0].clientY;
+    setIsDragging(true);
   };
 
   const handleTouchMoveNative = (e: TouchEvent) => {
@@ -82,11 +97,16 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   // Mouse drag handlers
   const handleMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('.drag-handle')) {
-      e.preventDefault();
-      startY.current = e.clientY;
-      setIsDragging(true);
+    
+    // Only allow dragging from header area
+    if (!isInsideHeader(target)) {
+      // Not in header - let normal behavior happen
+      return;
     }
+    
+    e.preventDefault();
+    startY.current = e.clientY;
+    setIsDragging(true);
   };
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -178,35 +198,53 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   };
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-end justify-center ${
-      isClosing ? 'animate-fade-out' : 'animate-fade-in'
-    } ${theme === 'dark' ? 'bg-black/80' : 'bg-black/50'}`}>
+    <div 
+      className={`fixed inset-0 z-50 flex items-end justify-center ${
+        isClosing ? 'animate-fade-out' : 'animate-fade-in'
+      } ${theme === 'dark' ? 'bg-black/80' : 'bg-black/50'}`}
+      onClick={(e) => {
+        // Close panel when clicking outside (on the background overlay)
+        if (e.target === e.currentTarget && !isDragging && !isClosing) {
+          handleClose();
+        }
+      }}
+      onTouchStart={(e) => {
+        // Handle touch outside for mobile
+        if (e.target === e.currentTarget && !isDragging && !isClosing) {
+          handleClose();
+        }
+      }}
+    >
       <div 
         ref={panelRef}
         className={`w-full max-w-md rounded-t-xl shadow-lg pb-20 transition-colors ${
           isClosing ? 'animate-slide-down' : 'animate-slide-up'
         } ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
       >
-        {/* iPhone-style home indicator bar - drag handle */}
-        <div 
-          className="flex justify-center pt-3 pb-2 drag-handle cursor-grab active:cursor-grabbing"
-          onMouseDown={handleMouseDown}
-        >
-          <div className={`w-12 h-1 rounded-full ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`}></div>
-        </div>
+         {/* Expanded draggable area (includes home indicator + header) */}
+         <div 
+           ref={headerRef}
+           className="drag-handle cursor-grab active:cursor-grabbing"
+           onMouseDown={handleMouseDown}
+         >
+           {/* iPhone-style home indicator bar */}
+           <div className="flex justify-center pt-3 pb-2">
+             <div className={`w-12 h-1 rounded-full ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`}></div>
+           </div>
 
-        {/* Header - drag handle */}
-        <div 
-          className={`p-4 border-b flex justify-center items-center drag-handle cursor-grab active:cursor-grabbing ${
-            theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
-          }`}
-          onMouseDown={handleMouseDown}
-        >
-          <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-            Leaderboard
-          </h2>
-        </div>
+           {/* Header - visible text area */}
+           <div 
+             className={`pt-2 pb-4 px-4 border-b flex justify-center items-center ${
+               theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
+             }`}
+           >
+             <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+               Leaderboard
+             </h2>
+           </div>
+         </div>
 
         {/* Pagination Info */}
         <div className={`p-4 border-b flex justify-between items-center ${

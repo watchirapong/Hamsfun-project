@@ -200,7 +200,9 @@ const App: React.FC = () => {
     levelUpAnimations,
     rewardNotifications,
     removeRewardNotification,
+    pendingRewards,
     applyPendingRewards,
+    applyPendingRewardsWithAnimations,
     triggerRewardAnimation,
     awardObjectiveReward,
     awardQuestRewards,
@@ -208,24 +210,25 @@ const App: React.FC = () => {
     awardedRewards,
   } = useRewards(setUser, setSkills);
 
-  // TEMPORARILY DISABLED: Apply pending rewards when quest overlay closes
-  // Rewards now apply immediately instead of being queued
-  // useEffect(() => {
-  //   if (!showQuestOverlay) {
-  //     // Trigger burst on all active animations before clearing
-  //     setRewardAnimations(prev => prev.map(anim => ({ ...anim, forceBurst: true })));
-  //     
-  //     // Apply pending rewards after a short delay to allow animations to complete
-  //     setTimeout(() => {
-  //       applyPendingRewards();
-  //     }, 300);
-  //     
-  //     // Clear animations after burst completes (600ms)
-  //     setTimeout(() => {
-  //       setRewardAnimations([]);
-  //     }, 600);
-  //   }
-  // }, [showQuestOverlay, applyPendingRewards, setRewardAnimations]);
+  // Apply pending rewards with smooth animations when quest overlay closes
+  useEffect(() => {
+    if (!showQuestOverlay && pendingRewards.length > 0) {
+      // Trigger burst on all active animations before clearing
+      setRewardAnimations(prev => prev.map(anim => ({ ...anim, forceBurst: true })));
+      
+      // Apply pending rewards with smooth counting animations after a short delay
+      setTimeout(() => {
+        if (applyPendingRewardsWithAnimations) {
+          applyPendingRewardsWithAnimations(user, skills, setUser, setSkills);
+        }
+      }, 300);
+      
+      // Clear animations after burst completes (600ms)
+      setTimeout(() => {
+        setRewardAnimations([]);
+      }, 600);
+    }
+  }, [showQuestOverlay, pendingRewards.length, applyPendingRewardsWithAnimations, user, skills, setRewardAnimations]);
   
   const [questsState, setQuestsState] = useState<Quest[]>([]);
 
@@ -392,7 +395,7 @@ const App: React.FC = () => {
         
         {/* Reward Animations */}
         {rewardAnimations.map((animation) => (
-          <RewardAnimation key={animation.id} animation={animation} />
+          <RewardAnimation key={animation.id} animation={animation} theme={theme} />
         ))}
         
         {/* Reward Notifications */}

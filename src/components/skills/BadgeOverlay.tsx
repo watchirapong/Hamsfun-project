@@ -21,6 +21,7 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
   const [isAnimating, setIsAnimating] = useState(false);
   const startY = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const dragStartTarget = useRef<HTMLElement | null>(null);
   const panelHeightRef = useRef<number>(0);
 
@@ -82,12 +83,28 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
   
   const commonBadgePath = getCommonBadgePath(selectedSkill.name);
 
+  // Check if target is inside header area (only header allows dragging)
+  const isInsideHeader = (target: HTMLElement): boolean => {
+    if (!headerRef.current) return false;
+    return headerRef.current.contains(target);
+  };
+
   // Native touch event handlers (to allow preventDefault)
   const handleTouchStartNative = (e: TouchEvent) => {
-    // Start drag from anywhere on screen
     const target = e.target as HTMLElement;
     dragStartTarget.current = target;
-    e.preventDefault();
+    
+    // Only allow dragging from header area
+    if (!isInsideHeader(target)) {
+      // Not in header - let normal behavior happen
+      return;
+    }
+    
+    // Start drag from header only
+    // Only preventDefault if event is cancelable
+    if (e.cancelable) {
+      e.preventDefault();
+    }
     startY.current = e.touches[0].clientY;
     setIsDragging(true);
   };
@@ -118,9 +135,16 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
 
   // Mouse drag handlers (for document events)
   const handleMouseDown = (e: MouseEvent | React.MouseEvent) => {
-    // Start drag from anywhere on screen
     const target = (e.target as HTMLElement);
     dragStartTarget.current = target;
+    
+    // Only allow dragging from header area
+    if (!isInsideHeader(target)) {
+      // Not in header - let normal behavior happen
+      return;
+    }
+    
+    // Start drag from header only
     e.preventDefault(); // Prevent text selection
     startY.current = 'clientY' in e ? e.clientY : (e as React.MouseEvent).clientY;
     setIsDragging(true);
@@ -243,24 +267,52 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
   }, [selectedSkill, isDragging, dragY]);
 
   return (
-    <div className={`fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center ${
-      isClosing ? 'animate-fade-out' : 'animate-fade-in'
-    }`}>
+    <div 
+      className={`fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end justify-center ${
+        isClosing ? 'animate-fade-out' : 'animate-fade-in'
+      }`}
+      onClick={(e) => {
+        // Close panel when clicking outside (on the background overlay)
+        if (e.target === e.currentTarget && !isDragging && !isClosing) {
+          handleClose();
+        }
+      }}
+      onTouchStart={(e) => {
+        // Handle touch outside for mobile
+        if (e.target === e.currentTarget && !isDragging && !isClosing) {
+          handleClose();
+        }
+      }}
+    >
       <div 
         ref={panelRef}
         className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} w-full max-w-md rounded-t-xl shadow-lg pb-20 ${
           !isDragging && dragY === 0 && !isAnimating && !isClosing ? 'animate-slide-up' : ''
         }`}
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
       >
-        {/* iPhone-style home indicator bar */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className={`w-12 h-1 rounded-full ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`}></div>
+        {/* Expanded draggable area (includes home indicator + header) */}
+        <div 
+          ref={headerRef}
+          className="cursor-grab active:cursor-grabbing"
+        >
+          {/* iPhone-style home indicator bar */}
+          <div className="flex justify-center pt-3 pb-2">
+            <div className={`w-12 h-1 rounded-full ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`}></div>
+          </div>
+
+          {/* Header - visible text area */}
+          <div 
+            className={`pt-2 pb-4 px-4 border-b text-center ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}
+          >
+            <h3 className={`font-bold text-xl ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{selectedSkill.name}</h3>
+          </div>
         </div>
 
         {/* Badge Info */}
         <div className="p-4">
           <div className="text-center mb-6">
-            <h3 className={`font-bold text-xl mb-2 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>{selectedSkill.name}</h3>
             <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{selectedSkill.description || 'No description available.'}</p>
           </div>
 

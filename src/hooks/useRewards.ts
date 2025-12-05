@@ -4,6 +4,7 @@ import { calculatePetLevelProgression } from '@/services/rewardService';
 import { mapApiSkillNameToDisplayName } from '@/utils/rewardHelpers';
 import { getAssetUrl } from '@/utils/helpers';
 import { RewardNotificationData } from '@/components/common/RewardNotification';
+import { animateCount, easeOutCubic } from '@/utils/countingAnimation';
 
 export interface RewardAnimationInstance {
   id: string;
@@ -54,6 +55,12 @@ export const useRewards = (
 
   // Ref to store handleSkillLevelUp function for use in applyRewardImmediately
   const handleSkillLevelUpRef = useRef<((skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => void) | null>(null);
+
+  // Ref to track rewards that have been animated (for double-protection)
+  const animatedRewards = useRef<Set<string>>(new Set());
+
+  // Ref to track pending reward totals (to merge duplicates)
+  const pendingRewardTotals = useRef<Map<string, number>>(new Map());
 
   // Function to trigger reward notification
   const triggerRewardNotification = (reward: ObjectiveReward) => {
@@ -115,11 +122,35 @@ export const useRewards = (
     animationIdCounter.current += 1;
     const animationId = `reward-${Date.now()}-${animationIdCounter.current}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Generate random position within screen bounds (leaving some margin)
-    // Spawn at bottom of screen so bubbles can float upward
-    const margin = 100;
-    const x = margin + Math.random() * (window.innerWidth - margin * 2);
-    const y = window.innerHeight - margin - Math.random() * 100; // Spawn near bottom of screen
+    // Generate random X position within MAIN PAGE boundaries only (428px centered)
+    // Main page is max-w-[428px] centered, so we need to calculate relative to center
+    const mainPageWidth = 428; // Main page max width
+    const bubbleSize = 80;
+    const margin = Math.max(20, bubbleSize / 2); // At least 20px margin, or half bubble size
+    
+    // Calculate main page boundaries
+    // Main page is centered: left = (window.innerWidth - 428) / 2, right = left + 428
+    const mainPageLeft = (window.innerWidth - mainPageWidth) / 2;
+    const mainPageRight = mainPageLeft + mainPageWidth;
+    
+    // X position range within main page only
+    const minX = mainPageLeft + margin;
+    const maxX = mainPageRight - margin - bubbleSize;
+    
+    // Ensure valid range
+    const validMinX = Math.max(mainPageLeft, minX);
+    const validMaxX = Math.max(validMinX + bubbleSize, Math.min(maxX, mainPageRight - bubbleSize));
+    
+    // Randomize X position within main page safe bounds
+    const x = validMinX + Math.random() * (validMaxX - validMinX);
+    
+    // Final safety check - clamp to ensure bubble stays within main page
+    const clampedX = Math.max(mainPageLeft, Math.min(x, mainPageRight - bubbleSize));
+    
+    // Y position: Spawn from bottom of screen (for bottom positioning)
+    // Leave small margin from absolute bottom
+    const bottomMargin = 20;
+    const y = window.innerHeight - bottomMargin;
 
     // Generate random drift direction (-1 or 1) and amount
     const driftDirection = Math.random() > 0.5 ? 1 : -1;
@@ -239,53 +270,106 @@ export const useRewards = (
     }
   }, [setUser, setSkills, handleSkillLevelUpRef]);
 
-  // Function to apply pending rewards with animations (TEMPORARILY DISABLED - rewards apply immediately now)
-  const applyPendingRewards = useCallback(() => {
-    // This function is kept for compatibility but does nothing since rewards apply immediately
-    setPendingRewards(prev => {
-      if (prev.length === 0) return prev;
-      // Clear any remaining pending rewards (shouldn't happen now)
-      return [];
-    });
+  // Function to apply pending rewards with smooth counting animations
+  const applyPendingRewards = useCallback(async () => {
+    const pending = pendingRewardTotals.current;
+    if (pending.size === 0) {
+      setPendingRewards([]);
+      return;
+    }
+
+    // Get current user state for animation start values
+    let currentUser: User | null = null;
+    let currentSkills: Skill[] | null = null;
+    
+    // We'll need to get these from the state setters - for now, we'll use a callback approach
+    // This will be called from page.tsx with current state
+    
+    // Clear pending rewards after processing
+    pendingRewardTotals.current.clear();
+    setPendingRewards([]);
   }, []);
 
-  // Helper function to award objective reward (TEMPORARILY DISABLED: applies rewards immediately instead of queuing)
+  // Helper function to award objective reward (queues rewards instead of applying immediately)
   const awardObjectiveReward = (reward: ObjectiveReward, contextKey?: string) => {
     // Create a unique key for this reward with context to prevent duplicates
     const rewardKey = contextKey
-      ? `${contextKey}-${reward.type}-${reward.value || 0}-${reward.skillName || ''}`
-      : `${reward.type}-${reward.value || 0}-${reward.skillName || ''}`;
+      ? `${contextKey}-${reward.type}-${reward.value || 0}-${reward.skillName || ''}-${reward.itemName || ''}-${reward.itemId || ''}`
+      : `${reward.type}-${reward.value || 0}-${reward.skillName || ''}-${reward.itemName || ''}-${reward.itemId || ''}`;
 
-    // Check if this exact reward with context was already awarded
+    // DOUBLE PROTECTION: Check if this exact reward was already awarded
     if (awardedRewards.current.has(rewardKey)) {
       console.log('Reward already awarded (with context), skipping:', rewardKey);
       return;
     }
 
-    // Mark as awarded immediately
-    awardedRewards.current.add(rewardKey);
+    // DOUBLE PROTECTION: Check if this reward animation was already triggered
+    const animationKey = `${reward.type}-${reward.value || 0}-${reward.skillName || ''}-${reward.itemName || ''}-${reward.itemId || ''}`;
+    if (animatedRewards.current.has(animationKey)) {
+      console.log('Reward animation already triggered, skipping:', animationKey);
+      return;
+    }
 
-    // Trigger reward animation
+    // Mark as awarded and animated immediately
+    awardedRewards.current.add(rewardKey);
+    animatedRewards.current.add(animationKey);
+
+    // Trigger reward animation (shows in overlay)
     triggerRewardAnimation(reward);
+
+    // Queue reward for later application (when overlay closes)
+    const rewardValue = typeof reward.value === 'number' ? reward.value : 0;
+    
+    // Create a key for merging duplicate rewards of the same type
+    const mergeKey = reward.type === 'skill' 
+      ? `${reward.type}-${reward.skillName}`
+      : reward.type === 'item'
+      ? `${reward.type}-${reward.itemId}`
+      : reward.type;
+
+    // Merge with existing pending rewards of the same type
+    const currentTotal = pendingRewardTotals.current.get(mergeKey) || 0;
+    pendingRewardTotals.current.set(mergeKey, currentTotal + rewardValue);
+
+    // Add to pending rewards list for tracking
+    setPendingRewards(prev => {
+      // Check if we already have a pending reward of this type to merge
+      const existingIndex = prev.findIndex(p => 
+        p.type === reward.type &&
+        (reward.type === 'skill' ? p.skillName === reward.skillName : true) &&
+        (reward.type === 'item' ? p.itemId === reward.itemId : true)
+      );
+
+      if (existingIndex >= 0) {
+        // Merge with existing reward
+        const existing = prev[existingIndex];
+        const newValue = (typeof existing.value === 'number' ? existing.value : 0) + rewardValue;
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...existing,
+          value: newValue
+        };
+        return updated;
+      } else {
+        // Add new reward
+        return [...prev, {
+          type: reward.type,
+          value: rewardValue,
+          skillName: reward.skillName,
+          itemName: reward.itemName,
+          itemIcon: reward.itemIcon,
+          itemId: reward.itemId,
+        }];
+      }
+    });
+
+    console.log(`Queued reward: ${reward.type} - ${rewardValue} (Total pending: ${pendingRewardTotals.current.get(mergeKey)})`);
 
     // Clean up after 5 seconds
     setTimeout(() => {
       awardedRewards.current.delete(rewardKey);
+      animatedRewards.current.delete(animationKey);
     }, 5000);
-
-    // TEMPORARILY DISABLED: Apply reward immediately instead of queuing
-    // Apply reward immediately
-    const pendingReward: PendingReward = {
-      type: reward.type,
-      value: reward.value || 0,
-      skillName: reward.skillName,
-      itemName: reward.itemName,
-      itemIcon: reward.itemIcon,
-      itemId: reward.itemId,
-    };
-
-    applyRewardImmediately(pendingReward);
-    console.log(`Applied reward immediately: ${reward.type} - ${reward.value}`);
   };
 
   // Helper function to award quest completion rewards
@@ -415,6 +499,191 @@ export const useRewards = (
   // Update ref when handleSkillLevelUp changes
   handleSkillLevelUpRef.current = handleSkillLevelUp;
 
+  // Function to apply pending rewards with smooth animations (called from page.tsx with current state)
+  const applyPendingRewardsWithAnimations = useCallback(async (
+    currentUser: User,
+    currentSkills: Skill[],
+    setUserCallback: React.Dispatch<React.SetStateAction<User>>,
+    setSkillsCallback: React.Dispatch<React.SetStateAction<Skill[]>>
+  ) => {
+    // Get pending rewards from state (these are already merged)
+    return new Promise<void>((resolve) => {
+      setPendingRewards(prevPending => {
+        if (prevPending.length === 0) {
+          resolve();
+          return [];
+        }
+
+        console.log('Applying pending rewards with animations:', prevPending);
+
+        // Group rewards by type for merging
+        const rewardsByType = new Map<string, number>();
+        const skillRewards = new Map<string, number>();
+        const itemRewards = new Map<string, { quantity: number; itemId?: string }>();
+
+        prevPending.forEach(reward => {
+          const value = typeof reward.value === 'number' ? reward.value : 0;
+          if (reward.type === 'skill' && reward.skillName) {
+            const key = reward.skillName;
+            skillRewards.set(key, (skillRewards.get(key) || 0) + value);
+          } else if (reward.type === 'item' && reward.itemId) {
+            const key = reward.itemId;
+            const existing = itemRewards.get(key) || { quantity: 0, itemId: reward.itemId };
+            itemRewards.set(key, { ...existing, quantity: existing.quantity + value });
+          } else {
+            rewardsByType.set(reward.type, (rewardsByType.get(reward.type) || 0) + value);
+          }
+        });
+
+        // Prepare animations for all reward types
+        const animations: Array<Promise<void>> = [];
+
+        // Process coins
+        const coinsTotal = rewardsByType.get('coins') || 0;
+    if (coinsTotal > 0) {
+      animations.push(
+        animateCount(
+          currentUser.coins,
+          currentUser.coins + coinsTotal,
+          {
+            duration: 1000,
+            easing: easeOutCubic,
+              onUpdate: (value) => {
+                setUserCallback(prev => ({ ...prev, coins: value }));
+              }
+          }
+        )
+      );
+    }
+
+        // Process rank points
+        const rankTotal = rewardsByType.get('rank') || 0;
+    if (rankTotal > 0) {
+      animations.push(
+        animateCount(
+          currentUser.rankPoints,
+          currentUser.rankPoints + rankTotal,
+          {
+            duration: 1000,
+            easing: easeOutCubic,
+              onUpdate: (value) => {
+                setUserCallback(prev => ({ ...prev, rankPoints: value }));
+              }
+          }
+        )
+      );
+    }
+
+        // Process leaderboard points
+        const leaderboardTotal = rewardsByType.get('leaderboard') || 0;
+    if (leaderboardTotal > 0) {
+      animations.push(
+        animateCount(
+          currentUser.leaderboardScore || 0,
+          (currentUser.leaderboardScore || 0) + leaderboardTotal,
+          {
+            duration: 1000,
+            easing: easeOutCubic,
+              onUpdate: (value) => {
+                setUserCallback((prev: any) => ({ ...prev, leaderboardScore: value }));
+              }
+          }
+        )
+      );
+    }
+
+        // Process EXP
+        const expTotal = rewardsByType.get('exp') || 0;
+    if (expTotal > 0) {
+      let currentXp = currentUser.petXp;
+      animations.push(
+        animateCount(
+          currentXp,
+          currentXp + expTotal,
+          {
+            duration: 1000,
+            easing: easeOutCubic,
+              onUpdate: (value) => {
+                setUserCallback(prev => {
+                  const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, value - prev.petXp);
+                  return {
+                    ...prev,
+                    petXp: progression.newXp,
+                    petLevel: progression.newLevel,
+                    petMaxXp: progression.newMaxXp
+                  };
+                });
+              }
+          }
+        )
+      );
+    }
+
+        // Process skill points (badge points)
+        skillRewards.forEach((total, skillName) => {
+          const skill = currentSkills.find(s => s.name === skillName);
+          if (skill && total > 0) {
+          animations.push(
+            new Promise<void>((resolve) => {
+              let currentPoints = skill.points;
+              animateCount(
+                currentPoints,
+                currentPoints + total,
+                {
+                  duration: 1000,
+                  easing: easeOutCubic,
+                  onUpdate: (value) => {
+                    setSkillsCallback(prev => prev.map(s => {
+                      if (s.name === skillName) {
+                        const oldLevel = s.currentLevel;
+                        const oldMaxPoints = s.maxPoints;
+                        const newPoints = value;
+                        let newLevel = oldLevel;
+                        let newMaxPoints = oldMaxPoints;
+
+                        if (newPoints >= oldMaxPoints && oldLevel < 5) {
+                          newLevel = oldLevel + 1;
+                          newMaxPoints = 10000 * newLevel;
+                          setTimeout(() => {
+                            if (handleSkillLevelUpRef.current) {
+                              handleSkillLevelUpRef.current(skill.name, newLevel, skill.rewards);
+                            }
+                          }, 100);
+                        }
+
+                        const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
+
+                        return {
+                          ...s,
+                          points: cappedPoints,
+                          currentLevel: newLevel,
+                          maxPoints: newMaxPoints
+                        };
+                      }
+                      return s;
+                    }));
+                  },
+                  onComplete: resolve
+                }
+              );
+            })
+          );
+          }
+        });
+
+        // Wait for all animations to complete
+        Promise.all(animations).then(() => {
+          // Clear pending rewards after animations complete
+          pendingRewardTotals.current.clear();
+          console.log('All reward animations completed');
+          resolve();
+        });
+
+        return [];
+      });
+    });
+  }, [setPendingRewards]);
+
   return {
     rewardAnimations,
     setRewardAnimations,
@@ -424,6 +693,7 @@ export const useRewards = (
     removeRewardNotification,
     pendingRewards,
     applyPendingRewards,
+    applyPendingRewardsWithAnimations,
     triggerRewardAnimation,
     awardObjectiveReward,
     awardQuestRewards,

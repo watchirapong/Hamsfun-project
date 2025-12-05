@@ -22,6 +22,7 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   const [isAnimating, setIsAnimating] = useState(false);
   const startY = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const dragStartTarget = useRef<HTMLElement | null>(null);
   const panelHeightRef = useRef<number>(0);
 
@@ -60,13 +61,24 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     return 400; // Fallback
   };
 
+  // Check if target is inside header area (only header allows dragging)
+  const isInsideHeader = (target: HTMLElement): boolean => {
+    if (!headerRef.current) return false;
+    return headerRef.current.contains(target);
+  };
+
   // Native touch event handlers (to allow preventDefault)
   const handleTouchStartNative = (e: TouchEvent) => {
     const target = e.target as HTMLElement;
     dragStartTarget.current = target;
     
-    // Start panel drag from anywhere
-    // e.preventDefault(); // Don't prevent default immediately to allow clicks
+    // Only allow dragging from header area
+    if (!isInsideHeader(target)) {
+      // Not in header - let normal behavior happen
+      return;
+    }
+    
+    // Start panel drag from header only
     startY.current = e.touches[0].clientY;
     setIsDragging(true);
   };
@@ -107,8 +119,14 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
     const target = (e.target as HTMLElement);
     dragStartTarget.current = target;
     
-    // Start panel drag from anywhere
-    // e.preventDefault(); // Don't prevent default immediately
+    // Only allow dragging from header area
+    if (!isInsideHeader(target)) {
+      // Not in header - let normal behavior happen
+      return;
+    }
+    
+    // Start panel drag from header only
+    e.preventDefault(); // Prevent text selection
     startY.current = 'clientY' in e ? e.clientY : (e as React.MouseEvent).clientY;
     setIsDragging(true);
   };
@@ -230,33 +248,56 @@ export const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
   }, [onClose, isDragging, dragY]);
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-end justify-center ${
-      isClosing ? 'animate-fade-out' : 'animate-fade-in'
-    } ${theme === 'dark' ? 'bg-black/80' : 'bg-black/50'}`}>
+    <div 
+      className={`fixed inset-0 z-50 flex items-end justify-center ${
+        isClosing ? 'animate-fade-out' : 'animate-fade-in'
+      } ${theme === 'dark' ? 'bg-black/80' : 'bg-black/50'}`}
+      onClick={(e) => {
+        // Close panel when clicking outside (on the background overlay)
+        if (e.target === e.currentTarget && !isDragging && !isClosing) {
+          handleClose();
+        }
+      }}
+      onTouchStart={(e) => {
+        // Handle touch outside for mobile
+        if (e.target === e.currentTarget && !isDragging && !isClosing) {
+          handleClose();
+        }
+      }}
+    >
       <div 
         ref={panelRef}
         className={`w-full max-w-md rounded-t-xl shadow-lg pb-10 transition-colors ${
           !isDragging && dragY === 0 && !isAnimating && !isClosing ? 'animate-slide-up' : ''
         } ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
-        onClick={(e) => e.stopPropagation()} // Prevent clicks inside panel from closing (if we had click-outside-to-close)
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
       >
-        {/* iPhone-style home indicator bar */}
-        <div className="flex justify-center pt-3 pb-2 cursor-grab active:cursor-grabbing">
-          <div className={`w-12 h-1 rounded-full ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`}></div>
-        </div>
+         {/* Expanded draggable area (includes home indicator + header) */}
+         <div 
+           ref={headerRef}
+           className="cursor-grab active:cursor-grabbing"
+         >
+           {/* iPhone-style home indicator bar */}
+           <div className="flex justify-center pt-3 pb-2">
+             <div className={`w-12 h-1 rounded-full ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`}></div>
+           </div>
 
-        {/* Header */}
-        <div 
-          className={`p-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}
-        >
-          <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Settings</h2>
-          <button 
-            onClick={handleClose}
-            className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
-          >
-            <X size={20} />
-          </button>
-        </div>
+           {/* Header - visible text area */}
+           <div 
+             className={`pt-2 pb-4 px-4 border-b flex justify-between items-center ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}
+           >
+             <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Settings</h2>
+             <button 
+               onClick={handleClose}
+               className={`p-2 rounded-full ${theme === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+               onMouseDown={(e) => e.stopPropagation()} // Prevent drag when clicking close button
+               onTouchStart={(e) => e.stopPropagation()} // Prevent drag when tapping close button
+             >
+               <X size={20} />
+             </button>
+           </div>
+         </div>
 
         {/* Settings Options */}
         <div className="p-4 space-y-4">

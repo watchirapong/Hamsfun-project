@@ -106,44 +106,69 @@ export const RewardNotification: React.FC<RewardNotificationProps> = ({
     }
   };
 
+  const getRewardName = () => {
+    switch (notification.type) {
+      case 'coins':
+        return 'Coins';
+      case 'exp':
+        return 'Experience';
+      case 'rank':
+        return 'Rank Points';
+      case 'skill':
+        return notification.skillName || 'Skill Points';
+      case 'animal':
+        return 'Animal';
+      case 'item':
+        return notification.itemName || 'Item';
+      case 'leaderboard':
+        return 'Leaderboard Points';
+      default:
+        return 'Reward';
+    }
+  };
+
+  const getRewardAmount = () => {
+    if (typeof notification.value === 'number') {
+      return `+${notification.value.toLocaleString()}`;
+    }
+    return `+${notification.value}`;
+  };
+
   return (
     <div
-      className={`absolute top-0 right-0 z-[10000] pointer-events-auto transition-all duration-300 ease-out ${
+      className={`fixed top-4 z-[10000] pointer-events-auto transition-all duration-300 ease-out ${
         isVisible && !isExiting
           ? 'translate-x-0 opacity-100'
           : 'translate-x-full opacity-0'
       }`}
       style={{
+        // Position at top-right of main page (max-w-[428px] centered)
+        // Calculate: 50% (center) + 214px (half of 428px) - 2rem (moved left from edge)
+        right: 'calc(50% - 214px + 2rem)',
+        maxWidth: '428px',
         transform: isVisible && !isExiting 
-          ? `translateX(0) translateY(${index * 80}px)` 
+          ? `translateX(0) translateY(${index * 70}px)` 
           : 'translateX(100%)',
         transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-out',
       }}
     >
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl dark:shadow-2xl border border-gray-200 dark:border-gray-700 p-4 min-w-[280px] max-w-[320px] flex items-center gap-3 transition-colors duration-300">
-        {/* Icon with background glow */}
-        <div className="flex-shrink-0 p-2 rounded-full bg-gray-100 dark:bg-gray-700/50 transition-colors duration-300">
-          {getIcon()}
-        </div>
+      {/* No background box - only icon and text visible */}
+      <div className="flex items-center gap-2">
+        {/* Reward name on the left */}
+        <span className="text-sm font-semibold text-gray-900 dark:text-white transition-colors duration-300 whitespace-nowrap drop-shadow-sm dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+          {getRewardName()}
+        </span>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 dark:text-white transition-colors duration-300">
-            You received a reward!
-          </p>
-          <p className="text-sm text-gray-600 dark:text-gray-300 truncate transition-colors duration-300">
-            {getLabel()}
-          </p>
+        {/* Circular icon on the right - closer to text */}
+        <div className="flex-shrink-0 flex flex-col items-center gap-0.5">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center shadow-md dark:shadow-lg border-2 border-gray-300 dark:border-gray-500 transition-all duration-300 ring-1 ring-gray-200/50 dark:ring-gray-600/50">
+            {getIcon()}
+          </div>
+          {/* Reward amount below icon */}
+          <span className="text-xs font-bold text-gray-900 dark:text-white transition-colors duration-300 drop-shadow-sm dark:drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+            {getRewardAmount()}
+          </span>
         </div>
-
-        {/* Close button */}
-        <button
-          onClick={handleRemove}
-          className="flex-shrink-0 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-          aria-label="Close notification"
-        >
-          <X className="w-4 h-4 text-gray-500 dark:text-gray-400 transition-colors duration-200" />
-        </button>
       </div>
     </div>
   );
@@ -158,17 +183,10 @@ export const RewardNotificationContainer: React.FC<RewardNotificationContainerPr
   notifications,
   onRemove,
 }) => {
-  // Position aligned with Quest panel on the right side
-  // Quest panel is max-w-md (448px/28rem) centered, so we position notifications to align with panel's right edge
-  // Using custom positioning: 50% (center) - 14rem (half of max-w-md) + 1rem (padding) = right edge of panel
+  // Notifications are positioned individually in RewardNotification component
+  // Container just renders them
   return (
-    <div 
-      className="fixed top-4 z-[10000] pointer-events-none"
-      style={{ 
-        right: 'calc(50% - 14rem + 1rem)',
-        maxWidth: '28rem'
-      }}
-    >
+    <>
       {notifications.map((notification, index) => (
         <RewardNotification
           key={notification.id}
@@ -177,7 +195,7 @@ export const RewardNotificationContainer: React.FC<RewardNotificationContainerPr
           index={index}
         />
       ))}
-    </div>
+    </>
   );
 };
 

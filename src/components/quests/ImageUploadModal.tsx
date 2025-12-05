@@ -25,9 +25,27 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex flex-col items-center justify-center animate-fade-in">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex flex-col items-center justify-center animate-fade-in"
+      onClick={(e) => {
+        // Close modal when clicking outside (on the background overlay)
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+      onTouchStart={(e) => {
+        // Handle touch outside for mobile
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       {description && (
-        <div className={`mb-3 p-3 rounded-xl shadow-lg w-full max-w-xs mx-4 animate-slide-up ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-700'}`}>
+        <div 
+          className={`mb-3 p-3 rounded-xl shadow-lg w-full max-w-xs mx-4 animate-slide-up ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-700'}`}
+          onClick={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
           <div className="flex justify-between items-center mb-1">
             <h3 className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Description</h3>
             <button
@@ -43,7 +61,11 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
         </div>
       )}
 
-      <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-4 w-full max-w-xs mx-4 animate-slide-up`}>
+      <div 
+        className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg p-4 w-full max-w-xs mx-4 animate-slide-up`}
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
         <div className="flex justify-between items-center mb-3">
           <h2 className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Import your image</h2>
           {!description && (

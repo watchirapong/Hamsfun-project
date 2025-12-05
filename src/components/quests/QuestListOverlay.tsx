@@ -268,6 +268,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
   const startY = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollableContentRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const isScrollingContent = useRef(false);
   const dragStartTarget = useRef<HTMLElement | null>(null);
   const panelHeightRef = useRef<number>(0);
@@ -314,6 +315,12 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     return scrollableContentRef.current.contains(target);
   };
 
+  // Check if target is inside header area (only header allows dragging)
+  const isInsideHeader = (target: HTMLElement): boolean => {
+    if (!headerRef.current) return false;
+    return headerRef.current.contains(target);
+  };
+
   // Check if scrollable content can scroll in the given direction
   const canScrollContent = (direction: 'up' | 'down'): boolean => {
     if (!scrollableContentRef.current) return false;
@@ -332,15 +339,24 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     const target = e.target as HTMLElement;
     dragStartTarget.current = target;
     
-    // Check if inside scrollable content
+    // Only allow dragging from header area
+    if (!isInsideHeader(target)) {
+      // Not in header - let normal behavior happen (scrolling, etc.)
+      return;
+    }
+    
+    // Check if inside scrollable content (shouldn't happen if header check works, but safety check)
     if (isInsideScrollableContent(target)) {
       // Let the content handle scrolling first
       isScrollingContent.current = true;
       return; // Don't prevent default, let content scroll
     }
     
-    // Start panel drag from anywhere
-    e.preventDefault();
+    // Start panel drag from header only
+    // Only preventDefault if event is cancelable
+    if (e.cancelable) {
+      e.preventDefault();
+    }
     startY.current = e.touches[0].clientY;
     setIsDragging(true);
     isScrollingContent.current = false;
@@ -357,16 +373,22 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
       // If dragging down and at top of scroll, or dragging up and at bottom, switch to panel drag
       if (diff > 0 && scrollTop === 0) {
         // Dragging down at top - switch to panel drag
+        // Only preventDefault if event is cancelable
+        if (e.cancelable) {
+          e.preventDefault();
+        }
         isScrollingContent.current = false;
         setIsDragging(true);
-        e.preventDefault();
         setDragY(Math.max(0, diff));
       } else if (diff < 0 && scrollTop >= scrollHeight - clientHeight - 1) {
         // Dragging up at bottom - switch to panel drag (but only allow upward if panel is already dragged down)
         if (dragY > 0) {
+          // Only preventDefault if event is cancelable
+          if (e.cancelable) {
+            e.preventDefault();
+          }
           isScrollingContent.current = false;
           setIsDragging(true);
-          e.preventDefault();
           setDragY(Math.max(0, dragY + diff));
         }
       }
@@ -377,8 +399,13 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     if (!isDragging) {
       return;
     }
-    e.preventDefault(); // Prevent background scrolling while dragging
-    e.stopPropagation(); // Prevent event bubbling
+    
+    // Only preventDefault if event is cancelable (not already in progress)
+    if (e.cancelable) {
+      e.preventDefault(); // Prevent background scrolling while dragging
+      e.stopPropagation(); // Prevent event bubbling
+    }
+    
     const currentY = e.touches[0].clientY;
     const diff = currentY - startY.current;
     // Panel follows drag smoothly, but only positive (downward) for closing
@@ -409,14 +436,20 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     const target = (e.target as HTMLElement);
     dragStartTarget.current = target;
     
-    // Check if inside scrollable content
+    // Only allow dragging from header area
+    if (!isInsideHeader(target)) {
+      // Not in header - let normal behavior happen
+      return;
+    }
+    
+    // Check if inside scrollable content (shouldn't happen if header check works, but safety check)
     if (isInsideScrollableContent(target)) {
       // Let the content handle scrolling first
       isScrollingContent.current = true;
       return; // Don't prevent default, let content scroll
     }
     
-    // Start panel drag from anywhere
+    // Start panel drag from header only
     e.preventDefault(); // Prevent text selection
     startY.current = 'clientY' in e ? e.clientY : (e as React.MouseEvent).clientY;
     setIsDragging(true);
@@ -434,16 +467,22 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
       // If dragging down and at top of scroll, or dragging up and at bottom, switch to panel drag
       if (diff > 0 && scrollTop === 0) {
         // Dragging down at top - switch to panel drag
+        // Only preventDefault if event is cancelable
+        if (e.cancelable) {
+          e.preventDefault();
+        }
         isScrollingContent.current = false;
         setIsDragging(true);
-        e.preventDefault();
         setDragY(Math.max(0, diff));
       } else if (diff < 0 && scrollTop >= scrollHeight - clientHeight - 1) {
         // Dragging up at bottom - switch to panel drag (but only allow upward if panel is already dragged down)
         if (dragY > 0) {
+          // Only preventDefault if event is cancelable
+          if (e.cancelable) {
+            e.preventDefault();
+          }
           isScrollingContent.current = false;
           setIsDragging(true);
-          e.preventDefault();
           setDragY(Math.max(0, dragY + diff));
         }
       }
@@ -452,8 +491,12 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     }
     
     if (!isDragging) return;
-    e.preventDefault(); // Prevent default behavior
-    e.stopPropagation(); // Prevent event bubbling
+    
+    // Only preventDefault if event is cancelable
+    if (e.cancelable) {
+      e.preventDefault(); // Prevent default behavior
+      e.stopPropagation(); // Prevent event bubbling
+    }
     const currentY = e.clientY;
     const diff = currentY - startY.current;
     // Panel follows drag smoothly, but only positive (downward) for closing
@@ -563,26 +606,47 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
   }, [showQuestOverlay, isDragging, dragY]);
   
   return (
-    <div className={`fixed inset-0 z-50 flex items-end justify-center ${
-      isClosing ? 'animate-fade-out' : 'animate-fade-in'
-    } ${theme === 'dark' ? 'bg-black/80' : 'bg-black/50'}`}>
+    <div 
+      className={`fixed inset-0 z-50 flex items-end justify-center ${
+        isClosing ? 'animate-fade-out' : 'animate-fade-in'
+      } ${theme === 'dark' ? 'bg-black/80' : 'bg-black/50'}`}
+      onClick={(e) => {
+        // Close panel when clicking outside (on the background overlay)
+        if (e.target === e.currentTarget && !isDragging && !isClosing) {
+          handleClose();
+        }
+      }}
+      onTouchStart={(e) => {
+        // Handle touch outside for mobile
+        if (e.target === e.currentTarget && !isDragging && !isClosing) {
+          handleClose();
+        }
+      }}
+    >
       <div 
         ref={panelRef}
         className={`w-full max-w-md rounded-t-xl shadow-lg pb-20 transition-colors ${
           !isDragging && dragY === 0 && !isAnimating && !isClosing ? 'animate-slide-up' : ''
         } ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
       >
-        {/* iPhone-style home indicator bar */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className={`w-12 h-1 rounded-full ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`}></div>
-        </div>
-
-        {/* Header */}
+        {/* Expanded draggable area (includes home indicator + header) */}
         <div 
-          className={`p-4 border-b flex justify-center items-center ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}
+          ref={headerRef}
+          className="cursor-grab active:cursor-grabbing"
         >
-          <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>All Quests</h2>
+          {/* iPhone-style home indicator bar */}
+          <div className="flex justify-center pt-3 pb-2">
+            <div className={`w-12 h-1 rounded-full ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-400'}`}></div>
+          </div>
+
+          {/* Header - visible text area */}
+          <div 
+            className={`pt-2 pb-4 px-4 border-b flex justify-center items-center ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}
+          >
+            <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>All Quests</h2>
+          </div>
         </div>
 
         {/* Quest List with Full Details */}
@@ -655,29 +719,29 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                           >
                             <div className="flex-1 flex flex-col gap-1 min-w-0 pr-3">
                               <div className="flex items-center gap-2">
-                                <span 
-                                  className={`text-sm truncate ${
-                                    isApproved 
-                                      ? theme === 'dark' ? 'font-semibold' : 'text-green-600 font-semibold'
-                                      : isRejected
-                                      ? 'text-red-600 font-semibold'
-                                      : theme === 'dark' ? 'text-white' : 'text-black'
-                                  }`}
-                                  style={theme === 'dark' && isApproved ? { color: '#5BFF60' } : undefined}
-                                >
-                                  {objective.text}
-                                </span>
-                                {isPending && (
-                                  <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-                                )}
-                                {isFullyApproved && (
-                                  <div className="flex items-center gap-0.5 flex-shrink-0">
-                                    <Check className="w-4 h-4 text-green-600" />
-                                    <Check className="w-4 h-4 text-green-600" />
-                                  </div>
-                                )}
-                                {isRejected && (
-                                  <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
+                              <span 
+                                className={`text-sm truncate ${
+                                  isApproved 
+                                    ? theme === 'dark' ? 'font-semibold' : 'text-green-600 font-semibold'
+                                    : isRejected
+                                    ? 'text-red-600 font-semibold'
+                                    : theme === 'dark' ? 'text-white' : 'text-black'
+                                }`}
+                                style={theme === 'dark' && isApproved ? { color: '#5BFF60' } : undefined}
+                              >
+                                {objective.text}
+                              </span>
+                              {isPending && (
+                                <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
+                              )}
+                              {isFullyApproved && (
+                                <div className="flex items-center gap-0.5 flex-shrink-0">
+                                  <Check className="w-4 h-4 text-green-600" />
+                                  <Check className="w-4 h-4 text-green-600" />
+                                </div>
+                              )}
+                              {isRejected && (
+                                <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
                                 )}
                               </div>
                               {/* Tap to details label for clickable objectives */}
