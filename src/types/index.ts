@@ -32,6 +32,12 @@ export const RANKS: readonly RankName[] = [
   'Cosmic'
 ] as const;
 
+export interface PetStats {
+  maxHealth: number;
+  attackDamage: number;
+  defense: number;
+}
+
 export interface User {
   name: string;
   avatar: string;
@@ -45,7 +51,10 @@ export interface User {
   petLevel: number;
   petXp: number;
   petMaxXp: number;
+  petStats: PetStats; // Pet combat stats
   leaderboardScore?: number; // Leaderboard points
+  isHamster: boolean; // Whether user is a Hamster (special role)
+  hamsterRank?: string; // Hamster rank (Enigma, Cadet, Ranger, etc.)
 }
 
 export interface Skill {

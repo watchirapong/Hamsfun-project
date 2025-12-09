@@ -85,8 +85,6 @@ const App: React.FC = () => {
   // UI state management
   const ui = useUI();
   const {
-    activeTab,
-    setActiveTab,
     showQuestOverlay,
     setShowQuestOverlay,
     selectedQuestId,

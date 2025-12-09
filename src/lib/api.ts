@@ -192,3 +192,15 @@ export const leaderboardAPI = {
   getHouseMembers: (houseId: string) => apiCall<any[]>(`/api/v1/houses/${houseId}/members`).catch(() => []),
 };
 
+// Hamster APIs
+export const hamsterAPI = {
+  // Get hamster profile (includes hamster-specific data)
+  getMyProfile: () => apiCall<any>('/api/v1/hamsters/me'),
+
+  // Get hamster active quests
+  getActiveQuests: () => apiCall<any[]>('/api/v1/hamsters/me/active-quests'),
+
+  // Get hamster completed quests
+  getCompletedQuests: () => apiCall<any[]>('/api/v1/hamsters/me/completed-quests'),
+};
+

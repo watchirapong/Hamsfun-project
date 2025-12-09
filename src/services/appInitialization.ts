@@ -1,5 +1,5 @@
 import { Gamepad2, Monitor, Paintbrush, Code } from 'lucide-react';
-import { userAPI, getToken, setToken, removeToken } from '@/lib/api';
+import { userAPI, hamsterAPI, getToken, setToken, removeToken } from '@/lib/api';
 import { User, Skill, Quest, BackpackItem, ObjectiveReward, ApprovalStatus } from '@/types';
 import { getRankIconPath, getAssetUrl } from '@/utils/helpers';
 import {
@@ -58,8 +58,10 @@ export const initializeApp = async (params: InitializeAppParams) => {
     setIsAuthenticated(true);
 
     // Fetch user profile
+    let isHamsterUser = false; // Track if user is Hamster to fetch correct quests
     try {
       const profile = await userAPI.getMyProfile();
+      isHamsterUser = profile.isHamster || false;
       // Map backend profile to frontend User interface
       setUser({
         name: profile.discordNickname || profile.discordUsername || profile.name || 'User',
@@ -70,10 +72,18 @@ export const initializeApp = async (params: InitializeAppParams) => {
         rankName: profile.rank?.currentTier || "Meteor I",
         nextRankPoints: profile.rank?.nextRankPoints || undefined,
         gameDemos: profile.gameDemos || 0,
-        petLevel: profile.petLevel || 1,
-        petXp: profile.petXp || 0,
-        petMaxXp: profile.petMaxXp || 1000,
-        rankObjectives: profile.rankObjectives || []
+        // Map pet data from partnerPet object
+        petLevel: profile.partnerPet?.level || profile.petLevel || 1,
+        petXp: profile.partnerPet?.experience || profile.petXp || 0,
+        petMaxXp: profile.partnerPet?.maxExperience || 1000, // Calculate based on level if needed
+        petStats: {
+          maxHealth: profile.partnerPet?.stats?.maxHealth || 100,
+          attackDamage: profile.partnerPet?.stats?.attackDamage || 10,
+          defense: profile.partnerPet?.stats?.defense || 5,
+        },
+        rankObjectives: profile.rankObjectives || [],
+        isHamster: isHamsterUser,
+        hamsterRank: profile.hamster?.hamsterRank || undefined
       });
 
       // Map badges/skills from backend
@@ -197,9 +207,11 @@ export const initializeApp = async (params: InitializeAppParams) => {
       }
     }
 
-    // Fetch active quests
+    // Fetch active quests - use hamsterAPI for Hamster users, userAPI for regular users
     try {
-      const activeQuests = await userAPI.getActiveQuests();
+      const activeQuests = isHamsterUser
+        ? await hamsterAPI.getActiveQuests()
+        : await userAPI.getActiveQuests();
       // Map backend quests to frontend Quest interface
       // Filter out quests where questId is null or not populated (not an object)
       const mappedQuests = activeQuests
@@ -444,9 +456,11 @@ export const initializeApp = async (params: InitializeAppParams) => {
       console.error('Error fetching active quests:', error);
     }
 
-    // Fetch completed quests
+    // Fetch completed quests - use hamsterAPI for Hamster users, userAPI for regular users
     try {
-      const completedQuests = await userAPI.getCompletedQuests();
+      const completedQuests = isHamsterUser
+        ? await hamsterAPI.getCompletedQuests()
+        : await userAPI.getCompletedQuests();
       // Similar mapping as active quests
       // Filter out quests where questId is null or not populated (not an object)
       const mappedCompleted = completedQuests

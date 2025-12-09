@@ -19,7 +19,14 @@ export const useAuth = () => {
     gameDemos: 0,
     petLevel: 1,
     petXp: 0,
-    petMaxXp: 1000
+    petMaxXp: 1000,
+    petStats: {
+      maxHealth: 100,
+      attackDamage: 10,
+      defense: 5,
+    },
+    isHamster: false,
+    hamsterRank: undefined
   });
   const [skills, setSkills] = useState<Skill[]>([]);
 
@@ -55,6 +62,7 @@ export const useAuth = () => {
         // Fetch user profile
         try {
           const profile = await userAPI.getMyProfile();
+
           // Map backend profile to frontend User interface
           setUser({
             name: profile.discordNickname || profile.discordUsername || profile.name || 'User',
@@ -65,10 +73,17 @@ export const useAuth = () => {
             rankName: profile.rank?.currentTier || "Meteor I",
             nextRankPoints: profile.rank?.nextRankPoints || undefined,
             gameDemos: profile.gameDemos || 0,
-            petLevel: profile.petLevel || 1,
-            petXp: profile.petXp || 0,
-            petMaxXp: profile.petMaxXp || 1000,
-            rankObjectives: profile.rankObjectives || []
+            petLevel: profile.partnerPet?.level || profile.petLevel || 1,
+            petXp: profile.partnerPet?.experience || profile.petXp || 0,
+            petMaxXp: profile.partnerPet?.maxExperience || 1000,
+            petStats: {
+              maxHealth: profile.partnerPet?.stats?.maxHealth || 100,
+              attackDamage: profile.partnerPet?.stats?.attackDamage || 10,
+              defense: profile.partnerPet?.stats?.defense || 5,
+            },
+            rankObjectives: profile.rankObjectives || [],
+            isHamster: profile.isHamster || false,
+            hamsterRank: profile.hamster?.hamsterRank || undefined
           });
 
           // Map badges/skills from backend
