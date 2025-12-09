@@ -49,6 +49,9 @@ import { QuestCard } from '@/components/quests/QuestCard';
 import { SkillCard } from '@/components/skills/SkillCard';
 import { RewardAnimation } from '@/components/common/RewardAnimation';
 import { RewardNotificationContainer } from '@/components/common/RewardNotification';
+import { CoinFlightAnimation, CoinFlightInstance } from '@/components/common/CoinFlightAnimation';
+import { QuestNotificationContainer, QuestNotificationData } from '@/components/common/QuestNotification';
+import { getStoredQuestIds, detectNewQuests, updateStoredQuestIds } from '@/utils/questNotification';
 import { LeaderboardItemComponent } from '@/components/common/LeaderboardItem';
 import { HouseLeaderboardItemComponent } from '@/components/leaderboard/HouseLeaderboardItem';
 import { BackpackItemComponent } from '@/components/items/BackpackItem';
@@ -124,6 +127,15 @@ const App: React.FC = () => {
     container: null,
     scrollTop: 0
   });
+  
+  // Ref for coin display position
+  const coinDisplayRef = useRef<HTMLDivElement>(null);
+  
+  // Coin flight animation state
+  const [coinFlights, setCoinFlights] = useState<CoinFlightInstance[]>([]);
+  
+  // Quest notification state
+  const [questNotification, setQuestNotification] = useState<QuestNotificationData | null>(null);
   
   // Reward refs are now in useRewards hook
 
@@ -216,7 +228,50 @@ const App: React.FC = () => {
       // Trigger burst on all active animations before clearing
       setRewardAnimations(prev => prev.map(anim => ({ ...anim, forceBurst: true })));
       
+      // Find coin rewards
+      const coinRewards = pendingRewards.filter(r => r.type === 'coins');
+      const totalCoins = coinRewards.reduce((sum, r) => sum + (typeof r.value === 'number' ? r.value : 0), 0);
+      
+      // Trigger coin flight animation if there are coin rewards
+      if (totalCoins > 0 && coinDisplayRef.current) {
+        const coinDisplayRect = coinDisplayRef.current.getBoundingClientRect();
+        const targetX = coinDisplayRect.left + coinDisplayRect.width / 2;
+        const targetY = coinDisplayRect.top + coinDisplayRect.height / 2;
+        
+        // Spawn coins at bottom of screen
+        const mainPageWidth = 428;
+        const mainPageLeft = (window.innerWidth - mainPageWidth) / 2;
+        const mainPageRight = mainPageLeft + mainPageWidth;
+        const coinSize = 48;
+        const margin = 20;
+        const minX = mainPageLeft + margin + coinSize / 2;
+        const maxX = mainPageRight - margin - coinSize / 2;
+        
+        // Create coin flight instances (one per coin, up to a reasonable max)
+        const numCoins = Math.min(totalCoins, 30); // Cap at 30 coins for performance
+        const newCoinFlights: CoinFlightInstance[] = [];
+        const now = Date.now();
+        
+        for (let i = 0; i < numCoins; i++) {
+          const startX = minX + Math.random() * (maxX - minX);
+          const startY = window.innerHeight - 100; // Bottom area, not fully off-screen
+          const delay = i * 20; // Stagger coins slightly
+          
+          newCoinFlights.push({
+            id: `coin-${now}-${i}`,
+            startX,
+            startY,
+            targetX,
+            targetY,
+            startTime: now + delay,
+          });
+        }
+        
+        setCoinFlights(newCoinFlights);
+      }
+      
       // Apply pending rewards with smooth counting animations after a short delay
+      // Start number increment animation when coins start reaching target
       setTimeout(() => {
         if (applyPendingRewardsWithAnimations) {
           applyPendingRewardsWithAnimations(user, skills, setUser, setSkills);
@@ -228,9 +283,72 @@ const App: React.FC = () => {
         setRewardAnimations([]);
       }, 600);
     }
-  }, [showQuestOverlay, pendingRewards.length, applyPendingRewardsWithAnimations, user, skills, setRewardAnimations]);
+  }, [showQuestOverlay, pendingRewards, applyPendingRewardsWithAnimations, user, skills, setRewardAnimations]);
+  
+  // Handle coin flight completion
+  const handleCoinFlightComplete = useCallback((coinId: string) => {
+    setCoinFlights(prev => prev.filter(coin => coin.id !== coinId));
+  }, []);
   
   const [questsState, setQuestsState] = useState<Quest[]>([]);
+  
+  // Detect new quests after quests are loaded
+  useEffect(() => {
+    if (questsState.length === 0) {
+      return; // Don't check if no quests loaded yet
+    }
+
+    // Get stored quest IDs from localStorage
+    // Returns null if first time ever loading, empty Set if user had no quests before, Set with IDs otherwise
+    const storedQuestIds = getStoredQuestIds();
+    
+    // Check if this is the first time ever loading the page (localStorage key doesn't exist)
+    const isFirstLoad = storedQuestIds === null;
+    
+    if (isFirstLoad) {
+      // First time ever loading: Save current quest IDs to localStorage, but don't show notification
+      // This prevents false "new quest" alerts on initial page load
+      updateStoredQuestIds(questsState);
+      return;
+    }
+    
+    // Not first load: Detect new quests by comparing with stored quests
+    // If storedQuestIds is empty Set, all current quests are considered "new" (user had no quests before)
+    // If storedQuestIds has items, only truly new IDs are returned
+    const newQuestIds = detectNewQuests(questsState, storedQuestIds);
+    
+    if (newQuestIds.length > 0) {
+      // New quests detected: Show notification
+      const notificationId = `quest-notification-${Date.now()}`;
+      setQuestNotification({
+        id: notificationId,
+        questIds: newQuestIds,
+        count: newQuestIds.length,
+      });
+      
+      // Update stored quest IDs after a short delay (to allow notification to be seen)
+      // This ensures if user reloads immediately, they'll still see the notification
+      setTimeout(() => {
+        updateStoredQuestIds(questsState);
+      }, 1000);
+    } else {
+      // No new quests: Update stored IDs to current state (in case quests were removed or changed)
+      // This keeps localStorage in sync even if quests were removed
+      updateStoredQuestIds(questsState);
+    }
+  }, [questsState]);
+  
+  // Handle quest notification removal
+  const handleRemoveQuestNotification = useCallback(() => {
+    setQuestNotification(null);
+  }, []);
+  
+  // Handle view quests action
+  const handleViewQuests = useCallback(() => {
+    setSelectedQuestId(null);
+    setShowQuestOverlay(true);
+    setQuestNotification(null);
+  }, [setSelectedQuestId, setShowQuestOverlay]);
 
   // User and skills are managed by useAuth hook
 
@@ -404,6 +522,21 @@ const App: React.FC = () => {
           onRemove={removeRewardNotification}
         />
         
+        {/* Quest Notification */}
+        <QuestNotificationContainer
+          notification={questNotification}
+          onRemove={handleRemoveQuestNotification}
+          onViewQuests={handleViewQuests}
+          theme={theme}
+        />
+        
+        {/* Coin Flight Animation */}
+        <CoinFlightAnimation
+          coins={coinFlights}
+          onComplete={handleCoinFlightComplete}
+          theme={theme}
+        />
+        
         {/* Header */}
         <Header
         description={description}
@@ -414,6 +547,7 @@ const App: React.FC = () => {
         onDescriptionEdit={() => setIsEditingDescription(true)}
         onDescriptionBlur={() => setIsEditingDescription(false)}
         onSettingsClick={() => setShowSettingsOverlay(true)}
+        coinDisplayRef={coinDisplayRef}
       />
 
       {/* User Profile Section with Rank Card */}
