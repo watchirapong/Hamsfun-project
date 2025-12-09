@@ -38,8 +38,8 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     .filter(q => !isQuestTrulyCompleted(q))
     .sort((a, b) => {
       // Main Quests first
-      const aIsMain = a.type === "Main Quest";
-      const bIsMain = b.type === "Main Quest";
+      const aIsMain = a.type === "Main";
+      const bIsMain = b.type === "Main";
       if (aIsMain && !bIsMain) return -1;
       if (!aIsMain && bIsMain) return 1;
       // If both are Main Quests or both are not, maintain original order
@@ -50,8 +50,8 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     .filter(q => isQuestTrulyCompleted(q))
     .sort((a, b) => {
       // Main Quests first
-      const aIsMain = a.type === "Main Quest";
-      const bIsMain = b.type === "Main Quest";
+      const aIsMain = a.type === "Main";
+      const bIsMain = b.type === "Main";
       if (aIsMain && !bIsMain) return -1;
       if (!aIsMain && bIsMain) return 1;
       // If both are Main Quests or both are not, maintain original order

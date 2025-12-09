@@ -7,7 +7,7 @@ import { Quest } from '@/types';
 export const mockQuests: Quest[] = [
   {
     id: 1,
-    type: "Main Quest",
+    type: "Main",
     title: "Shooting Game",
     description: "Player Movement Script",
     steps: [1, 2, 3, 4],
@@ -38,7 +38,7 @@ export const mockQuests: Quest[] = [
   },
   {
     id: 2,
-    type: "Special Quest",
+    type: "Special",
     title: "Lighting 1",
     description: "Light in the cave",
     rewards: [
@@ -67,7 +67,7 @@ export const mockQuests: Quest[] = [
   },
   {
     id: 3,
-    type: "Special Quest",
+    type: "Special",
     title: "Timeline 3",
     description: "1 cutscene (Demo)",
     rewards: [
@@ -97,7 +97,7 @@ export const mockQuests: Quest[] = [
   },
   {
     id: 4,
-    type: "Main Quest",
+    type: "Main",
     title: "Enemy AI",
     description: "Basic enemy behavior",
     steps: [1, 2, 3],
@@ -130,7 +130,7 @@ export const mockQuests: Quest[] = [
   },
   {
     id: 5,
-    type: "Special Quest",
+    type: "Special",
     title: "UI Design",
     description: "Create game menu",
     rewards: [
@@ -160,7 +160,7 @@ export const mockQuests: Quest[] = [
   },
   {
     id: 6,
-    type: "Special Quest",
+    type: "Special",
     title: "Sound Design",
     description: "Add ambient sounds",
     rewards: [

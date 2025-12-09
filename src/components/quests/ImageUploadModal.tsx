@@ -55,7 +55,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
               <X size={18} />
             </button>
           </div>
-          <p className="text-sm font-medium">
+          <p className="text-sm font-medium whitespace-pre-line">
             {description}
           </p>
         </div>
