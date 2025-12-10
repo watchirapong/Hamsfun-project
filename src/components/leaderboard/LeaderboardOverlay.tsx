@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { HouseLeaderboardItem } from '@/types';
+import { HouseLeaderboardItem, TeamLeaderboardItem } from '@/types';
 import { HouseLeaderboardItemComponent } from './HouseLeaderboardItem';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface LeaderboardOverlayProps {
   houseLeaderboard: HouseLeaderboardItem[];
+  teamLeaderboard?: TeamLeaderboardItem[];
+  isHamster?: boolean;
   theme: 'light' | 'dark';
   onClose: () => void;
   onFetchMembers?: (houseId: string) => Promise<any[]>;
@@ -17,6 +19,8 @@ const USERS_PER_PAGE = 100;
 
 export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   houseLeaderboard,
+  teamLeaderboard = [],
+  isHamster = false,
   theme,
   onClose,
   onFetchMembers,
@@ -26,16 +30,18 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [expandedHouseId, setExpandedHouseId] = useState<string | null>(null);
+  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
   const startY = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
 
-  const totalPages = Math.ceil(houseLeaderboard.length / USERS_PER_PAGE);
+  // Choose data source based on isHamster
+  const leaderboardData = isHamster ? teamLeaderboard : houseLeaderboard;
+  const totalPages = Math.ceil(leaderboardData.length / USERS_PER_PAGE);
   const startIndex = (currentPage - 1) * USERS_PER_PAGE;
   const endIndex = startIndex + USERS_PER_PAGE;
-  const currentPageHouses = houseLeaderboard.slice(startIndex, endIndex);
-  const pageRange = `${startIndex + 1}-${Math.min(endIndex, houseLeaderboard.length)}`;
+  const currentPageItems = leaderboardData.slice(startIndex, endIndex);
+  const pageRange = `${startIndex + 1}-${Math.min(endIndex, leaderboardData.length)}`;
 
   const handleClose = () => {
     setIsClosing(true);
@@ -197,6 +203,11 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
     }
   };
 
+  // Toggle team expansion
+  const toggleTeamExpansion = (teamId: string) => {
+    setExpandedTeamId(expandedTeamId === teamId ? null : teamId);
+  };
+
   return (
     <div 
       className={`fixed inset-0 z-50 flex items-end justify-center ${
@@ -241,7 +252,7 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
              }`}
            >
              <h2 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-               Leaderboard
+               {isHamster ? '🐹 Team Leaderboard' : 'Leaderboard'}
              </h2>
            </div>
          </div>
@@ -251,24 +262,114 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
           theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
         }`}>
           <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-            Showing {pageRange} of {houseLeaderboard.length}
+            Showing {pageRange} of {leaderboardData.length}
           </div>
           <div className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
-            Page {currentPage} of {totalPages}
+            Page {currentPage} of {totalPages || 1}
           </div>
         </div>
 
         {/* Leaderboard List */}
         <div className="p-4 max-h-[calc(100vh-250px)] overflow-y-auto">
-          {currentPageHouses.map((item) => (
-            <HouseLeaderboardItemComponent 
-              key={item.houseId || item.rank} 
-              item={item}
-              onFetchMembers={onFetchMembers}
-              theme={theme}
-              currentUserDiscordUsername={currentUserDiscordUsername}
-            />
-          ))}
+          {isHamster ? (
+            // Team Leaderboard for Hamster users
+            (currentPageItems as TeamLeaderboardItem[]).map((team) => (
+              <div 
+                key={team._id}
+                className={`p-3 mb-2 rounded-xl border transition-all cursor-pointer ${
+                  theme === 'dark' 
+                    ? 'bg-gradient-to-r from-yellow-900/20 to-orange-900/20 border-yellow-600/30 hover:border-yellow-500/50' 
+                    : 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 hover:border-yellow-300'
+                }`}
+                onClick={() => toggleTeamExpansion(team._id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`text-2xl font-bold w-8 text-center ${
+                      team.rank === 1 ? 'text-yellow-500' : 
+                      team.rank === 2 ? 'text-gray-400' : 
+                      team.rank === 3 ? 'text-amber-600' : 
+                      theme === 'dark' ? 'text-gray-500' : 'text-gray-400'
+                    }`}>
+                      {team.rank <= 3 ? ['🥇', '🥈', '🥉'][team.rank - 1] : team.rank}
+                    </div>
+                    <div className="text-2xl">{team.icon}</div>
+                    <div>
+                      <div className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                        {team.name}
+                      </div>
+                      <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {team.memberCount} members
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-yellow-500">🔵 {team.totalBalls}</div>
+                    <div className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                      avg: {team.avgBalls}/member
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Expanded Members List */}
+                {expandedTeamId === team._id && team.members && team.members.length > 0 && (
+                  <div className={`mt-3 pt-3 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <div className={`text-xs font-semibold mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Team Members
+                    </div>
+                    {team.members.map((member, idx) => (
+                      <div 
+                        key={member._id}
+                        className={`flex items-center justify-between py-2 ${
+                          idx < team.members.length - 1 
+                            ? `border-b ${theme === 'dark' ? 'border-gray-700/50' : 'border-gray-100'}` 
+                            : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          {member.avatar ? (
+                            <img 
+                              src={member.avatar} 
+                              alt={member.discordNickname || member.discordUsername} 
+                              className="w-6 h-6 rounded-full"
+                            />
+                          ) : (
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
+                              theme === 'dark' ? 'bg-gray-700 text-gray-400' : 'bg-gray-200 text-gray-500'
+                            }`}>
+                              {(member.discordNickname || member.discordUsername || '?')[0].toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <div className={`text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                              {member.discordNickname || member.discordUsername}
+                            </div>
+                            <div className={`text-xs ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                              {member.hamsterRank}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-sm font-medium text-yellow-500">
+                          🔵 {member.balls}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            // House Leaderboard for regular users
+            (currentPageItems as HouseLeaderboardItem[]).map((item) => (
+              <HouseLeaderboardItemComponent 
+                key={item.houseId || item.rank} 
+                item={item}
+                onFetchMembers={onFetchMembers}
+                theme={theme}
+                currentUserDiscordUsername={currentUserDiscordUsername}
+              />
+            ))
+          )}
         </div>
 
         {/* Pagination Controls */}
@@ -291,9 +392,9 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
           </button>
           <button
             onClick={handleNextPage}
-            disabled={currentPage === totalPages}
+            disabled={currentPage === totalPages || totalPages === 0}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-              currentPage === totalPages
+              currentPage === totalPages || totalPages === 0
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : theme === 'dark'
                 ? 'bg-gray-700 text-white hover:bg-gray-600'

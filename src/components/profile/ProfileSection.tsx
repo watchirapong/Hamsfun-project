@@ -108,8 +108,8 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
         {/* Rank Card on Right - 50% of screen width - Clickable with Flip Animation */}
         <div className="w-1/2">
           <div 
-            className={`flip-card cursor-pointer w-full ${rankCardFlipped ? 'flipped' : ''}`}
-            onClick={onRankCardFlip}
+            className={`flip-card w-full ${rankCardFlipped ? 'flipped' : ''} ${!user.isHamster ? 'cursor-pointer' : ''}`}
+            onClick={!user.isHamster ? onRankCardFlip : undefined}
             style={{ minHeight: '280px' }}
           >
             <div className="flip-card-inner" style={{ minHeight: '280px' }}>

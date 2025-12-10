@@ -54,6 +54,7 @@ import { QuestNotificationContainer, QuestNotificationData } from '@/components/
 import { getStoredQuestIds, detectNewQuests, updateStoredQuestIds } from '@/utils/questNotification';
 import { LeaderboardItemComponent } from '@/components/common/LeaderboardItem';
 import { HouseLeaderboardItemComponent } from '@/components/leaderboard/HouseLeaderboardItem';
+import { TeamLeaderboardItemComponent } from '@/components/leaderboard/TeamLeaderboardItem';
 import { BackpackItemComponent } from '@/components/items/BackpackItem';
 import { ImageUploadModal } from '@/components/quests/ImageUploadModal';
 import { ItemsOverlay } from '@/components/items/ItemsOverlay';
@@ -350,8 +351,8 @@ const App: React.FC = () => {
 
   // User and skills are managed by useAuth hook
 
-  // Leaderboard data from API (houses)
-  const { houseLeaderboard, isLoading: leaderboardLoading, error: leaderboardError } = useLeaderboard();
+  // Leaderboard data from API (houses for regular users, teams for hamsters)
+  const { houseLeaderboard, teamLeaderboard, hamsterLeaderboard, isLoading: leaderboardLoading, error: leaderboardError } = useLeaderboard(user.isHamster);
   
   // Handler to fetch house members
   const handleFetchHouseMembers = async (houseId: string) => {
@@ -611,35 +612,64 @@ const App: React.FC = () => {
           
       {/* Leaderboard Section */}
       <div className="px-4 py-4">
-        <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Leader Board</h2>
+        <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+          {user.isHamster ? '🐹 Team Leaderboard' : 'Leader Board'}
+        </h2>
         {leaderboardLoading ? (
           <div className="text-center py-4 text-gray-500">Loading leaderboard...</div>
         ) : leaderboardError ? (
           <div className="text-center py-4 text-red-500">Failed to load leaderboard</div>
-        ) : houseLeaderboard.length === 0 ? (
-          <div className="text-center py-4 text-gray-500">No leaderboard data available</div>
+        ) : user.isHamster ? (
+          // Hamster user: Show team leaderboard
+          teamLeaderboard.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">No team data available</div>
+          ) : (
+            <>
+              {/* Show top 5 teams for hamsters */}
+              {teamLeaderboard.slice(0, 5).map((team) => (
+                <TeamLeaderboardItemComponent 
+                  key={team._id} 
+                  team={team}
+                  theme={theme}
+                />
+              ))}
+              {teamLeaderboard.length > 5 && (
+                <div 
+                  onClick={() => setShowLeaderboardOverlay(true)}
+                  className="text-center py-2 text-yellow-500 text-sm font-medium cursor-pointer"
+                >
+                  View All ({teamLeaderboard.length} teams)
+                </div>
+              )}
+            </>
+          )
         ) : (
-          <>
-            {/* Show only top 5 houses on main page */}
-            {houseLeaderboard.slice(0, 5).map((item) => (
-              <HouseLeaderboardItemComponent 
-                key={item.houseId || item.rank} 
-                item={item}
-                onFetchMembers={handleFetchHouseMembers}
-                theme={theme}
-                currentUserDiscordUsername={user.name}
-              />
-            ))}
-            {houseLeaderboard.length > 5 && (
-              <div 
-                onClick={() => setShowLeaderboardOverlay(true)}
-                className="text-center py-2 text-blue-500 text-sm font-medium cursor-pointer"
-              >
-                View All ({houseLeaderboard.length} houses)
-              </div>
-            )}
-          </>
-            )}
+          // Regular user: Show house leaderboard
+          houseLeaderboard.length === 0 ? (
+            <div className="text-center py-4 text-gray-500">No leaderboard data available</div>
+          ) : (
+            <>
+              {/* Show only top 5 houses on main page */}
+              {houseLeaderboard.slice(0, 5).map((item) => (
+                <HouseLeaderboardItemComponent 
+                  key={item.houseId || item.rank} 
+                  item={item}
+                  onFetchMembers={handleFetchHouseMembers}
+                  theme={theme}
+                  currentUserDiscordUsername={user.name}
+                />
+              ))}
+              {houseLeaderboard.length > 5 && (
+                <div 
+                  onClick={() => setShowLeaderboardOverlay(true)}
+                  className="text-center py-2 text-blue-500 text-sm font-medium cursor-pointer"
+                >
+                  View All ({houseLeaderboard.length} houses)
+                </div>
+              )}
+            </>
+          )
+        )}
           </div>
 
       {/* Backpack Section */}
@@ -703,6 +733,8 @@ const App: React.FC = () => {
       {showLeaderboardOverlay && (
         <LeaderboardOverlay
           houseLeaderboard={houseLeaderboard}
+          teamLeaderboard={teamLeaderboard}
+          isHamster={user.isHamster}
           theme={theme}
           onClose={() => setShowLeaderboardOverlay(false)}
           onFetchMembers={handleFetchHouseMembers}

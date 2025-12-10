@@ -191,3 +191,34 @@ export interface BackpackItem {
   active: boolean;
 }
 
+// Hamster Leaderboard Types
+export interface HamsterLeaderboardMember {
+  _id: string;
+  discordNickname?: string;
+  discordUsername?: string;
+  avatar?: string;
+  hamsterRank: string;
+  balls: number;
+}
+
+export interface HamsterLeaderboardItem {
+  rank: number;
+  _id: string;
+  discordUsername?: string;
+  discordNickname?: string;
+  avatar?: string;
+  hamsterRank: string;
+  balls: number;
+}
+
+export interface TeamLeaderboardItem {
+  rank: number;
+  _id: string;
+  name: string;
+  icon: string;
+  memberCount: number;
+  totalBalls: number;
+  avgBalls: number;
+  members: HamsterLeaderboardMember[];
+}
+
