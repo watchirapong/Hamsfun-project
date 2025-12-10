@@ -8,6 +8,8 @@ interface HeaderProps {
   description: string;
   isEditingDescription: boolean;
   coins: number;
+  balls?: number; // For hamster users
+  isHamster?: boolean;
   theme: 'light' | 'dark';
   onDescriptionChange: (value: string) => void;
   onDescriptionEdit: () => void;
@@ -20,6 +22,8 @@ export const Header: React.FC<HeaderProps> = ({
   description,
   isEditingDescription,
   coins,
+  balls = 0,
+  isHamster = false,
   theme,
   onDescriptionChange,
   onDescriptionEdit,
@@ -27,18 +31,20 @@ export const Header: React.FC<HeaderProps> = ({
   onSettingsClick,
   coinDisplayRef,
 }) => {
-  const [displayCoins, setDisplayCoins] = useState(coins);
+  // Use balls for hamster, coins for regular users
+  const displayValue = isHamster ? balls : coins;
+  const [displayAmount, setDisplayAmount] = useState(displayValue);
   const [isAnimating, setIsAnimating] = useState(false);
-  const previousCoinsRef = useRef(coins);
+  const previousValueRef = useRef(displayValue);
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
-    if (coins !== previousCoinsRef.current) {
+    if (displayValue !== previousValueRef.current) {
       setIsAnimating(true);
       
       // Animate from previous value to new value
-      const startValue = previousCoinsRef.current;
-      const endValue = coins;
+      const startValue = previousValueRef.current;
+      const endValue = displayValue;
       const difference = endValue - startValue;
       const duration = 1000; // 1 second for smooth counting
       const startTime = performance.now();
@@ -52,14 +58,14 @@ export const Header: React.FC<HeaderProps> = ({
         const easedProgress = easeOutCubic(progress);
         
         const currentValue = Math.round(startValue + difference * easedProgress);
-        setDisplayCoins(currentValue);
+        setDisplayAmount(currentValue);
 
         if (progress < 1) {
           animationFrameRef.current = requestAnimationFrame(animate);
         } else {
-          setDisplayCoins(endValue);
+          setDisplayAmount(endValue);
           setIsAnimating(false);
-          previousCoinsRef.current = endValue;
+          previousValueRef.current = endValue;
         }
       };
 
@@ -71,9 +77,9 @@ export const Header: React.FC<HeaderProps> = ({
         }
       };
     } else {
-      previousCoinsRef.current = coins;
+      previousValueRef.current = displayValue;
     }
-  }, [coins]);
+  }, [displayValue]);
 
   return (
     <div className={`shadow-sm p-4 transition-colors ${theme === 'dark' ? 'bg-gray-800 border-b border-gray-700' : 'bg-white'}`}>
@@ -105,14 +111,20 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
         <div className="flex items-center gap-3">
           <div ref={coinDisplayRef} className="flex items-center gap-1">
-            <img src={getAssetUrl("/Asset/item/coin.png")} alt="Coins" className="w-6 h-6 object-contain" />
+            <img 
+              src={isHamster ? getAssetUrl("/Asset/item/ball.png") : getAssetUrl("/Asset/item/coin.png")} 
+              alt={isHamster ? "Balls" : "Coins"} 
+              className="w-6 h-6 object-contain" 
+            />
             <span className={`font-bold px-4 py-2 rounded shadow-sm relative overflow-hidden inline-block ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-black'}`}>
-              {/* Subtle golden glow while animating */}
+              {/* Subtle glow while animating */}
               {isAnimating && (
                 <span
                   className="absolute inset-0 rounded"
                   style={{
-                    background: 'radial-gradient(circle, rgba(255, 215, 0, 0.2) 0%, rgba(255, 193, 7, 0.1) 50%, transparent 100%)',
+                    background: isHamster 
+                      ? 'radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.1) 50%, transparent 100%)'
+                      : 'radial-gradient(circle, rgba(255, 215, 0, 0.2) 0%, rgba(255, 193, 7, 0.1) 50%, transparent 100%)',
                     animation: 'goldenGlowPulse 0.6s ease-out forwards',
                     pointerEvents: 'none',
                   }}
@@ -120,14 +132,14 @@ export const Header: React.FC<HeaderProps> = ({
               )}
               
               {/* Old number sliding up, fading out, and shrinking */}
-              {isAnimating && previousCoinsRef.current !== displayCoins && (
+              {isAnimating && previousValueRef.current !== displayAmount && (
                 <span
                   className="absolute inset-0 flex items-center justify-center"
                   style={{
                     animation: 'slideUpFadeOutShrink 0.4s ease-out forwards',
                   }}
                 >
-                  {previousCoinsRef.current}
+                  {previousValueRef.current}
                 </span>
               )}
               
@@ -138,7 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
                   display: 'inline-block',
                 }}
               >
-                {displayCoins}
+                {displayAmount}
               </span>
             </span>
           </div>

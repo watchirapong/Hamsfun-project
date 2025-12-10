@@ -541,6 +541,8 @@ const App: React.FC = () => {
         description={description}
         isEditingDescription={isEditingDescription}
         coins={user.coins}
+        balls={user.balls}
+        isHamster={user.isHamster}
         theme={theme}
         onDescriptionChange={setDescription}
         onDescriptionEdit={() => setIsEditingDescription(true)}

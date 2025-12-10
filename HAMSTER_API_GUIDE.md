@@ -404,9 +404,45 @@ export async function deleteHamsterQuest(id) {
 
 ---
 
-## 7. Ball Currency Management (Admin)
+## 8. Hamster Submissions
 
-### 7.1 Grant Ball to Hamster
+> **Note:** การจัดการ Submissions สำหรับ Hamster ใช้ StarMaster API เดียวกัน แต่ต้องส่ง `isHamster=true` เพื่อกรองเฉพาะ Hamster submissions
+
+### 8.1 Get Hamster Submissions
+**URL:** `GET /api/v1/star-master/submissions?isHamster=true`
+**Description:** ดึงรายการ Quest Submissions เฉพาะ Hamsters
+
+**Query Parameters:**
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `status` | String | กรองตามสถานะ (Pending, Approved, Rejected) |
+| `searchUsername` | String | ค้นหาด้วย Username |
+| `searchNickname` | String | ค้นหาด้วย Nickname |
+| `searchId` | String | ค้นหาด้วย Discord ID |
+| `isHamster` | Boolean | **REQUIRED: `true`** เพื่อแสดงเฉพาะ Hamster submissions |
+| `page` | Number | หน้าที่ต้องการ |
+| `limit` | Number | จำนวนต่อหน้า |
+
+### 8.2 Approve Hamster Submission
+**URL:** `PUT /api/v1/star-master/submissions/:id/approve`
+**Description:** อนุมัติ Submission (ใช้ endpoint เดียวกับ StarMaster)
+
+### 8.3 Reject Hamster Submission
+**URL:** `PUT /api/v1/star-master/submissions/:id/reject`
+**Description:** ปฏิเสธ Submission
+
+**Request Body:**
+```json
+{
+  "feedback": "Please resubmit with better proof"
+}
+```
+
+---
+
+## 9. Ball Currency Management (Admin)
+
+### 9.1 Grant Ball to Hamster
 **URL:** `POST /api/v1/admin/hamsters/:id/grant-ball`
 **Description:** เพิ่ม Ball ให้ Hamster
 
@@ -435,7 +471,7 @@ export async function deleteHamsterQuest(id) {
 }
 ```
 
-### 7.2 Deduct Ball from Hamster
+### 9.2 Deduct Ball from Hamster
 **URL:** `POST /api/v1/admin/hamsters/:id/deduct-ball`
 **Description:** ลด Ball จาก Hamster
 
@@ -456,7 +492,7 @@ export async function deleteHamsterQuest(id) {
 }
 ```
 
-### 7.3 Get Ball Submissions
+### 9.3 Get Ball Submissions
 **URL:** `GET /api/v1/admin/ball-submissions`
 **Description:** ดึงรายการ Ball Request ที่รออนุมัติ
 
@@ -492,7 +528,7 @@ export async function deleteHamsterQuest(id) {
 }
 ```
 
-### 7.4 Approve Ball Submission
+### 9.4 Approve Ball Submission
 **URL:** `PUT /api/v1/admin/ball-submissions/:id/approve`
 **Description:** อนุมัติ Ball Request
 
@@ -514,7 +550,7 @@ export async function deleteHamsterQuest(id) {
 }
 ```
 
-### 7.5 Reject Ball Submission
+### 9.5 Reject Ball Submission
 **URL:** `PUT /api/v1/admin/ball-submissions/:id/reject`
 **Description:** ปฏิเสธ Ball Request
 
@@ -535,9 +571,9 @@ export async function deleteHamsterQuest(id) {
 
 ---
 
-## 9. Team Management
+## 10. Team Management
 
-### 9.1 Get All Teams
+### 10.1 Get All Teams
 **URL:** `GET /api/v1/admin/teams`
 **Description:** ดึงรายการ Team ทั้งหมด
 
@@ -564,7 +600,7 @@ export async function deleteHamsterQuest(id) {
 ]
 ```
 
-### 9.2 Create Team
+### 10.2 Create Team
 **URL:** `POST /api/v1/admin/teams`
 **Description:** สร้าง Team ใหม่
 
@@ -586,7 +622,7 @@ export async function deleteHamsterQuest(id) {
 }
 ```
 
-### 9.3 Update Team
+### 10.3 Update Team
 **URL:** `PUT /api/v1/admin/teams/:id`
 **Description:** แก้ไข Team
 
@@ -598,7 +634,7 @@ export async function deleteHamsterQuest(id) {
 }
 ```
 
-### 9.4 Delete Team
+### 10.4 Delete Team
 **URL:** `DELETE /api/v1/admin/teams/:id`
 **Description:** ลบ Team
 
@@ -609,7 +645,7 @@ export async function deleteHamsterQuest(id) {
 }
 ```
 
-### 9.5 Add Member to Team
+### 10.5 Add Member to Team
 **URL:** `POST /api/v1/admin/teams/:id/members`
 **Description:** เพิ่ม Hamster เข้า Team
 
@@ -630,7 +666,7 @@ export async function deleteHamsterQuest(id) {
 }
 ```
 
-### 9.6 Remove Member from Team
+### 10.6 Remove Member from Team
 **URL:** `DELETE /api/v1/admin/teams/:id/members/:hamsterId`
 **Description:** ลบ Hamster ออกจาก Team
 
@@ -644,19 +680,12 @@ export async function deleteHamsterQuest(id) {
 
 ---
 
-## 10. Hamster Leaderboard
+## 11. Hamster Leaderboard
 
-> **Note:** Leaderboard นี้ใช้สำหรับ **Hamster users เท่านั้น** - User ปกติจะใช้ Leaderboard มาตรฐาน
-
-### 10.1 Get Hamster Leaderboard
+### 11.1 Get Hamster Leaderboard
 **URL:** `GET /api/v1/leaderboard/hamster`
-**Description:** ดึง Leaderboard สำหรับ Hamsters และ Teams (sorted by balls)
+**Description:** ดึง Leaderboard สำหรับ Hamsters และ Teams (sorted by leaderboardScore)
 **Access:** Hamster Role Required
-
-**Logic:**
-1. ดึง Top Hamsters เรียงตาม `balls` (มากไปน้อย)
-2. ดึง Teams พร้อมสมาชิก โดยรวม `totalBalls` จากสมาชิกทั้งหมด
-3. เรียง Teams ตาม `totalBalls` (มากไปน้อย)
 
 **Response:**
 ```json
@@ -666,9 +695,9 @@ export async function deleteHamsterQuest(id) {
       "_id": "hamster123...",
       "discordUsername": "PlayerOne",
       "discordNickname": "PlayerOneNick",
-      "avatar": "https://cdn.discordapp.com/...",
+      "avatar": "https://...",
       "hamsterRank": "Ace",
-      "balls": 500
+      "leaderboardScore": 500
     }
   ],
   "teams": [
@@ -677,16 +706,16 @@ export async function deleteHamsterQuest(id) {
       "name": "Alpha Squad",
       "icon": "🔥",
       "memberCount": 5,
-      "totalBalls": 1500,
-      "avgBalls": 300,
+      "totalScore": 1500,
+      "avgScore": 300,
       "members": [
         {
           "_id": "hamster123...",
-          "discordNickname": "PlayerOneNick",
-          "discordUsername": "PlayerOne",
-          "avatar": "https://cdn.discordapp.com/...",
+          "discordNickname": "PlayerOne",
+          "discordUsername": "PlayerOneUsername",
+          "avatar": "https://...",
           "hamsterRank": "Ace",
-          "balls": 500
+          "leaderboardScore": 500
         }
       ]
     }
@@ -694,19 +723,9 @@ export async function deleteHamsterQuest(id) {
 }
 ```
 
-**Field Descriptions:**
-
-| Field | Description |
-| :--- | :--- |
-| `hamsters[].balls` | จำนวน Ball ของ Hamster (เรียงมากไปน้อย) |
-| `teams[].totalBalls` | ผลรวม balls ของสมาชิกทุกคนใน Team |
-| `teams[].avgBalls` | ค่าเฉลี่ย balls ต่อสมาชิก |
-| `teams[].memberCount` | จำนวนสมาชิกใน Team |
-| `teams[].members` | รายชื่อสมาชิก (เรียงตาม balls มากไปน้อย, แสดงบางส่วน) |
-
 ---
 
-## 11. Logging
+## 12. Logging
 
 ทุก Admin Action จะถูก Log ไว้ใน Console:
 ```

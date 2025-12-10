@@ -43,6 +43,7 @@ export interface User {
   avatar: string;
   badge: string;
   coins: number;
+  balls?: number; // Ball currency for hamster users
   rankPoints: number;
   rankName: string;
   nextRankPoints?: number; // Points needed for next rank (from API rank.nextRankPoints)
@@ -198,7 +199,7 @@ export interface HamsterLeaderboardMember {
   discordUsername?: string;
   avatar?: string;
   hamsterRank: string;
-  balls: number;
+  leaderboardScore: number;
 }
 
 export interface HamsterLeaderboardItem {
@@ -208,7 +209,7 @@ export interface HamsterLeaderboardItem {
   discordNickname?: string;
   avatar?: string;
   hamsterRank: string;
-  balls: number;
+  leaderboardScore: number;
 }
 
 export interface TeamLeaderboardItem {
@@ -217,8 +218,8 @@ export interface TeamLeaderboardItem {
   name: string;
   icon: string;
   memberCount: number;
-  totalBalls: number;
-  avgBalls: number;
+  totalScore: number;
+  avgScore: number;
   members: HamsterLeaderboardMember[];
 }
 

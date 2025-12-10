@@ -37,7 +37,7 @@ export const useLeaderboard = (isHamster: boolean = false): UseLeaderboardResult
             discordNickname: h.discordNickname,
             avatar: h.avatar,
             hamsterRank: h.hamsterRank,
-            balls: h.balls || 0,
+            leaderboardScore: h.leaderboardScore || 0,
           }));
 
           // Map teams with rank position
@@ -47,15 +47,15 @@ export const useLeaderboard = (isHamster: boolean = false): UseLeaderboardResult
             name: t.name,
             icon: t.icon || '🐹',
             memberCount: t.memberCount || 0,
-            totalBalls: t.totalBalls || 0,
-            avgBalls: t.avgBalls || 0,
+            totalScore: t.totalScore || 0,
+            avgScore: t.avgScore || 0,
             members: (t.members || []).map((m: any) => ({
               _id: m._id,
               discordNickname: m.discordNickname,
               discordUsername: m.discordUsername,
               avatar: m.avatar,
               hamsterRank: m.hamsterRank,
-              balls: m.balls || 0,
+              leaderboardScore: m.leaderboardScore || 0,
             })),
           }));
 
