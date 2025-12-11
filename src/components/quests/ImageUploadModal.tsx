@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { X } from 'lucide-react';
 
 interface ImageUploadModalProps {
@@ -10,7 +10,9 @@ interface ImageUploadModalProps {
   onSubmit: () => void;
   onClose: () => void;
   theme?: 'light' | 'dark';
-  description?: string;
+  description?: string; // Objective description (read-only)
+  userDescription?: string; // User input description
+  onUserDescriptionChange?: (value: string) => void; // Handler for user description change
 }
 
 export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
@@ -21,8 +23,19 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   onClose,
   theme = 'light',
   description,
+  userDescription = '',
+  onUserDescriptionChange,
 }) => {
+  // Local state for user description if no external handler is provided
+  const [localUserDescription, setLocalUserDescription] = useState('');
+  
+  const currentUserDescription = onUserDescriptionChange ? userDescription : localUserDescription;
+  const handleUserDescriptionChange = onUserDescriptionChange || setLocalUserDescription;
+  
   if (!isOpen) return null;
+
+  // Allow submit if either image or description is provided
+  const canSubmit = uploadedImage || currentUserDescription.trim().length > 0;
 
   return (
     <div 
@@ -47,7 +60,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
           onTouchStart={(e) => e.stopPropagation()}
         >
           <div className="flex justify-between items-center mb-1">
-            <h3 className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Description</h3>
+            <h3 className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Quest Description</h3>
             <button
               onClick={onClose}
               className={`p-1.5 rounded-full ${theme === 'dark' ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100'}`}
@@ -67,7 +80,7 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
         onTouchStart={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-3">
-          <h2 className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Import your image</h2>
+          <h2 className={`font-bold text-base ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Submit Quest</h2>
           {!description && (
             <button
               onClick={onClose}
@@ -78,7 +91,11 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
           )}
         </div>
         
+        {/* Image Upload Section */}
         <div className="mb-3">
+          <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+            Image (Optional)
+          </label>
           <label htmlFor="image-upload-input" className="block text-center cursor-pointer">
             <div className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
               theme === 'dark' 
@@ -112,11 +129,29 @@ export const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
           </label>
         </div>
 
+        {/* User Description Input Section */}
+        <div className="mb-3">
+          <label className={`block text-xs font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+            Your Description (Optional)
+          </label>
+          <textarea
+            value={currentUserDescription}
+            onChange={(e) => handleUserDescriptionChange(e.target.value)}
+            placeholder="Add a description or note about your submission..."
+            rows={3}
+            className={`w-full px-3 py-2 rounded-lg border text-sm resize-none transition-colors ${
+              theme === 'dark'
+                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400'
+                : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+            } focus:outline-none focus:ring-1 focus:ring-blue-500`}
+          />
+        </div>
+
         <button
           onClick={onSubmit}
-          disabled={!uploadedImage}
+          disabled={!canSubmit}
           className={`w-full py-1.5 px-3 rounded-lg font-medium text-xs transition-colors ${
-            uploadedImage
+            canSubmit
               ? 'bg-blue-500 hover:bg-blue-600 text-white cursor-pointer'
               : theme === 'dark'
               ? 'bg-gray-700 text-gray-400 cursor-not-allowed'

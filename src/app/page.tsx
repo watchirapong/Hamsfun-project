@@ -727,6 +727,7 @@ const App: React.FC = () => {
           setShowImageUploadModal(false);
           setSelectedObjective(null);
           setUploadedImage(null);
+          setDescription('');
         }}
         theme={theme}
         description={
@@ -742,6 +743,8 @@ const App: React.FC = () => {
               })()
             : undefined
         }
+        userDescription={description}
+        onUserDescriptionChange={setDescription}
       />
         </div>
       </div>

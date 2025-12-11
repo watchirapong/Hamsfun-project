@@ -153,9 +153,9 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
   const handleSubmitImage = async () => {
     if (!selectedObjective) return;
 
-    // Image is optional according to API guide, but we'll require it for better UX
-    if (!uploadedImage) {
-      alert('Please upload an image proof before submitting.');
+    // Allow submission if either image or description is provided
+    if (!uploadedImage && !description.trim()) {
+      alert('Please upload an image proof or add a description before submitting.');
       return;
     }
 
