@@ -1,9 +1,12 @@
 'use client';
 
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Check, Heart, Sword, Shield } from 'lucide-react';
 import { User, Quest } from '@/types';
 import { isQuestTrulyCompleted, getAssetUrl } from '@/utils/helpers';
+import { rankCardAttention } from './rankCardVariants';
+import { rankCardGlowPulse } from './rankCardGlowPulseVariants';
 
 interface ProfileSectionProps {
   user: User;
@@ -107,18 +110,32 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
         
         {/* Rank Card on Right - 50% of screen width - Clickable with Flip Animation */}
         <div className="w-1/2">
-          <div 
+          <motion.div 
             className={`flip-card w-full ${rankCardFlipped ? 'flipped' : ''} ${!user.isHamster ? 'cursor-pointer' : ''}`}
             onClick={!user.isHamster ? onRankCardFlip : undefined}
             style={{ minHeight: '280px' }}
+            variants={rankCardAttention}
+            animate={
+              !user.isHamster && canRankUp() && !rankCardFlipped
+                ? 'active'
+                : 'inactive'
+            }
           >
             <div className="flip-card-inner" style={{ minHeight: '280px' }}>
               {/* Front of Card */}
-              <div className={`flip-card-front rounded-xl p-4 shadow-md border flex flex-col w-full h-full justify-between ${
-                user.isHamster 
-                  ? 'bg-gradient-to-br from-yellow-600/20 to-orange-600/20 border-yellow-500/50' 
-                  : theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'
-              }`}>
+              <motion.div 
+                className={`flip-card-front rounded-xl p-4 shadow-md border flex flex-col w-full h-full justify-between ${
+                  user.isHamster 
+                    ? 'bg-gradient-to-br from-yellow-600/20 to-orange-600/20 border-yellow-500/50' 
+                    : theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'
+                }`}
+                variants={rankCardGlowPulse}
+                animate={
+                  !user.isHamster && canRankUp() && !rankCardFlipped
+                    ? 'active'
+                    : 'inactive'
+                }
+              >
                 {/* Rank Icon/Badge */}
                 <div className="flex justify-center -mt-10">
                   <img 
@@ -154,7 +171,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                     </div>
                   </div>
                 )}
-              </div>
+              </motion.div>
               
               {/* Back of Card - Rank Objectives (or Hamster Info) */}
               <div className={`flip-card-back rounded-xl p-3 sm:p-4 shadow-md border flex flex-col w-full h-full ${
@@ -265,7 +282,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>

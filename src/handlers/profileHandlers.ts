@@ -15,31 +15,70 @@ interface ProfileHandlersParams {
 export const useProfileHandlers = (params: ProfileHandlersParams) => {
   const { user, questsState, setUser } = params;
 
-  // Check if user can rank up (all objectives complete and enough coins)
+  /**
+   * Check if user can rank up
+   * Returns true only if ALL of the following are satisfied:
+   * 1. Rank Points Requirement: current RP >= nextRankPoints
+   * 2. Quest Requirement: All required quests are fully completed
+   * 3. Coin Requirement: current coins >= required coin cost
+   */
   const canRankUp = (): boolean => {
-    // Get required RP for next rank (use nextRankPoints from API, fallback to 100 if not available)
-    const requiredRP = user.nextRankPoints || 100;
-    
-    const allObjectivesComplete = user.rankObjectives.every(objective => {
-      if (objective.text.includes('Rank Points')) {
-        // If at max rank (no nextRankPoints), this objective can't be completed
-        if (!user.nextRankPoints) return false;
-        return user.rankPoints >= requiredRP;
-      } else if (objective.questId) {
-        const linkedQuest = questsState.find(q => q.id === objective.questId);
-        return linkedQuest ? isQuestTrulyCompleted(linkedQuest) : false;
-      } else if (objective.coinCost) {
-        return user.coins >= objective.coinCost;
-      } else {
-        return objective.completed;
+    // 1. Rank Points Requirement
+    // Check if user has enough rank points for the next rank
+    const hasEnoughRankPoints = (() => {
+      // If no nextRankPoints is defined, user is at max rank and cannot rank up
+      if (!user.nextRankPoints) {
+        return false;
       }
-    });
-    
-    // Also check if user has enough coins for the coin cost objective
-    const coinObjective = user.rankObjectives.find(obj => obj.coinCost);
-    const hasEnoughCoins = coinObjective ? user.coins >= coinObjective.coinCost! : true;
-    
-    return allObjectivesComplete && hasEnoughCoins;
+      // User must have at least the required RP to rank up
+      return user.rankPoints >= user.nextRankPoints;
+    })();
+
+    // 2. Quest Requirement
+    // Check if all required quests (those with questId) are fully completed
+    const allRequiredQuestsCompleted = (() => {
+      // Find all rank objectives that require quests
+      const questObjectives = user.rankObjectives.filter(obj => obj.questId !== undefined);
+      
+      // If there are no quest requirements, this condition is satisfied
+      if (questObjectives.length === 0) {
+        return true;
+      }
+
+      // Check each required quest
+      return questObjectives.every(objective => {
+        if (!objective.questId) return true; // Should not happen due to filter, but safety check
+        
+        // Find the linked quest in questsState
+        const linkedQuest = questsState.find(q => q.id === objective.questId);
+        
+        if (!linkedQuest) {
+          // Quest not found - cannot be completed
+          return false;
+        }
+
+        // Quest must be truly completed (all objectives done AND reward claimed)
+        return isQuestTrulyCompleted(linkedQuest);
+      });
+    })();
+
+    // 3. Coin Requirement
+    // Check if user has enough coins for the rank up cost
+    const hasEnoughCoins = (() => {
+      // Find the coin cost objective (if any)
+      const coinObjective = user.rankObjectives.find(obj => obj.coinCost !== undefined);
+      
+      // If there's no coin cost requirement, this condition is satisfied
+      if (!coinObjective || coinObjective.coinCost === undefined) {
+        return true;
+      }
+
+      // User must have at least the required coins
+      return user.coins >= coinObjective.coinCost;
+    })();
+
+    // All three conditions must be satisfied
+    return hasEnoughRankPoints && allRequiredQuestsCompleted && hasEnoughCoins;
   };
 
   // Handle rank up
