@@ -51,7 +51,6 @@ import { RewardAnimation } from '@/components/common/RewardAnimation';
 import { RewardNotificationContainer } from '@/components/common/RewardNotification';
 import { CoinFlightAnimation, CoinFlightInstance } from '@/components/common/CoinFlightAnimation';
 import { QuestNotificationContainer, QuestNotificationData } from '@/components/common/QuestNotification';
-import { getStoredQuestIds, detectNewQuests, updateStoredQuestIds } from '@/utils/questNotification';
 import { LeaderboardItemComponent } from '@/components/common/LeaderboardItem';
 import { HouseLeaderboardItemComponent } from '@/components/leaderboard/HouseLeaderboardItem';
 import { TeamLeaderboardItemComponent } from '@/components/leaderboard/TeamLeaderboardItem';
@@ -69,6 +68,7 @@ import { useUI } from '@/hooks/useUI';
 import { useItems } from '@/hooks/useItems';
 import { useRewards } from '@/hooks/useRewards';
 import { useRewardPolling } from '@/hooks/useRewardPolling';
+import { useNewQuestNotification } from '@/hooks/useNewQuestNotification';
 import { initializeApp } from '@/services/appInitialization';
 import { useQuestHandlers } from '@/handlers/questHandlers';
 import { useProfileHandlers } from '@/handlers/profileHandlers';
@@ -291,51 +291,24 @@ const App: React.FC = () => {
   
   const [questsState, setQuestsState] = useState<Quest[]>([]);
   
-  // Detect new quests after quests are loaded
+  // Use new quest notification hook (backend + localStorage based)
+  // This hook fetches active quests from backend and compares with localStorage
+  const { hasNewQuests, newQuestIds, isLoading: isCheckingNewQuests } = useNewQuestNotification(
+    isAuthenticated,
+    user.isHamster || false
+  );
+  
+  // Show notification when new quests are detected
   useEffect(() => {
-    if (questsState.length === 0) {
-      return; // Don't check if no quests loaded yet
-    }
-
-    // Get stored quest IDs from localStorage
-    // Returns null if first time ever loading, empty Set if user had no quests before, Set with IDs otherwise
-    const storedQuestIds = getStoredQuestIds();
-    
-    // Check if this is the first time ever loading the page (localStorage key doesn't exist)
-    const isFirstLoad = storedQuestIds === null;
-    
-    if (isFirstLoad) {
-      // First time ever loading: Save current quest IDs to localStorage, but don't show notification
-      // This prevents false "new quest" alerts on initial page load
-      updateStoredQuestIds(questsState);
-      return;
-    }
-    
-    // Not first load: Detect new quests by comparing with stored quests
-    // If storedQuestIds is empty Set, all current quests are considered "new" (user had no quests before)
-    // If storedQuestIds has items, only truly new IDs are returned
-    const newQuestIds = detectNewQuests(questsState, storedQuestIds);
-    
-    if (newQuestIds.length > 0) {
-      // New quests detected: Show notification
+    if (hasNewQuests && newQuestIds.length > 0) {
       const notificationId = `quest-notification-${Date.now()}`;
       setQuestNotification({
         id: notificationId,
         questIds: newQuestIds,
         count: newQuestIds.length,
       });
-      
-      // Update stored quest IDs after a short delay (to allow notification to be seen)
-      // This ensures if user reloads immediately, they'll still see the notification
-      setTimeout(() => {
-        updateStoredQuestIds(questsState);
-      }, 1000);
-    } else {
-      // No new quests: Update stored IDs to current state (in case quests were removed or changed)
-      // This keeps localStorage in sync even if quests were removed
-      updateStoredQuestIds(questsState);
     }
-  }, [questsState]);
+  }, [hasNewQuests, newQuestIds]);
   
   // Handle quest notification removal
   const handleRemoveQuestNotification = useCallback(() => {
