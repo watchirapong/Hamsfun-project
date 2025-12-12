@@ -56,6 +56,7 @@ import { HouseLeaderboardItemComponent } from '@/components/leaderboard/HouseLea
 import { TeamLeaderboardItemComponent } from '@/components/leaderboard/TeamLeaderboardItem';
 import { BackpackItemComponent } from '@/components/items/BackpackItem';
 import { ImageUploadModal } from '@/components/quests/ImageUploadModal';
+import { ObjectiveDetailPanel } from '@/components/quests/ObjectiveDetailPanel';
 import { ItemsOverlay } from '@/components/items/ItemsOverlay';
 import { SettingsOverlay } from '@/components/common/SettingsOverlay';
 import { QuestListOverlay } from '@/components/quests/QuestListOverlay';
@@ -391,6 +392,7 @@ const App: React.FC = () => {
     handleApproveObjective,
     handleClaimReward,
     handleApproveReward,
+    handleClaimObjectiveReward,
   } = questHandlers;
 
   // Profile handlers
@@ -681,6 +683,7 @@ const App: React.FC = () => {
           handleClaimReward={handleClaimReward}
           handleApproveObjective={handleApproveObjective}
           handleApproveReward={handleApproveReward}
+          handleClaimObjectiveReward={handleClaimObjectiveReward}
             />
       )}
 
@@ -717,35 +720,44 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Image Upload Modal */}
-      <ImageUploadModal
-        isOpen={showImageUploadModal && selectedObjective !== null}
-        uploadedImage={uploadedImage}
-        onImageSelect={handleImageSelect}
-        onSubmit={handleSubmitImage}
-        onClose={() => {
-          setShowImageUploadModal(false);
-          setSelectedObjective(null);
-          setUploadedImage(null);
-          setDescription('');
-        }}
-        theme={theme}
-        description={
-          selectedObjective 
-            ? (() => {
-                const quest = questsState.find(q => q.id === selectedObjective.questId);
-                
-                if (quest?.objectives[selectedObjective.objectiveIndex]?.description) {
-                  return quest.objectives[selectedObjective.objectiveIndex].description;
-                }
-                
-                return quest?.description;
-              })()
-            : undefined
-        }
-        userDescription={description}
-        onUserDescriptionChange={setDescription}
-      />
+      {/* Objective Detail Panel */}
+      {selectedObjective && (() => {
+        const quest = questsState.find(q => q.id === selectedObjective.questId);
+        const questTitle = quest?.title || 'Quest';
+        const objectiveDescription = 
+          quest?.objectives[selectedObjective.objectiveIndex]?.description ||
+          quest?.description ||
+          'No description available';
+        
+        return (
+          <ObjectiveDetailPanel
+            isOpen={showImageUploadModal}
+            questTitle={questTitle}
+            objectiveDescription={objectiveDescription}
+          uploadedImage={uploadedImage}
+          onImageSelect={handleImageSelect}
+          onSubmit={handleSubmitImage}
+          onClose={() => {
+            setShowImageUploadModal(false);
+            setSelectedObjective(null);
+            setUploadedImage(null);
+            setDescription('');
+          }}
+          theme={theme}
+          userDescription={description}
+          onUserDescriptionChange={setDescription}
+          hasLinkSubmission={false} // TODO: Track link submissions when implemented
+          hasImageSubmission={
+            (() => {
+              const quest = questsState.find(q => q.id === selectedObjective.questId);
+              const submission = quest?.objectiveSubmissions?.[selectedObjective.objectiveIndex];
+              return submission?.status !== 'none' && submission?.imageUrl !== null;
+            })()
+          }
+          hasVideoSubmission={false} // TODO: Track video submissions when implemented
+          />
+        );
+      })()}
         </div>
       </div>
     </>

@@ -18,6 +18,7 @@ interface QuestListOverlayProps {
   handleClaimReward: (questId: number) => void;
   handleApproveObjective: (questId: number, objectiveIndex: number) => void;
   handleApproveReward: (questId: number) => void;
+  handleClaimObjectiveReward: (questId: number, objectiveIndex: number) => void;
 }
 
 export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
@@ -32,6 +33,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
   handleClaimReward,
   handleApproveObjective,
   handleApproveReward,
+  handleClaimObjectiveReward,
 }) => {
   // Separate completed and uncompleted quests, then sort so Main Quests appear first
   const uncompletedQuests = questsState
@@ -685,6 +687,8 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         const isCompleted = quest.objectiveCompleted[index] || false;
                         const submission = quest.objectiveSubmissions[index];
                         const status = submission?.status || 'none';
+                        const rewardAwarded = quest.objectiveRewardsAwarded?.[index] || false;
+                        
                         // Normalize reward to array and filter out hidden rewards
                         const rewards = Array.isArray(objective.reward) 
                           ? objective.reward.filter(r => r.type !== 'skill' && r.type !== 'leaderboard')
@@ -692,59 +696,78 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                               ? [objective.reward] 
                               : []);
                         
-                        // Determine visual state
-                        // Note: 'pending' status is shown as completed to user (optimistic UI)
-                        const isPending = status === 'pending';
-                        const isApproved = status === 'approved' || status === 'pending'; // Show pending as approved visually
-                        const isFullyApproved = status === 'approved'; // Fully approved (not just pending)
+                        // Determine objective state:
+                        // 1. Normal: status === 'none' (not submitted)
+                        // 2. Claimable (orange): status !== 'none' AND rewardAwarded === false (submitted but not claimed)
+                        // 3. Completed (green): status !== 'none' AND rewardAwarded === true (submitted and claimed)
+                        const isNormal = status === 'none';
+                        const isClaimable = status !== 'none' && !rewardAwarded;
+                        const isCompletedState = status !== 'none' && rewardAwarded;
                         const isRejected = status === 'rejected';
-                        const isClickable = isRejected || (status !== 'approved' && status !== 'pending'); // Allow resubmission if rejected
-                        const isSubmitted = status !== 'none'; // Has been submitted (pending, approved, or rejected)
+                        
+                        // Clickable for normal state (to submit) or rejected (to resubmit)
+                        const isClickable = isNormal || isRejected;
 
                         return (
                           <div 
                             key={index} 
-                            className={`relative flex items-center justify-between py-2 px-4 border-b last:border-b-0 transition-all ${
+                            className={`relative flex items-center justify-between border-b last:border-b-0 transition-all ${
+                              // Height: normal and claimable have same height, completed is shorter
+                              isCompletedState ? 'py-1.5 px-4' : 'py-2 px-4'
+                            } ${
                               theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
                             } ${
                               isRejected
                                 ? theme === 'dark' ? 'bg-red-900/20 border-red-500' : 'bg-red-50 border-red-200'
-                                : isApproved 
-                                ? theme === 'dark' ? 'bg-white/10 rounded-lg' : 'bg-green-50 rounded-lg' 
+                                : isClaimable
+                                ? 'bg-orange-500 cursor-pointer hover:bg-orange-600' // Orange "CLAIM REWARD" state
+                                : isCompletedState
+                                ? theme === 'dark' ? 'bg-green-900/30' : 'bg-green-100' // Green "Task completed" state
                                 : isClickable 
                                 ? theme === 'dark' ? 'bg-gray-800/30 cursor-pointer hover:bg-gray-800/40' : 'bg-white cursor-pointer hover:bg-gray-50' 
                                 : theme === 'dark' ? 'bg-gray-900/10' : 'bg-white'
                             }`}
-                            onClick={() => isClickable && handleObjectiveClick(quest.id, index)}
+                            onClick={() => {
+                              if (isClaimable) {
+                                // Click to claim reward
+                                handleClaimObjectiveReward(quest.id, index);
+                              } else if (isClickable) {
+                                // Click to submit/resubmit
+                                handleObjectiveClick(quest.id, index);
+                              }
+                            }}
                           >
                             <div className="flex-1 flex flex-col gap-1 min-w-0 pr-3">
                               <div className="flex items-center gap-2">
-                              <span 
-                                className={`text-sm truncate ${
-                                  isApproved 
-                                    ? theme === 'dark' ? 'font-semibold' : 'text-green-600 font-semibold'
-                                    : isRejected
-                                    ? 'text-red-600 font-semibold'
-                                    : theme === 'dark' ? 'text-white' : 'text-black'
-                                }`}
-                                style={theme === 'dark' && isApproved ? { color: '#5BFF60' } : undefined}
-                              >
-                                {objective.text}
-                              </span>
-                              {isPending && (
-                                <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-                              )}
-                              {isFullyApproved && (
-                                <div className="flex items-center gap-0.5 flex-shrink-0">
-                                  <Check className="w-4 h-4 text-green-600" />
-                                  <Check className="w-4 h-4 text-green-600" />
-                                </div>
-                              )}
-                              {isRejected && (
-                                <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
+                                {isClaimable ? (
+                                  // Orange "CLAIM REWARD" state
+                                  <span className="text-sm font-semibold text-white">
+                                    CLAIM REWARD
+                                  </span>
+                                ) : isCompletedState ? (
+                                  // Green "Task completed" state
+                                  <span className={`text-sm font-semibold ${
+                                    theme === 'dark' ? 'text-green-400' : 'text-green-700'
+                                  }`}>
+                                    Task completed
+                                  </span>
+                                ) : (
+                                  // Normal state
+                                  <span 
+                                    className={`text-sm truncate ${
+                                      isRejected
+                                        ? 'text-red-600 font-semibold'
+                                        : theme === 'dark' ? 'text-white' : 'text-black'
+                                    }`}
+                                  >
+                                    {objective.text}
+                                  </span>
+                                )}
+                                {isRejected && (
+                                  <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
                                 )}
                               </div>
-                              {/* Tap to details label for clickable objectives */}
+                              {/* Tap to details label for clickable objectives (normal state only) */}
                               {isClickable && !isRejected && (
                                 <span className={`text-xs italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
                                   tap to details
@@ -752,14 +775,20 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {rewards.map((reward, rewardIndex) => {
-                                const rewardDisplay = getRewardDisplay(reward);
-                                return rewardDisplay ? (
-                                  <div key={rewardIndex} className="flex-shrink-0">
-                                    {rewardDisplay}
-                                  </div>
-                                ) : null;
-                              })}
+                              {isCompletedState ? (
+                                // Show checkmark icon for completed state
+                                <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
+                              ) : (
+                                // Show reward icon for normal and claimable states
+                                rewards.map((reward, rewardIndex) => {
+                                  const rewardDisplay = getRewardDisplay(reward);
+                                  return rewardDisplay ? (
+                                    <div key={rewardIndex} className="flex-shrink-0">
+                                      {rewardDisplay}
+                                    </div>
+                                  ) : null;
+                                })
+                              )}
                             </div>
                           </div>
                         );
@@ -944,6 +973,8 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         const isCompleted = quest.objectiveCompleted[index] || false;
                         const submission = quest.objectiveSubmissions[index];
                         const status = submission?.status || 'none';
+                        const rewardAwarded = quest.objectiveRewardsAwarded?.[index] || false;
+                        
                         // Normalize reward to array and filter out hidden rewards
                         const rewards = Array.isArray(objective.reward) 
                           ? objective.reward.filter(r => r.type !== 'skill' && r.type !== 'leaderboard')
@@ -951,44 +982,68 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                               ? [objective.reward] 
                               : []);
                         
-                        const isApproved = status === 'approved';
+                        // For completed quests, show green "Task completed" state if submitted
+                        const isCompletedState = status !== 'none' && rewardAwarded;
+                        const isClaimable = status !== 'none' && !rewardAwarded;
 
                         return (
                           <div 
                             key={index} 
-                            className={`relative flex items-center justify-between py-2 px-8 border-b last:border-b-0 transition-all ${
+                            className={`relative flex items-center justify-between border-b last:border-b-0 transition-all ${
+                              // Height: completed state is shorter
+                              isCompletedState ? 'py-1.5 px-8' : 'py-2 px-8'
+                            } ${
                               theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
                             } ${
-                              isApproved ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' : ''
+                              isClaimable
+                                ? 'bg-orange-500 cursor-pointer hover:bg-orange-600' // Orange "CLAIM REWARD" state
+                                : isCompletedState
+                                ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' // Green "Task completed" state
+                                : ''
                             }`}
+                            onClick={() => {
+                              if (isClaimable) {
+                                handleClaimObjectiveReward(quest.id, index);
+                              }
+                            }}
                           >
                             <div className="flex-1 flex items-center gap-2 min-w-0 pr-3">
-                              <span 
-                                className={`text-sm truncate ${
-                                  isApproved 
-                                    ? theme === 'dark' ? 'font-semibold' : 'text-green-600 font-semibold'
-                                    : theme === 'dark' ? 'text-white' : 'text-black'
-                                }`}
-                                style={theme === 'dark' && isApproved ? { color: '#5BFF60' } : undefined}
-                              >
-                                {objective.text}
-                              </span>
-                              {isApproved && (
-                                <div className="flex items-center gap-0.5 flex-shrink-0">
-                                  <Check className="w-4 h-4 text-green-600" />
-                                  <Check className="w-4 h-4 text-green-600" />
-                                </div>
+                              {isClaimable ? (
+                                // Orange "CLAIM REWARD" state
+                                <span className="text-sm font-semibold text-white">
+                                  CLAIM REWARD
+                                </span>
+                              ) : isCompletedState ? (
+                                // Green "Task completed" state
+                                <span className={`text-sm font-semibold ${
+                                  theme === 'dark' ? 'text-green-400' : 'text-green-700'
+                                }`}>
+                                  Task completed
+                                </span>
+                              ) : (
+                                // Normal state (shouldn't happen in completed quests, but fallback)
+                                <span className={`text-sm truncate ${
+                                  theme === 'dark' ? 'text-white' : 'text-black'
+                                }`}>
+                                  {objective.text}
+                                </span>
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {rewards.map((reward, rewardIndex) => {
-                                const rewardDisplay = getRewardDisplay(reward);
-                                return rewardDisplay ? (
-                                  <div key={rewardIndex} className="flex-shrink-0">
-                                    {rewardDisplay}
-                                  </div>
-                                ) : null;
-                              })}
+                              {isCompletedState ? (
+                                // Show checkmark icon for completed state
+                                <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
+                              ) : (
+                                // Show reward icon for claimable state
+                                rewards.map((reward, rewardIndex) => {
+                                  const rewardDisplay = getRewardDisplay(reward);
+                                  return rewardDisplay ? (
+                                    <div key={rewardIndex} className="flex-shrink-0">
+                                      {rewardDisplay}
+                                    </div>
+                                  ) : null;
+                                })
+                              )}
                             </div>
                           </div>
                         );

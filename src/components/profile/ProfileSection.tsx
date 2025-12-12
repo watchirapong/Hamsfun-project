@@ -125,9 +125,9 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               {/* Front of Card */}
               <motion.div 
                 className={`flip-card-front rounded-xl p-4 shadow-md border flex flex-col w-full h-full justify-between ${
-                  user.isHamster 
-                    ? 'bg-gradient-to-br from-yellow-600/20 to-orange-600/20 border-yellow-500/50' 
-                    : theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'
+                user.isHamster 
+                  ? 'bg-gradient-to-br from-yellow-600/20 to-orange-600/20 border-yellow-500/50' 
+                  : theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'
                 }`}
                 variants={rankCardGlowPulse}
                 animate={

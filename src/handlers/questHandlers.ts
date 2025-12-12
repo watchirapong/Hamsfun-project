@@ -258,10 +258,9 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
               newRewardsAwarded.push(false);
             }
 
-            // Mark as awarded only if backend granted rewards
-            if (hasGrantedRewards && newRewardsAwarded[selectedObjective.objectiveIndex] !== true) {
-              newRewardsAwarded[selectedObjective.objectiveIndex] = true;
-            }
+            // DON'T mark as awarded immediately - wait for user to click "CLAIM REWARD"
+            // The reward was already granted by backend, but we want UX illusion of claiming
+            // Keep newRewardsAwarded[selectedObjective.objectiveIndex] = false
 
             const newSubmissions = [...q.objectiveSubmissions];
             newSubmissions[selectedObjective.objectiveIndex] = {
@@ -288,135 +287,23 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
         })
       );
 
-      // Award reward only if backend granted rewards (grantedRewards is present)
-      if (hasGrantedRewards) {
-        console.log('Processing rewards - hasGrantedRewards:', hasGrantedRewards, 'rewards:', grantedRewards);
-        // Process rewards immediately (synchronously) before closing modal
-        const rewardKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
+      // DON'T award rewards immediately - wait for user to click "CLAIM REWARD"
+      // The backend already granted rewards, but we want UX illusion of claiming
+      // Store grantedRewards temporarily for when user clicks "CLAIM REWARD"
+      // We'll use the objective's reward data when claiming (backend already granted, so this is just for animations)
 
-        // Check if already awarded
-        if (!awardedRewards.has(rewardKey)) {
-          // Mark as awarded immediately to prevent duplicates
-          awardedRewards.add(rewardKey);
+      // Close modal after submission
+      setTimeout(() => {
+        setShowImageUploadModal(false);
+        setSelectedObjective(null);
+        setUploadedImage(null);
+        setDescription('');
+      }, 300);
 
-          // Use grantedRewards from API response
-          const rewardsToProcess = grantedRewards;
-
-          // Validate badge points before processing
-          const currentQuest = questsState.find(q => q.id === selectedObjective.questId);
-          if (currentQuest && rewardsToProcess?.badgePoints) {
-            const validation = validateObjectiveBadgePoints(
-              currentQuest,
-              selectedObjective.objectiveIndex,
-              rewardsToProcess.badgePoints
-            );
-
-            if (!validation.isValid) {
-              console.error('Badge points validation failed:', validation);
-              // Log mismatches but still process rewards (backend is source of truth)
-              validation.mismatches.forEach(mismatch => {
-                console.error(`Badge mismatch: ${mismatch.skillName} - Expected: ${mismatch.expected}, Received: ${mismatch.received}`);
-              });
-            }
-
-            if (validation.warnings.length > 0) {
-              console.warn('Badge points validation warnings:', validation.warnings);
-            }
-          }
-
-          // Process badge points from API response first (if any)
-          if (rewardsToProcess && rewardsToProcess.badgePoints && typeof rewardsToProcess.badgePoints === 'object') {
-            // Log the badge points being processed for verification
-            console.log('Processing badge points from backend:', rewardsToProcess.badgePoints);
-
-            processBadgePointsFromApi(
-              rewardsToProcess.badgePoints,
-              setSkills,
-              triggerRewardAnimation,
-              handleSkillLevelUp
-            );
-
-            // Refresh badge data from backend to ensure sync after processing
-            // This ensures frontend state matches backend exactly
-            setTimeout(async () => {
-              await refreshBadgeDataFromBackend(setSkills);
-            }, 1000); // Wait 1 second for backend to process
-          }
-
-          // Queue rewards instead of applying immediately (they'll be applied when panel closes)
-          if (rewardsToProcess && rewardsToProcess.coins) {
-            awardObjectiveReward({ type: 'coins', value: rewardsToProcess.coins }, `objective-${selectedObjective.questId}-${selectedObjective.objectiveIndex}-coins`);
-          }
-
-          if (rewardsToProcess && rewardsToProcess.rankPoints) {
-            awardObjectiveReward({ type: 'rank', value: rewardsToProcess.rankPoints }, `objective-${selectedObjective.questId}-${selectedObjective.objectiveIndex}-rank`);
-          }
-
-          // Process leaderboard points from API response
-          if (rewardsToProcess && rewardsToProcess.leaderboardScore) {
-            awardObjectiveReward({ type: 'leaderboard', value: rewardsToProcess.leaderboardScore }, `objective-${selectedObjective.questId}-${selectedObjective.objectiveIndex}-leaderboard`);
-          }
-
-          // Process items from API response
-          if (rewardsToProcess && rewardsToProcess.items && Array.isArray(rewardsToProcess.items)) {
-            rewardsToProcess.items.forEach((item: any) => {
-              if (item.quantity > 0) {
-                awardObjectiveReward({
-                  type: 'item',
-                  value: item.quantity,
-                  itemName: item.name,
-                  itemIcon: getItemIconUrl(item.icon),
-                  itemId: item.itemId,
-                }, `objective-${selectedObjective.questId}-${selectedObjective.objectiveIndex}-item-${item.itemId}`);
-              }
-            });
-          }
-
-          console.log('Reward awarded for objective:', selectedObjective.objectiveIndex, 'hasGrantedRewards:', hasGrantedRewards);
-
-          // Clean up after 5 seconds
-          setTimeout(() => {
-            awardedRewards.delete(rewardKey);
-          }, 5000);
-
-          // Close modal after rewards are processed (give time for animations to start)
-          setTimeout(() => {
-            setShowImageUploadModal(false);
-            setSelectedObjective(null);
-            setUploadedImage(null);
-            setDescription('');
-          }, 300);
-        } else {
-          console.log('Reward already awarded, skipping duplicate:', rewardKey);
-
-          // Close modal even if reward was already awarded
-          setTimeout(() => {
-            setShowImageUploadModal(false);
-            setSelectedObjective(null);
-            setUploadedImage(null);
-            setDescription('');
-          }, 100);
-        }
-
-        // Clear processing flag
-        setTimeout(() => {
-          processingObjectives.current.delete(processingKey);
-        }, 100);
-      } else {
-        console.log('No rewards granted by backend (resubmission) - skipping reward award for objective:', selectedObjective.objectiveIndex);
-        // Clear processing flag even if no reward
-        setTimeout(() => {
-          processingObjectives.current.delete(processingKey);
-        }, 100);
-
-        // Close modal even if no rewards (resubmission case)
-        setTimeout(() => {
-          setShowImageUploadModal(false);
-          setSelectedObjective(null);
-          setUploadedImage(null);
-          setDescription('');
-        }, 100);
-      }
+      // Clear processing flag
+      setTimeout(() => {
+        processingObjectives.current.delete(processingKey);
+      }, 100);
 
       // Restore scroll position
       setTimeout(() => {
@@ -752,6 +639,71 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
     }, 0);
   }, [awardedRewards, awardQuestRewards, processingObjectives, setQuestsState]);
 
+  // Handler to claim objective reward (frontend UX illusion - backend already granted)
+  const handleClaimObjectiveReward = useCallback((questId: number, objectiveIndex: number) => {
+    const quest = questsState.find(q => q.id === questId);
+    if (!quest) return;
+
+    const objective = quest.objectives[objectiveIndex];
+    if (!objective) return;
+
+    const submission = quest.objectiveSubmissions?.[objectiveIndex];
+    if (!submission || submission.status === 'none') {
+      // Not submitted yet, can't claim
+      return;
+    }
+
+    const rewardAwarded = quest.objectiveRewardsAwarded?.[objectiveIndex];
+    if (rewardAwarded === true) {
+      // Already claimed
+      return;
+    }
+
+    // Mark as awarded (claimed)
+    setQuestsState(prevQuests =>
+      prevQuests.map(q => {
+        if (q.id === questId) {
+          const existingRewardsAwarded = q.objectiveRewardsAwarded || [];
+          const newRewardsAwarded = [...existingRewardsAwarded];
+          while (newRewardsAwarded.length < q.objectives.length) {
+            newRewardsAwarded.push(false);
+          }
+          newRewardsAwarded[objectiveIndex] = true;
+
+          return {
+            ...q,
+            objectiveRewardsAwarded: newRewardsAwarded
+          };
+        }
+        return q;
+      })
+    );
+
+    // Trigger reward animations using objective's reward data
+    // Backend already granted rewards, so this is just for UX animations
+    const rewards = Array.isArray(objective.reward) ? objective.reward : [objective.reward];
+    rewards.forEach((reward, rewardIndex) => {
+      // Skip hidden rewards (skill, leaderboard)
+      if (reward.type === 'skill' || reward.type === 'leaderboard') {
+        return;
+      }
+
+      const rewardKey = `objective-${questId}-${objectiveIndex}-claim-${rewardIndex}`;
+      if (!awardedRewards.has(rewardKey)) {
+        awardedRewards.add(rewardKey);
+        awardObjectiveReward(reward, rewardKey);
+      }
+    });
+
+    // Clean up after 5 seconds
+    setTimeout(() => {
+      rewards.forEach((_, rewardIndex) => {
+        const rewardKey = `objective-${questId}-${objectiveIndex}-claim-${rewardIndex}`;
+        awardedRewards.delete(rewardKey);
+      });
+    }, 5000);
+  }, [questsState, awardedRewards, awardObjectiveReward]);
+
   return {
     handleQuestCardClick,
     toggleQuestExpansion,
@@ -761,6 +713,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
     handleApproveObjective,
     handleClaimReward,
     handleApproveReward,
+    handleClaimObjectiveReward,
     updateQuestStep,
   };
 };

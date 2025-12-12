@@ -415,18 +415,25 @@ export const initializeApp = async (params: InitializeAppParams) => {
               // Match rewards awarded to objectives by subQuestId, not by array index
               const objectives = quest.subQuests || [];
               const rewardsMap = new Map();
+              const submissionsMap = new Map();
+              
               // Create a map of subQuestId -> reward awarded status
-              // Try multiple possible field names for subQuestId in progress
+              // Also create a map of subQuestId -> submission status
               aq.subQuestsProgress?.forEach((p: any, idx: number) => {
                 const subQuestId = extractSubQuestIdFromProgress(p);
                 if (subQuestId) {
                   rewardsMap.set(subQuestId.toString(), p.rewardAwarded || false);
+                  // Track submission status
+                  const status = p.status === 'Completed' ? 'approved' : p.status === 'Pending' ? 'pending' : p.status === 'Rejected' ? 'rejected' : 'none';
+                  submissionsMap.set(subQuestId.toString(), status);
                 }
               });
+              
               // Map each objective to its reward awarded status by matching subQuestId
               return objectives.map((sq: any, idx: number) => {
                 const subQuestId = extractSubQuestIdFromSubQuest(sq)?.toString();
                 let awarded = rewardsMap.get(subQuestId);
+                const submissionStatus = submissionsMap.get(subQuestId) || 'none';
 
                 // If not found in map, try to find by searching all progress entries
                 if (awarded === undefined) {
@@ -437,6 +444,12 @@ export const initializeApp = async (params: InitializeAppParams) => {
                   if (matchingProgress) {
                     awarded = matchingProgress.rewardAwarded || false;
                   }
+                }
+
+                // On reload: if objective was submitted (status !== 'none'), always show as completed (green)
+                // The "CLAIM REWARD" state is temporary and frontend-only, so on reload it should be green
+                if (submissionStatus !== 'none') {
+                  return true; // Show green "Task completed" state
                 }
 
                 return awarded || false;

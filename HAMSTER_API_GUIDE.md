@@ -201,7 +201,31 @@ Hamsters สามารถใช้ User APIs ทั้งหมดได้ด
 
 ---
 
-## 7. Example Code (Frontend)
+## 7. Team Quest Submission (Members)
+
+สมาชิกในทีม (Members) สามารถส่งงาน (Submission) สำหรับ Member Quest ที่ได้รับมอบหมายได้:
+
+### 7.1 Submit Work
+**URL:** `POST /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex/submit`
+**Description:** ส่งหลักฐานการทำงาน (รูปภาพ/ข้อความ)
+
+**Request (Form Data):**
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `description` | String | No | รายละเอียดงานที่ทำ |
+| `imageProof` | File | No | รูปภาพหลักฐาน (Screenshot) |
+
+**Response:**
+```json
+{
+  "message": "Work submitted successfully",
+  "memberQuest": { ...Updated Object... }
+}
+```
+
+---
+
+## 8. Example Code (Frontend)
 
 ### JavaScript (React)
 ```javascript
