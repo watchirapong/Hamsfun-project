@@ -6,7 +6,7 @@ import { mapApiSkillNameToDisplayName } from './rewardHelpers';
  * @param backendType - The reward type from backend (e.g., "Coin", "RankPoint")
  * @returns The frontend reward type (e.g., "coins", "rank")
  */
-export const mapBackendRewardTypeToFrontend = (backendType: string): 'exp' | 'rank' | 'skill' | 'coins' | 'animal' | 'item' | 'leaderboard' => {
+export const mapBackendRewardTypeToFrontend = (backendType: string): 'exp' | 'rank' | 'skill' | 'coins' | 'animal' | 'item' | 'leaderboard' | 'petExp' => {
   if (backendType === 'Coin') {
     return 'coins';
   } else if (backendType === 'RankPoint') {
@@ -17,6 +17,8 @@ export const mapBackendRewardTypeToFrontend = (backendType: string): 'exp' | 'ra
     return 'item';
   } else if (backendType === 'LeaderboardScore') {
     return 'leaderboard';
+  } else if (backendType === 'PetExp' || backendType === 'PetExperience' || backendType === 'petExp') {
+    return 'petExp';
   }
   return 'coins'; // Default fallback
 };

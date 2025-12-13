@@ -25,6 +25,7 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isOpening, setIsOpening] = useState(true);
   const startY = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -51,9 +52,10 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
     const currentY = dragY;
     const targetY = panelHeightRef.current;
     
-    // Set smooth transition and animate to closed position
+    // Set smooth transition and animate to closed position (GPU optimized)
     panel.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-    panel.style.transform = `translateY(${targetY}px)`;
+    panel.style.transform = `translate3d(0, ${targetY}px, 0)`;
+    panel.style.willChange = 'transform';
     
     setTimeout(() => {
       onClose();
@@ -257,9 +259,10 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
     setIsAnimating(true);
     const panel = panelRef.current;
     
-    // Animate from current dragY position back to 0
+    // Animate from current dragY position back to 0 (GPU optimized)
     panel.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-    panel.style.transform = 'translateY(0)';
+    panel.style.transform = 'translate3d(0, 0, 0)';
+    panel.style.willChange = 'transform';
     
     // Update state after animation completes
     setTimeout(() => {
@@ -271,8 +274,14 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
   // Prevent background scrolling when panel is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
+    // Trigger opening animation
+    setIsOpening(true);
+    setTimeout(() => {
+      setIsOpening(false);
+    }, 400); // Match animation duration
     return () => {
       document.body.style.overflow = '';
+      setIsOpening(false);
     };
   }, []);
 
@@ -307,24 +316,26 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
     
     const panel = panelRef.current;
     
-    // Don't interfere if we're animating (closing or snapping back)
-    if (isAnimating) {
+    // Don't interfere if we're animating (closing or snapping back) or opening
+    if (isAnimating || isOpening) {
       return;
     }
     
     if (isDragging || dragY > 0) {
       // Remove animation classes to prevent conflicts
       panel.classList.remove('animate-slide-up', 'animate-slide-down');
-      // Directly set transform during drag (no transition)
-      panel.style.transform = `translateY(${dragY}px)`;
+      // Directly set transform during drag (no transition, GPU optimized)
+      panel.style.transform = `translate3d(0, ${dragY}px, 0)`;
       panel.style.transition = 'none';
+      panel.style.willChange = 'transform';
     } else if (dragY === 0 && !isClosing) {
       // Panel is open and at rest
       panel.classList.remove('animate-slide-up', 'animate-slide-down');
-      panel.style.transform = 'translateY(0)';
+      panel.style.transform = 'translate3d(0, 0, 0)';
       panel.style.transition = '';
+      panel.style.willChange = 'auto';
     }
-  }, [isDragging, dragY, isClosing, isAnimating]);
+  }, [isDragging, dragY, isClosing, isAnimating, isOpening]);
 
   useEffect(() => {
     // Attach mouse events to document for global drag detection
@@ -359,7 +370,7 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
       <div 
         ref={panelRef}
         className={`w-full max-w-md rounded-t-xl shadow-lg pb-20 transition-colors ${
-          !isDragging && dragY === 0 && !isAnimating && !isClosing ? 'animate-slide-up' : ''
+          (isOpening || (!isDragging && dragY === 0 && !isAnimating && !isClosing)) ? 'animate-slide-up' : ''
         } ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}

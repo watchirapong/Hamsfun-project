@@ -85,11 +85,12 @@ export const QuestNotification: React.FC<QuestNotificationProps> = ({
         }`}
         style={{
           transform: isVisible && !isExiting
-            ? 'scale(1) translateY(0)'
+            ? 'translate3d(0, 0, 0) scale(1)'
             : isExiting
-            ? 'scale(0.95) translateY(16px)'
-            : 'scale(0)',
-          transition: 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            ? 'translate3d(0, 16px, 0) scale(0.95)'
+            : 'translate3d(0, 0, 0) scale(0)',
+          transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          willChange: 'transform, opacity',
         }}
       >
         {/* Particle effects container */}
@@ -150,8 +151,9 @@ export const QuestNotification: React.FC<QuestNotificationProps> = ({
                   width: '3px',
                   height: '80px',
                   background: 'linear-gradient(to bottom, rgba(255, 215, 0, 0.6) 0%, transparent 100%)',
-                  transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-40px)`,
+                  transform: `translate3d(-50%, -50%, 0) rotate(${angle}deg) translate3d(0, -40px, 0)`,
                   transformOrigin: 'center bottom',
+                  willChange: 'transform',
                   animation: `rayRotate 3s linear infinite`,
                   animationDelay: `${i * 0.2}s`,
                   filter: 'blur(2px)',

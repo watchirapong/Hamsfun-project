@@ -8,7 +8,7 @@ import { animateCount, easeOutCubic } from '@/utils/countingAnimation';
 
 export interface RewardAnimationInstance {
   id: string;
-  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard';
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp';
   value: number | string;
   skillName?: string;
   itemName?: string;
@@ -21,7 +21,7 @@ export interface RewardAnimationInstance {
 }
 
 export interface PendingReward {
-  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard';
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp';
   value: number | string;
   skillName?: string;
   itemName?: string;
@@ -212,6 +212,20 @@ export const useRewards = (
           };
         });
         console.log(`Applied ${expValue} XP to pet`);
+      }
+    } else if (reward.type === 'petExp') {
+      const petExpValue = typeof reward.value === 'number' ? reward.value : 0;
+      if (petExpValue > 0) {
+        setUser(prev => {
+          const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, petExpValue);
+          return {
+            ...prev,
+            petXp: progression.newXp,
+            petLevel: progression.newLevel,
+            petMaxXp: progression.newMaxXp
+          };
+        });
+        console.log(`Applied ${petExpValue} Pet EXP to pet`);
       }
     } else if (reward.type === 'rank') {
       const rankValue = typeof reward.value === 'number' ? reward.value : 0;
@@ -600,6 +614,33 @@ export const useRewards = (
         animateCount(
           currentXp,
           currentXp + expTotal,
+          {
+            duration: 1000,
+            easing: easeOutCubic,
+              onUpdate: (value) => {
+                setUserCallback(prev => {
+                  const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, value - prev.petXp);
+                  return {
+                    ...prev,
+                    petXp: progression.newXp,
+                    petLevel: progression.newLevel,
+                    petMaxXp: progression.newMaxXp
+                  };
+                });
+              }
+          }
+        )
+      );
+    }
+
+        // Process Pet EXP
+        const petExpTotal = rewardsByType.get('petExp') || 0;
+    if (petExpTotal > 0) {
+      let currentXp = currentUser.petXp;
+      animations.push(
+        animateCount(
+          currentXp,
+          currentXp + petExpTotal,
           {
             duration: 1000,
             easing: easeOutCubic,
