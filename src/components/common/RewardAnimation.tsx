@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Coins, Star, Trophy, Crown, Package, TrendingUp } from 'lucide-react';
+import { Coins, Star, Trophy, Crown, Package, TrendingUp, Heart } from 'lucide-react';
 
 export interface RewardAnimationInstance {
   id: number | string;
-  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard';
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp';
   value: number | string;
   x: number;
   y: number;
@@ -190,6 +190,8 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation, the
         return <Package className="w-6 h-6 text-indigo-600" />;
       case 'leaderboard':
         return <TrendingUp className="w-6 h-6 text-orange-600" />;
+      case 'petExp':
+        return <Heart className="w-6 h-6 text-pink-600" />;
       default:
         return null;
     }
@@ -211,6 +213,8 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation, the
         return animation.itemName || `+${animation.value}`;
       case 'leaderboard':
         return `+${animation.value} LP`;
+      case 'petExp':
+        return `+${animation.value} Pet EXP`;
       default:
         return '';
     }

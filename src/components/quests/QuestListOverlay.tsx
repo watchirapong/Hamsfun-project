@@ -62,17 +62,23 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
   
   // Track if panel should animate (only on manual open)
   const [shouldAnimate, setShouldAnimate] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
   
   // Reset animation flag when overlay closes
   useEffect(() => {
     if (!showQuestOverlay) {
       questPanelShouldAnimate.current = false;
       setShouldAnimate(false);
-    } else if (showQuestOverlay && questPanelShouldAnimate.current) {
-      // Only animate if manually opened
-      setShouldAnimate(true);
+      setIsOpening(false);
+    } else if (showQuestOverlay) {
+      // Always animate on open
+      setIsOpening(true);
+      if (questPanelShouldAnimate.current) {
+        setShouldAnimate(true);
+      }
       // Remove animation classes after animation completes
       setTimeout(() => {
+        setIsOpening(false);
         setShouldAnimate(false);
         questPanelShouldAnimate.current = false; // Reset flag after animation
       }, 400); // Slightly longer than animation duration
@@ -180,8 +186,8 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     } else if (reward.type === 'coins' && typeof reward.value === 'number') {
       const displayValue = formatRange(reward.minValue, reward.maxValue, reward.value);
       return (
-        <div className="flex flex-col items-center">
-          <img src={getAssetUrl("/Asset/item/coin.png")} alt="Coins" className="w-8 h-8 object-contain" />
+        <div className="flex items-center gap-1.5">
+          <img src={getAssetUrl("/Asset/item/coin.png")} alt="Coins" className="w-8 h-8 object-contain flex-shrink-0" />
           <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
             {reward.minValue !== undefined && reward.maxValue !== undefined && reward.minValue !== reward.maxValue 
               ? `${formatShortNumber(reward.minValue)} - ${formatShortNumber(reward.maxValue)}` 
@@ -221,6 +227,22 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
           </div>
         </div>
       );
+    } else if (reward.type === 'petExp' && typeof reward.value === 'number') {
+      const displayValue = formatRange(reward.minValue, reward.maxValue, reward.value);
+      return (
+        <div className="flex items-center gap-1.5">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-b from-pink-400 to-pink-600 flex items-center justify-center flex-shrink-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" className="text-white">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+            </svg>
+          </div>
+          <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
+            {reward.minValue !== undefined && reward.maxValue !== undefined && reward.minValue !== reward.maxValue 
+              ? `${formatShortNumber(reward.minValue)} - ${formatShortNumber(reward.maxValue)}` 
+              : `x${displayValue}`}
+          </div>
+        </div>
+      );
     } else if (reward.type === 'item' && reward.itemId) {
       const displayValue = formatRange(reward.minValue, reward.maxValue, typeof reward.value === 'number' ? reward.value : undefined);
       const itemInfo = getItemInfo(reward.itemId);
@@ -229,19 +251,16 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
       const iconUrl = getItemIconUrl(itemIcon);
       
       return (
-        <div className="flex flex-col items-center">
+        <div className="flex items-center gap-1.5">
           <img 
             src={iconUrl} 
             alt={itemName} 
-            className="w-10 h-10 object-contain"
+            className="w-8 h-8 object-contain flex-shrink-0"
             onError={(e) => {
               // Fallback to default icon if item icon fails to load
               (e.target as HTMLImageElement).src = getAssetUrl("/Asset/item/classTicket.png");
             }}
           />
-          <div className={`text-xs font-semibold mt-1 text-center max-w-[80px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-            {itemName}
-          </div>
           {displayValue && displayValue !== '0' && (
             <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
               x{displayValue}
@@ -290,9 +309,10 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     const currentY = dragY;
     const targetY = panelHeightRef.current;
     
-    // Set smooth transition and animate to closed position
+    // Set smooth transition and animate to closed position (GPU optimized)
     panel.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-    panel.style.transform = `translateY(${targetY}px)`;
+    panel.style.transform = `translate3d(0, ${targetY}px, 0)`;
+    panel.style.willChange = 'transform';
     
     setTimeout(() => {
       setShowQuestOverlay(false);
@@ -531,9 +551,10 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     setIsAnimating(true);
     const panel = panelRef.current;
     
-    // Animate from current dragY position back to 0
+    // Animate from current dragY position back to 0 (GPU optimized)
     panel.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-    panel.style.transform = 'translateY(0)';
+    panel.style.transform = 'translate3d(0, 0, 0)';
+    panel.style.willChange = 'transform';
     
     // Update state after animation completes
     setTimeout(() => {
@@ -574,24 +595,26 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     
     const panel = panelRef.current;
     
-    // Don't interfere if we're animating (closing or snapping back)
-    if (isAnimating) {
+    // Don't interfere if we're animating (closing or snapping back) or opening
+    if (isAnimating || isOpening) {
       return;
     }
     
     if (isDragging || dragY > 0) {
       // Remove animation classes to prevent conflicts
       panel.classList.remove('animate-slide-up', 'animate-slide-down');
-      // Directly set transform during drag (no transition)
-      panel.style.transform = `translateY(${dragY}px)`;
+      // Directly set transform during drag (no transition, GPU optimized)
+      panel.style.transform = `translate3d(0, ${dragY}px, 0)`;
       panel.style.transition = 'none';
+      panel.style.willChange = 'transform';
     } else if (dragY === 0 && !isClosing) {
       // Panel is open and at rest
       panel.classList.remove('animate-slide-up', 'animate-slide-down');
-      panel.style.transform = 'translateY(0)';
+      panel.style.transform = 'translate3d(0, 0, 0)';
       panel.style.transition = '';
+      panel.style.willChange = 'auto';
     }
-  }, [isDragging, dragY, isClosing, isAnimating]);
+  }, [isDragging, dragY, isClosing, isAnimating, isOpening]);
 
   useEffect(() => {
     // Attach mouse events to document for global drag detection
@@ -628,7 +651,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
       <div 
         ref={panelRef}
         className={`w-full max-w-md rounded-t-xl shadow-lg pb-20 transition-colors ${
-          !isDragging && dragY === 0 && !isAnimating && !isClosing ? 'animate-slide-up' : ''
+          (isOpening || (!isDragging && dragY === 0 && !isAnimating && !isClosing)) ? 'animate-slide-up' : ''
         } ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
@@ -711,21 +734,18 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         return (
                           <div 
                             key={index} 
-                            className={`relative flex items-center justify-between border-b last:border-b-0 transition-all ${
-                              // Height: normal and claimable have same height, completed is shorter
-                              isCompletedState ? 'py-1.5 px-4' : 'py-2 px-4'
-                            } ${
-                              theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
-                            } ${
+                            className={`relative transition-all ${
                               isRejected
-                                ? theme === 'dark' ? 'bg-red-900/20 border-red-500' : 'bg-red-50 border-red-200'
+                                ? `border-b last:border-b-0 ${theme === 'dark' ? 'bg-red-900/20 border-red-500' : 'bg-red-50 border-red-200'} ${isCompletedState ? 'py-1.5 px-4' : 'py-2 px-4'}`
                                 : isClaimable
-                                ? 'bg-orange-500 cursor-pointer hover:bg-orange-600' // Orange "CLAIM REWARD" state
+                                ? `rounded-2xl mx-2 my-2 px-5 py-3.5 border-0 ${theme === 'dark' ? 'bg-gradient-to-r from-green-400/90 to-green-500/90 shadow-lg shadow-green-500/20' : 'bg-gradient-to-r from-green-300 to-green-400 shadow-md shadow-green-300/30'} cursor-pointer hover:shadow-lg transition-all duration-200`
                                 : isCompletedState
-                                ? theme === 'dark' ? 'bg-green-900/30' : 'bg-green-100' // Green "Task completed" state
+                                ? `rounded-2xl mx-2 my-2 px-5 py-3.5 border-0 ${theme === 'dark' ? 'bg-gradient-to-r from-purple-400/90 to-purple-500/90 shadow-lg shadow-purple-500/20' : 'bg-gradient-to-r from-purple-200 to-purple-300 shadow-md shadow-purple-200/30'}`
                                 : isClickable 
-                                ? theme === 'dark' ? 'bg-gray-800/30 cursor-pointer hover:bg-gray-800/40' : 'bg-white cursor-pointer hover:bg-gray-50' 
-                                : theme === 'dark' ? 'bg-gray-900/10' : 'bg-white'
+                                ? `border-b last:border-b-0 ${theme === 'dark' ? 'bg-gray-800/30 cursor-pointer hover:bg-gray-800/40' : 'bg-white cursor-pointer hover:bg-gray-50'} py-2 px-4`
+                                : `border-b last:border-b-0 ${theme === 'dark' ? 'bg-gray-900/10' : 'bg-white'} py-2 px-4`
+                            } ${
+                              theme === 'dark' && !isClaimable ? 'border-gray-800' : !isClaimable ? 'border-gray-200' : ''
                             }`}
                             onClick={() => {
                               if (isClaimable) {
@@ -737,59 +757,78 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                               }
                             }}
                           >
-                            <div className="flex-1 flex flex-col gap-1 min-w-0 pr-3">
-                              <div className="flex items-center gap-2">
-                                {isClaimable ? (
-                                  // Orange "CLAIM REWARD" state
-                                  <span className="text-sm font-semibold text-white">
-                                    CLAIM REWARD
-                                  </span>
-                                ) : isCompletedState ? (
-                                  // Green "Task completed" state
-                                  <span className={`text-sm font-semibold ${
-                                    theme === 'dark' ? 'text-green-400' : 'text-green-700'
-                                  }`}>
-                                    Task completed
-                                  </span>
-                                ) : (
-                                  // Normal state
-                                  <span 
-                                    className={`text-sm truncate ${
-                                      isRejected
-                                        ? 'text-red-600 font-semibold'
-                                        : theme === 'dark' ? 'text-white' : 'text-black'
-                                    }`}
-                                  >
-                                    {objective.text}
-                                  </span>
-                                )}
-                                {isRejected && (
-                                  <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
-                                )}
-                              </div>
-                              {/* Tap to details label for clickable objectives (normal state only) */}
-                              {isClickable && !isRejected && (
-                                <span className={`text-xs italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
-                                  tap to details
+                            {isClaimable ? (
+                              // Premium centered "CLAIM REWARD" state
+                              <div className="flex items-center justify-center relative w-full">
+                                <span className={`text-base font-bold tracking-wide drop-shadow-sm ${
+                                  theme === 'dark' ? 'text-white' : 'text-green-900'
+                                }`}>
+                                  CLAIM REWARD
                                 </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {isCompletedState ? (
-                                // Show checkmark icon for completed state
-                                <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
-                              ) : (
-                                // Show reward icon for normal and claimable states
-                                rewards.map((reward, rewardIndex) => {
-                                  const rewardDisplay = getRewardDisplay(reward);
-                                  return rewardDisplay ? (
-                                    <div key={rewardIndex} className="flex-shrink-0">
-                                      {rewardDisplay}
-                                    </div>
-                                  ) : null;
-                                })
-                              )}
-                            </div>
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                                  {rewards.map((reward, rewardIndex) => {
+                                    const rewardDisplay = getRewardDisplay(reward);
+                                    return rewardDisplay ? (
+                                      <div key={rewardIndex} className="flex-shrink-0 flex items-center">
+                                        {rewardDisplay}
+                                      </div>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </div>
+                            ) : (
+                              // Normal layout for other states
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex-1 flex flex-col gap-1 min-w-0 pr-3">
+                                  <div className="flex items-center gap-2">
+                                    {isCompletedState ? (
+                                      // Purple "Task completed" state
+                                      <span className={`text-sm font-semibold ${
+                                        theme === 'dark' ? 'text-purple-200' : 'text-purple-800'
+                                      }`}>
+                                        {objective.text} task completed
+                                      </span>
+                                    ) : (
+                                      // Normal state
+                                      <span 
+                                        className={`text-sm truncate ${
+                                          isRejected
+                                            ? 'text-red-600 font-semibold'
+                                            : theme === 'dark' ? 'text-white' : 'text-black'
+                                        }`}
+                                      >
+                                        {objective.text}
+                                      </span>
+                                    )}
+                                    {isRejected && (
+                                      <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
+                                    )}
+                                  </div>
+                                  {/* Tap to details label for clickable objectives (normal state only) */}
+                                  {isClickable && !isRejected && (
+                                    <span className={`text-xs italic ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>
+                                      tap to details
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {isCompletedState ? (
+                                    // Show checkmark icon for completed state
+                                    <Check className={`w-5 h-5 flex-shrink-0 ${theme === 'dark' ? 'text-purple-300' : 'text-purple-700'}`} />
+                                  ) : (
+                                    // Show reward icon for normal states
+                                    rewards.map((reward, rewardIndex) => {
+                                      const rewardDisplay = getRewardDisplay(reward);
+                                      return rewardDisplay ? (
+                                        <div key={rewardIndex} className="flex-shrink-0 flex items-center">
+                                          {rewardDisplay}
+                                        </div>
+                                      ) : null;
+                                    })
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -878,6 +917,22 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                     <div className="w-20 h-20 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md text-center px-1">
                                       {formatRange(reward.minValue, reward.maxValue, reward.value)} LP
                                     </div>
+                                  ) : reward.type === 'petExp' && typeof reward.value === 'number' ? (
+                                    <>
+                                      <div className="w-20 h-20 rounded-full bg-gradient-to-b from-pink-400 to-pink-600 flex items-center justify-center mb-2 shadow-md">
+                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" className="text-white">
+                                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                        </svg>
+                                      </div>
+                                      <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
+                                        {reward.minValue !== undefined && reward.maxValue !== undefined && reward.minValue !== reward.maxValue 
+                                          ? `${formatShortNumber(reward.minValue)} - ${formatShortNumber(reward.maxValue)}` 
+                                          : `x${formatRange(reward.minValue, reward.maxValue, reward.value)}`}
+                                      </div>
+                                      <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        Pet EXP
+                                      </div>
+                                    </>
                                   ) : reward.type === 'item' && reward.itemId ? (
                                     (() => {
                                       const itemInfo = itemDetailsCache.get(reward.itemId);
@@ -989,17 +1044,12 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         return (
                           <div 
                             key={index} 
-                            className={`relative flex items-center justify-between border-b last:border-b-0 transition-all ${
-                              // Height: completed state is shorter
-                              isCompletedState ? 'py-1.5 px-8' : 'py-2 px-8'
-                            } ${
-                              theme === 'dark' ? 'border-gray-800' : 'border-gray-200'
-                            } ${
+                            className={`relative transition-all ${
                               isClaimable
-                                ? 'bg-orange-500 cursor-pointer hover:bg-orange-600' // Orange "CLAIM REWARD" state
+                                ? `rounded-2xl mx-2 my-2 px-5 py-3.5 border-0 ${theme === 'dark' ? 'bg-gradient-to-r from-green-400/90 to-green-500/90 shadow-lg shadow-green-500/20' : 'bg-gradient-to-r from-green-300 to-green-400 shadow-md shadow-green-300/30'} cursor-pointer hover:shadow-lg transition-all duration-200`
                                 : isCompletedState
-                                ? theme === 'dark' ? 'bg-green-900/20' : 'bg-green-50' // Green "Task completed" state
-                                : ''
+                                ? `rounded-2xl mx-2 my-2 px-5 py-3.5 border-0 ${theme === 'dark' ? 'bg-gradient-to-r from-purple-400/90 to-purple-500/90 shadow-lg shadow-purple-500/20' : 'bg-gradient-to-r from-purple-200 to-purple-300 shadow-md shadow-purple-200/30'}`
+                                : `border-b last:border-b-0 py-2 px-8 ${theme === 'dark' ? 'border-gray-800' : 'border-gray-200'}`
                             }`}
                             onClick={() => {
                               if (isClaimable) {
@@ -1007,44 +1057,63 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                               }
                             }}
                           >
-                            <div className="flex-1 flex items-center gap-2 min-w-0 pr-3">
-                              {isClaimable ? (
-                                // Orange "CLAIM REWARD" state
-                                <span className="text-sm font-semibold text-white">
+                            {isClaimable ? (
+                              // Premium centered "CLAIM REWARD" state
+                              <div className="flex items-center justify-center relative w-full">
+                                <span className={`text-base font-bold tracking-wide drop-shadow-sm ${
+                                  theme === 'dark' ? 'text-white' : 'text-green-900'
+                                }`}>
                                   CLAIM REWARD
                                 </span>
-                              ) : isCompletedState ? (
-                                // Green "Task completed" state
-                                <span className={`text-sm font-semibold ${
-                                  theme === 'dark' ? 'text-green-400' : 'text-green-700'
-                                }`}>
-                                  Task completed
-                                </span>
-                              ) : (
-                                // Normal state (shouldn't happen in completed quests, but fallback)
-                                <span className={`text-sm truncate ${
-                                  theme === 'dark' ? 'text-white' : 'text-black'
-                                }`}>
-                                  {objective.text}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
-                              {isCompletedState ? (
-                                // Show checkmark icon for completed state
-                                <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
-                              ) : (
-                                // Show reward icon for claimable state
-                                rewards.map((reward, rewardIndex) => {
-                                  const rewardDisplay = getRewardDisplay(reward);
-                                  return rewardDisplay ? (
-                                    <div key={rewardIndex} className="flex-shrink-0">
-                                      {rewardDisplay}
-                                    </div>
-                                  ) : null;
-                                })
-                              )}
-                            </div>
+                                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                                  {rewards.map((reward, rewardIndex) => {
+                                    const rewardDisplay = getRewardDisplay(reward);
+                                    return rewardDisplay ? (
+                                      <div key={rewardIndex} className="flex-shrink-0 flex items-center">
+                                        {rewardDisplay}
+                                      </div>
+                                    ) : null;
+                                  })}
+                                </div>
+                              </div>
+                            ) : (
+                              // Normal layout for other states
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex-1 flex items-center gap-2 min-w-0 pr-3">
+                                  {isCompletedState ? (
+                                    // Purple "Task completed" state
+                                    <span className={`text-sm font-semibold ${
+                                      theme === 'dark' ? 'text-purple-200' : 'text-purple-800'
+                                    }`}>
+                                      {objective.text} task completed
+                                    </span>
+                                  ) : (
+                                    // Normal state (shouldn't happen in completed quests, but fallback)
+                                    <span className={`text-sm truncate ${
+                                      theme === 'dark' ? 'text-white' : 'text-black'
+                                    }`}>
+                                      {objective.text}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  {isCompletedState ? (
+                                    // Show checkmark icon for completed state
+                                    <Check className={`w-5 h-5 flex-shrink-0 ${theme === 'dark' ? 'text-purple-300' : 'text-purple-700'}`} />
+                                  ) : (
+                                    // Show reward icon for claimable state
+                                    rewards.map((reward, rewardIndex) => {
+                                      const rewardDisplay = getRewardDisplay(reward);
+                                      return rewardDisplay ? (
+                                        <div key={rewardIndex} className="flex-shrink-0 flex items-center">
+                                          {rewardDisplay}
+                                        </div>
+                                      ) : null;
+                                    })
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -1108,6 +1177,22 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                     <div className="w-20 h-20 rounded-full bg-gradient-to-b from-orange-400 to-orange-600 flex items-center justify-center text-white text-sm font-bold mb-2 shadow-md text-center px-1">
                                       {formatRange(reward.minValue, reward.maxValue, reward.value)} LP
                                     </div>
+                                  ) : reward.type === 'petExp' && typeof reward.value === 'number' ? (
+                                    <>
+                                      <div className="w-20 h-20 rounded-full bg-gradient-to-b from-pink-400 to-pink-600 flex items-center justify-center mb-2 shadow-md">
+                                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" className="text-white">
+                                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                        </svg>
+                                      </div>
+                                      <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-black'}`}>
+                                        {reward.minValue !== undefined && reward.maxValue !== undefined && reward.minValue !== reward.maxValue 
+                                          ? `${formatShortNumber(reward.minValue)} - ${formatShortNumber(reward.maxValue)}` 
+                                          : `x${formatRange(reward.minValue, reward.maxValue, reward.value)}`}
+                                      </div>
+                                      <div className={`text-xs font-semibold ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                        Pet EXP
+                                      </div>
+                                    </>
                                   ) : reward.type === 'item' && reward.itemId ? (
                                     (() => {
                                       const itemInfo = itemDetailsCache.get(reward.itemId);

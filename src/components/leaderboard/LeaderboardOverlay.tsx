@@ -32,6 +32,7 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+  const [isOpening, setIsOpening] = useState(true);
   const startY = useRef(0);
   const panelRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
@@ -45,10 +46,25 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   const pageRange = `${startIndex + 1}-${Math.min(endIndex, leaderboardData.length)}`;
 
   const handleClose = () => {
+    if (!panelRef.current) return;
+    
     setIsClosing(true);
+    setIsDragging(false);
+    
+    // Get current panel height for smooth closing animation
+    const panel = panelRef.current;
+    const panelHeight = panel.offsetHeight;
+    
+    // Set smooth transition and animate to closed position (GPU optimized)
+    panel.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    panel.style.transform = `translate3d(0, ${panelHeight}px, 0)`;
+    panel.style.willChange = 'transform';
+    
     setTimeout(() => {
       onClose();
-    }, 300);
+      setIsClosing(false);
+      setDragY(0);
+    }, 300); // Match animation duration
   };
 
   const getCloseThreshold = () => {
@@ -92,13 +108,33 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   };
 
   const handleTouchEndNative = () => {
+    if (!isDragging) return;
+    
     const threshold = getCloseThreshold();
     if (dragY > threshold) {
       handleClose();
     } else {
-      setDragY(0);
+      // Snap back smoothly from current position
+      snapBackToOpen();
     }
     setIsDragging(false);
+  };
+
+  // Smooth snap-back animation from current drag position
+  const snapBackToOpen = () => {
+    if (!panelRef.current) return;
+    
+    const panel = panelRef.current;
+    
+    // Animate from current dragY position back to 0 (GPU optimized)
+    panel.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    panel.style.transform = 'translate3d(0, 0, 0)';
+    panel.style.willChange = 'transform';
+    
+    // Update state after animation completes
+    setTimeout(() => {
+      setDragY(0);
+    }, 350);
   };
 
   // Mouse drag handlers
@@ -126,11 +162,14 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   };
 
   const handleMouseUp = () => {
+    if (!isDragging) return;
+    
     const threshold = getCloseThreshold();
     if (dragY > threshold) {
       handleClose();
     } else {
-      setDragY(0);
+      // Snap back smoothly from current position
+      snapBackToOpen();
     }
     setIsDragging(false);
   };
@@ -138,8 +177,14 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
   // Prevent background scrolling when panel is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
+    // Trigger opening animation
+    setIsOpening(true);
+    setTimeout(() => {
+      setIsOpening(false);
+    }, 400); // Match animation duration
     return () => {
       document.body.style.overflow = '';
+      setIsOpening(false);
     };
   }, []);
 
@@ -164,22 +209,27 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
     if (!panelRef.current) return;
     
     const panel = panelRef.current;
-    if (isClosing) {
-      panel.style.transform = '';
-      panel.style.transition = '';
-      panel.classList.add('animate-slide-down');
-      panel.classList.remove('animate-slide-up');
-    } else if (isDragging || dragY > 0) {
-      panel.classList.remove('animate-slide-up', 'animate-slide-down');
-      panel.style.transform = `translateY(${dragY}px)`;
-      panel.style.transition = 'none';
-    } else {
-      panel.style.transition = 'transform 0.3s ease-out';
-      if (dragY === 0) {
-        panel.style.transform = 'translateY(0)';
-      }
+    
+    // Don't interfere if we're closing (handled by handleClose) or opening
+    if (isClosing || isOpening) {
+      return;
     }
-  }, [isDragging, dragY, isClosing]);
+    
+    if (isDragging || dragY > 0) {
+      // Remove animation classes to prevent conflicts
+      panel.classList.remove('animate-slide-up', 'animate-slide-down');
+      // Directly set transform during drag (no transition, GPU optimized)
+      panel.style.transform = `translate3d(0, ${dragY}px, 0)`;
+      panel.style.transition = 'none';
+      panel.style.willChange = 'transform';
+    } else if (dragY === 0) {
+      // Panel is open and at rest
+      panel.classList.remove('animate-slide-up', 'animate-slide-down');
+      panel.style.transform = 'translate3d(0, 0, 0)';
+      panel.style.transition = '';
+      panel.style.willChange = 'auto';
+    }
+  }, [isDragging, dragY, isClosing, isOpening]);
 
   useEffect(() => {
     if (isDragging) {
@@ -230,7 +280,7 @@ export const LeaderboardOverlay: React.FC<LeaderboardOverlayProps> = ({
       <div 
         ref={panelRef}
         className={`w-full max-w-md rounded-t-xl shadow-lg pb-20 transition-colors ${
-          isClosing ? 'animate-slide-down' : 'animate-slide-up'
+          isClosing ? 'animate-slide-down' : (isOpening || !isDragging ? 'animate-slide-up' : '')
         } ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}

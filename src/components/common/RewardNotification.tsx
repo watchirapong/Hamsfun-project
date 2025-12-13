@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Coins, Star, Trophy, Crown, Package, TrendingUp, X } from 'lucide-react';
+import { Coins, Star, Trophy, Crown, Package, TrendingUp, X, Heart } from 'lucide-react';
 
 export interface RewardNotificationData {
   id: string;
-  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard';
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp';
   value: number | string;
   skillName?: string;
   itemName?: string;
@@ -73,6 +73,8 @@ export const RewardNotification: React.FC<RewardNotificationProps> = ({
         return <Package className="w-6 h-6 text-indigo-500 dark:text-indigo-400 transition-colors" />;
       case 'leaderboard':
         return <TrendingUp className="w-6 h-6 text-orange-500 dark:text-orange-400 transition-colors" />;
+      case 'petExp':
+        return <Heart className="w-6 h-6 text-pink-500 dark:text-pink-400 transition-colors" />;
       default:
         return null;
     }
@@ -101,6 +103,8 @@ export const RewardNotification: React.FC<RewardNotificationProps> = ({
         return `+${getFormattedValue()}x ${notification.itemName || 'Item'}`;
       case 'leaderboard':
         return `+${getFormattedValue()} Leaderboard Points`;
+      case 'petExp':
+        return `+${getFormattedValue()} Pet EXP`;
       default:
         return '';
     }
@@ -122,6 +126,8 @@ export const RewardNotification: React.FC<RewardNotificationProps> = ({
         return notification.itemName || 'Item';
       case 'leaderboard':
         return 'Leaderboard Points';
+      case 'petExp':
+        return 'Pet EXP';
       default:
         return 'Reward';
     }
@@ -147,9 +153,10 @@ export const RewardNotification: React.FC<RewardNotificationProps> = ({
         right: 'calc(50% - 214px + 2rem)',
         maxWidth: '428px',
         transform: isVisible && !isExiting 
-          ? `translateX(0) translateY(${index * 70}px)` 
-          : 'translateX(100%)',
-        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-out',
+          ? `translate3d(0, ${index * 70}px, 0)` 
+          : 'translate3d(100%, 0, 0)',
+        transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+        willChange: 'transform, opacity',
       }}
     >
       {/* No background box - only icon and text visible */}

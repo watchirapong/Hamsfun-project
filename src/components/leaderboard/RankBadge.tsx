@@ -65,7 +65,7 @@ export const RankBadge: React.FC<RankBadgeProps> = ({
               style={{
                 backgroundColor: rankColors.color,
                 animation: `rankUpParticles 1s ease-out ${i * 0.1}s infinite`,
-                transform: `rotate(${i * 60}deg) translateY(-15px)`,
+                transform: `rotate(${i * 60}deg) translate3d(0, -15px, 0)`,
               }}
             />
           ))}

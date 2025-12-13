@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import { X, Link as LinkIcon, Image as ImageIcon, Video, Check } from 'lucide-react';
+import { X, Image as ImageIcon, Check } from 'lucide-react';
 
-type SubmissionType = 'link' | 'image' | 'video' | null;
+type SubmissionType = 'image' | null;
 
 interface ObjectiveDetailPanelProps {
   isOpen: boolean;
@@ -17,9 +17,7 @@ interface ObjectiveDetailPanelProps {
   userDescription?: string; // Comment field
   onUserDescriptionChange?: (value: string) => void;
   // Track which submission types have been sent
-  hasLinkSubmission?: boolean;
   hasImageSubmission?: boolean;
-  hasVideoSubmission?: boolean;
 }
 
 export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
@@ -33,20 +31,16 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
   theme = 'light',
   userDescription = '',
   onUserDescriptionChange,
-  hasLinkSubmission = false,
   hasImageSubmission = false,
-  hasVideoSubmission = false,
 }) => {
   const [activePanel, setActivePanel] = useState<SubmissionType>(null);
-  const [linkUrl, setLinkUrl] = useState('');
-  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [panelContainerHeight, setPanelContainerHeight] = useState<number>(0);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isOpening, setIsOpening] = useState(true);
 
   // Refs for measuring content heights
-  const linkPanelContentRef = useRef<HTMLDivElement>(null);
   const imagePanelContentRef = useRef<HTMLDivElement>(null);
-  const videoPanelContentRef = useRef<HTMLDivElement>(null);
   const panelContainerRef = useRef<HTMLDivElement>(null);
   const staticContentRef = useRef<HTMLDivElement>(null);
 
@@ -63,17 +57,13 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
 
     // Measure the active panel's content height
     // offsetHeight works even when parent is translated, as it measures the element's actual rendered size
-    if (activePanel === 'link' && linkPanelContentRef.current) {
-      panelContentHeight = linkPanelContentRef.current.offsetHeight || linkPanelContentRef.current.scrollHeight;
-    } else if (activePanel === 'image' && imagePanelContentRef.current) {
+    if (activePanel === 'image' && imagePanelContentRef.current) {
       panelContentHeight = imagePanelContentRef.current.offsetHeight || imagePanelContentRef.current.scrollHeight;
-    } else if (activePanel === 'video' && videoPanelContentRef.current) {
-      panelContentHeight = videoPanelContentRef.current.offsetHeight || videoPanelContentRef.current.scrollHeight;
     }
 
     // Set the container height (minimum 0 if no panel is active)
     setPanelContainerHeight(panelContentHeight);
-  }, [activePanel, uploadedImage, linkUrl, videoFile]);
+  }, [activePanel, uploadedImage]);
 
   // Update panel height when active panel changes or content changes
   useLayoutEffect(() => {
@@ -87,16 +77,14 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
     }, 50);
 
     return () => clearTimeout(timeoutId);
-  }, [isOpen, activePanel, uploadedImage, linkUrl, videoFile, updatePanelHeight]);
+  }, [isOpen, activePanel, uploadedImage, updatePanelHeight]);
 
   // Use ResizeObserver to watch for content size changes
   useEffect(() => {
     if (!isOpen) return;
 
     const elements = [
-      linkPanelContentRef.current,
       imagePanelContentRef.current,
-      videoPanelContentRef.current,
     ].filter(Boolean) as HTMLElement[];
 
     if (elements.length === 0) return;
@@ -123,14 +111,29 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
     img.src = uploadedImage;
   }, [uploadedImage, isOpen, updatePanelHeight]);
 
-  // Reset state when modal closes
+  // Handle close with animation
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+    }, 350); // Match animation duration
+  };
+
+  // Reset state when modal closes and trigger opening animation
   useEffect(() => {
     if (!isOpen) {
       setActivePanel(null);
-      setLinkUrl('');
-      setVideoFile(null);
       setIsAnimating(false);
       setPanelContainerHeight(0);
+      setIsClosing(false);
+      setIsOpening(false);
+    } else {
+      // Trigger opening animation when panel opens
+      setIsOpening(true);
+      setTimeout(() => {
+        setIsOpening(false);
+      }, 400); // Match animation duration
     }
   }, [isOpen]);
 
@@ -155,9 +158,7 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
 
   // Check if can submit (at least one submission method has content)
   const canSubmit = 
-    (activePanel === 'link' && linkUrl.trim().length > 0) ||
     (activePanel === 'image' && uploadedImage !== null) ||
-    (activePanel === 'video' && videoFile !== null) ||
     currentComment.trim().length > 0;
 
   if (!isOpen) return null;
@@ -166,20 +167,24 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex flex-col items-center justify-center animate-fade-in"
+      className={`fixed inset-0 bg-black bg-opacity-50 z-50 flex flex-col items-center justify-center ${
+        isClosing ? 'animate-fade-out' : 'animate-fade-in'
+      }`}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          onClose();
+          handleClose();
         }
       }}
       onTouchStart={(e) => {
         if (e.target === e.currentTarget) {
-          onClose();
+          handleClose();
         }
       }}
     >
       <div 
-        className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg w-full max-w-md mx-4 animate-slide-up overflow-hidden flex flex-col max-h-[90vh]`}
+        className={`${isDark ? 'bg-gray-800' : 'bg-white'} rounded-xl shadow-lg w-full max-w-md mx-4 ${
+          isClosing ? 'animate-slide-down' : (isOpening ? 'animate-slide-up' : '')
+        } overflow-hidden flex flex-col max-h-[90vh]`}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
       >
@@ -189,7 +194,7 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
             Objective Details
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className={`p-1.5 rounded-full transition-colors ${
               isDark ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-600'
             }`}
@@ -212,50 +217,24 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
 
           {/* Objective Description */}
           <div className="mb-6">
-            <div className="flex items-start gap-2">
-              <span className={`font-semibold text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                Description:
-              </span>
-              <p className={`text-sm flex-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                {objectiveDescription}
-              </p>
-            </div>
+            <h4 className={`font-bold text-base mb-2 ${isDark ? 'text-white' : 'text-black'}`}>
+              Description
+            </h4>
+            <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              {objectiveDescription}
+            </p>
           </div>
 
-          {/* Three Submission Method Buttons */}
+          {/* Image Button and Comment Input Row */}
           <div className="mb-4">
-            <div className="grid grid-cols-3 gap-3">
-              {/* Link Button */}
-              <button
-                onClick={() => handlePanelSwitch('link')}
-                className={`relative aspect-square rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                  activePanel === 'link'
-                    ? isDark
-                      ? 'border-blue-500 bg-blue-500/20'
-                      : 'border-blue-500 bg-blue-50'
-                    : isDark
-                    ? 'border-gray-600 bg-gray-700/50 hover:bg-gray-700'
-                    : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
-                }`}
-              >
-                <LinkIcon 
-                  size={32} 
-                  className={activePanel === 'link' 
-                    ? 'text-blue-500' 
-                    : isDark ? 'text-gray-400' : 'text-gray-600'
-                  } 
-                />
-                {hasLinkSubmission && (
-                  <div className="absolute top-1 right-1">
-                    <Check size={16} className="text-green-500" />
-                  </div>
-                )}
-              </button>
-
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              Image & Message(Optional) to submit
+            </label>
+            <div className="flex gap-3 items-start">
               {/* Image Button */}
               <button
                 onClick={() => handlePanelSwitch('image')}
-                className={`relative aspect-square rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
+                className={`relative aspect-square rounded-lg border-2 transition-all flex flex-col items-center justify-center flex-shrink-0 ${
                   activePanel === 'image'
                     ? isDark
                       ? 'border-blue-500 bg-blue-500/20'
@@ -264,6 +243,7 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
                     ? 'border-gray-600 bg-gray-700/50 hover:bg-gray-700'
                     : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
                 }`}
+                style={{ width: '80px', height: '80px' }}
               >
                 <ImageIcon 
                   size={32} 
@@ -279,76 +259,33 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
                 )}
               </button>
 
-              {/* Video Button */}
-              <button
-                onClick={() => handlePanelSwitch('video')}
-                className={`relative aspect-square rounded-lg border-2 transition-all flex flex-col items-center justify-center ${
-                  activePanel === 'video'
-                    ? isDark
-                      ? 'border-blue-500 bg-blue-500/20'
-                      : 'border-blue-500 bg-blue-50'
-                    : isDark
-                    ? 'border-gray-600 bg-gray-700/50 hover:bg-gray-700'
-                    : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
-                }`}
-              >
-                <Video 
-                  size={32} 
-                  className={activePanel === 'video' 
-                    ? 'text-blue-500' 
-                    : isDark ? 'text-gray-400' : 'text-gray-600'
-                  } 
+              {/* Comment Input Field */}
+              <div className="flex-1">
+                <textarea
+                  value={currentComment}
+                  onChange={(e) => handleCommentChange(e.target.value)}
+                  placeholder="send message..."
+                  rows={3}
+                  className={`w-full px-3 py-2 rounded-lg border text-sm resize-none transition-colors ${
+                    isDark
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400'
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
+                  } focus:outline-none focus:ring-1 focus:ring-blue-500`}
                 />
-                {hasVideoSubmission && (
-                  <div className="absolute top-1 right-1">
-                    <Check size={16} className="text-green-500" />
-                  </div>
-                )}
-              </button>
+              </div>
             </div>
           </div>
 
-          {/* Animated Input Panels Container */}
+          {/* Animated Image Input Panel Container */}
           <div 
             ref={panelContainerRef}
             className="relative mb-4 overflow-hidden transition-all duration-300 ease-in-out"
             style={{
               height: `${panelContainerHeight}px`,
               minHeight: activePanel ? '0' : '0',
+              willChange: activePanel ? 'height' : 'auto',
             }}
           >
-            {/* Link Input Panel */}
-            <div
-              className={`absolute inset-x-0 top-0 transition-transform duration-300 ease-in-out ${
-                activePanel === 'link'
-                  ? 'translate-y-0 opacity-100'
-                  : 'translate-y-full opacity-0 pointer-events-none'
-              }`}
-            >
-              <div 
-                ref={linkPanelContentRef}
-                className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}
-              >
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Link URL
-                </label>
-                <input
-                  type="url"
-                  value={linkUrl}
-                  onChange={(e) => setLinkUrl(e.target.value)}
-                  placeholder="https://example.com"
-                  className={`w-full px-3 py-2 rounded-lg border text-sm transition-colors ${
-                    isDark
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400'
-                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                  } focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                />
-                <p className={`text-xs mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Enter a URL to your submission
-                </p>
-              </div>
-            </div>
-
             {/* Image Input Panel */}
             <div
               className={`absolute inset-x-0 top-0 transition-transform duration-300 ease-in-out ${
@@ -356,6 +293,10 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
                   ? 'translate-y-0 opacity-100'
                   : 'translate-y-full opacity-0 pointer-events-none'
               }`}
+              style={{
+                willChange: activePanel === 'image' ? 'transform, opacity' : 'auto',
+                transform: activePanel === 'image' ? 'translate3d(0, 0, 0)' : 'translate3d(0, 100%, 0)',
+              }}
             >
               <div 
                 ref={imagePanelContentRef}
@@ -398,80 +339,6 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
                 </label>
               </div>
             </div>
-
-            {/* Video Input Panel */}
-            <div
-              className={`absolute inset-x-0 top-0 transition-transform duration-300 ease-in-out ${
-                activePanel === 'video'
-                  ? 'translate-y-0 opacity-100'
-                  : 'translate-y-full opacity-0 pointer-events-none'
-              }`}
-            >
-              <div 
-                ref={videoPanelContentRef}
-                className={`p-4 rounded-lg border ${isDark ? 'bg-gray-700/50 border-gray-600' : 'bg-gray-50 border-gray-200'}`}
-              >
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Video Upload
-                </label>
-                <label htmlFor="video-upload-input" className="block cursor-pointer">
-                  <div className={`border-2 border-dashed rounded-lg p-4 transition-colors text-center ${
-                    isDark 
-                      ? 'border-gray-600 hover:border-blue-400' 
-                      : 'border-gray-300 hover:border-blue-500'
-                  }`}>
-                    {videoFile ? (
-                      <div className="text-center">
-                        <Video size={48} className={`mx-auto mb-2 text-blue-500`} />
-                        <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {videoFile.name}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="text-center">
-                        <Video 
-                          size={48} 
-                          className={`mx-auto mb-2 ${isDark ? 'text-gray-400' : 'text-gray-400'}`}
-                        />
-                        <span className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                          Click to select video
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    type="file"
-                    accept="video/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setVideoFile(file);
-                      }
-                    }}
-                    className="hidden"
-                    id="video-upload-input"
-                  />
-                </label>
-              </div>
-            </div>
-          </div>
-
-          {/* Comment Field */}
-          <div className="mb-4">
-            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              Comment (Optional)
-            </label>
-            <textarea
-              value={currentComment}
-              onChange={(e) => handleCommentChange(e.target.value)}
-              placeholder="Add a comment..."
-              rows={3}
-              className={`w-full px-3 py-2 rounded-lg border text-sm resize-none transition-colors ${
-                isDark
-                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400'
-                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-              } focus:outline-none focus:ring-1 focus:ring-blue-500`}
-            />
           </div>
         </div>
 

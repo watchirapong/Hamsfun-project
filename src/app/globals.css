@@ -46,36 +46,40 @@ body {
   }
 }
 
-/* Quest Overlay Animations */
+/* 
+ * Quest Overlay Animations - GPU Optimized for Mobile Performance
+ * All animations use translate3d, scale, and opacity for GPU acceleration
+ * will-change hints added to animated elements for better performance
+ */
 @keyframes slideUp {
   from {
-    transform: translateY(100%);
+    transform: translate3d(0, 100%, 0);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
     opacity: 1;
   }
 }
 
 @keyframes slideDown {
   from {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
     opacity: 1;
   }
   to {
-    transform: translateY(100%);
+    transform: translate3d(0, 100%, 0);
     opacity: 0;
   }
 }
 
 @keyframes slideDownExpand {
   from {
-    transform: translateY(-30px);
+    transform: translate3d(0, -30px, 0);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
     opacity: 1;
   }
 }
@@ -99,23 +103,28 @@ body {
 }
 
 .animate-slide-up {
-  animation: slideUp 0.3s ease-out forwards;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
 }
 
 .animate-slide-down {
-  animation: slideDown 0.3s ease-out forwards;
+  animation: slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
 }
 
 .animate-slide-down-expand {
-  animation: slideDownExpand 0.3s ease-out forwards;
+  animation: slideDownExpand 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.2s ease-out forwards;
+  animation: fadeIn 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: opacity;
 }
 
 .animate-fade-out {
-  animation: fadeOut 0.3s ease-out forwards;
+  animation: fadeOut 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  will-change: opacity;
 }
 
 /* Card Flip Animation */
@@ -160,49 +169,47 @@ body {
   transform: rotateY(180deg);
 }
 
-/* Reward Bubble Animation - Slow Upward Float (No Oscillation) */
+/* Reward Bubble Animation - Slow Upward Float (No Oscillation) - GPU Optimized */
 @keyframes bubbleFloat {
   0% {
-    transform: translateY(0) scale(0.6);
+    transform: translate3d(0, 0, 0) scale(0.6);
     opacity: 0;
   }
   100% {
-    transform: translateY(-60vh) scale(1.2);
+    transform: translate3d(0, -60vh, 0) scale(1.2);
     opacity: 0.9;
   }
 }
 
-/* Bubble Burst Animation - Expanding Circles with Glow */
+/* Bubble Burst Animation - Expanding Circles with Glow - GPU Optimized (removed blur) */
 @keyframes bubblePop {
   0% {
-    transform: scale(1) translateY(0);
+    transform: translate3d(0, 0, 0) scale(1);
     opacity: 1;
-    filter: blur(0px);
   }
   100% {
-    transform: scale(0) translateY(0);
+    transform: translate3d(0, 0, 0) scale(0);
     opacity: 0;
-    filter: blur(2px);
   }
 }
 
-/* Bubble Particle Expansion - Soft Circular Movement */
+/* Bubble Particle Expansion - Soft Circular Movement - GPU Optimized */
 @keyframes bubbleParticleExpand {
   0% {
-    transform: translate(-50%, -50%) translate(0, 0) scale(0);
+    transform: translate3d(-50%, -50%, 0) translate3d(0, 0, 0) scale(0);
     opacity: 1;
   }
   20% {
     opacity: 0.9;
-    transform: translate(-50%, -50%) translate(0, 0) scale(1.2);
+    transform: translate3d(-50%, -50%, 0) translate3d(0, 0, 0) scale(1.2);
   }
   50% {
     opacity: 0.7;
-    transform: translate(-50%, -50%) translate(0, 0) scale(0.8);
+    transform: translate3d(-50%, -50%, 0) translate3d(0, 0, 0) scale(0.8);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -50%) translate(0, 0) scale(0.3);
+    transform: translate3d(-50%, -50%, 0) translate3d(0, 0, 0) scale(0.3);
   }
 }
 
@@ -246,66 +253,67 @@ body {
   background: #4b5563; /* gray-600 */
 }
 
-/* Rank Badge Animations */
+/* Rank Badge Animations - GPU Optimized (replaced box-shadow with opacity) */
 @keyframes rankUpGlow {
   0%, 100% {
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.6);
+    opacity: 0.6;
   }
   50% {
-    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6), 0 0 40px rgba(255, 215, 0, 0.6), 0 0 60px rgba(255, 215, 0, 0.6);
+    opacity: 1;
   }
 }
 
 @keyframes rankUpPulse {
   0%, 100% {
-    transform: scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: scale(1.2);
+    transform: translate3d(0, 0, 0) scale(1.2);
   }
 }
 
 @keyframes rankUpParticles {
   0% {
     opacity: 0;
-    transform: translateY(0) scale(0);
+    transform: translate3d(0, 0, 0) scale(0);
   }
   50% {
     opacity: 1;
-    transform: translateY(-10px) scale(1);
+    transform: translate3d(0, -10px, 0) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translateY(-20px) scale(0.5);
+    transform: translate3d(0, -20px, 0) scale(0.5);
   }
 }
 
 .rank-badge-animate {
   animation: rankUpGlow 0.6s ease-in-out infinite,
              rankUpPulse 0.6s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 /* Rank Card Attention Animation - Now handled by Framer Motion (see rankCardVariants.ts) */
 
-/* Coin Number Animation */
+/* Coin Number Animation - GPU Optimized */
 @keyframes slideUpFadeOutShrink {
   0% {
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
     opacity: 1;
   }
   100% {
-    transform: translateY(-25px) scale(0.8);
+    transform: translate3d(0, -25px, 0) scale(0.8);
     opacity: 0;
   }
 }
 
 @keyframes scaleUpFadeIn {
   0% {
-    transform: translateY(15px) scale(0.9);
+    transform: translate3d(0, 15px, 0) scale(0.9);
     opacity: 0;
   }
   100% {
-    transform: translateY(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
     opacity: 1;
   }
 }
@@ -323,68 +331,69 @@ body {
 }
 
 .animate-scaleUpFadeIn {
-  animation: scaleUpFadeIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: scaleUpFadeIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  will-change: transform, opacity;
 }
 
-/* Quest Notification Animations */
+/* Quest Notification Animations - GPU Optimized */
 @keyframes imageBounce {
   0% {
-    transform: scale(0) rotate(-10deg);
+    transform: translate3d(0, 0, 0) scale(0) rotate(-10deg);
     opacity: 0;
   }
   50% {
-    transform: scale(1.1) rotate(5deg);
+    transform: translate3d(0, 0, 0) scale(1.1) rotate(5deg);
   }
   60% {
-    transform: scale(0.95) rotate(-2deg);
+    transform: translate3d(0, 0, 0) scale(0.95) rotate(-2deg);
   }
   100% {
-    transform: scale(1) rotate(0deg);
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
     opacity: 1;
   }
 }
 
 @keyframes textBounce {
   0% {
-    transform: translateX(-50%) translateY(20px) scale(0.8);
+    transform: translate3d(-50%, 20px, 0) scale(0.8);
     opacity: 0;
   }
   60% {
-    transform: translateX(-50%) translateY(-5px) scale(1.05);
+    transform: translate3d(-50%, -5px, 0) scale(1.05);
   }
   100% {
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translate3d(-50%, 0, 0) scale(1);
     opacity: 1;
   }
 }
 
 @keyframes textPulse {
   0%, 100% {
-    transform: scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: scale(1.05);
+    transform: translate3d(0, 0, 0) scale(1.05);
   }
 }
 
 @keyframes glowPulse {
   0%, 100% {
     opacity: 0.3;
-    transform: scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
     opacity: 0.6;
-    transform: scale(1.1);
+    transform: translate3d(0, 0, 0) scale(1.1);
   }
 }
 
 @keyframes sparkleFloat {
   0%, 100% {
-    transform: translate(-50%, -50%) translate(var(--x, 0), var(--y, 0)) scale(1);
+    transform: translate3d(-50%, -50%, 0) translate3d(var(--x, 0), var(--y, 0), 0) scale(1);
     opacity: 0.8;
   }
   50% {
-    transform: translate(-50%, -50%) translate(var(--x, 0), var(--y, 0)) scale(1.3);
+    transform: translate3d(-50%, -50%, 0) translate3d(var(--x, 0), var(--y, 0), 0) scale(1.3);
     opacity: 1;
   }
 }
@@ -403,11 +412,11 @@ body {
 
 @keyframes particleFloat {
   0%, 100% {
-    transform: translate(-50%, -50%) translate(var(--x, 0), var(--y, 0)) scale(1);
+    transform: translate3d(-50%, -50%, 0) translate3d(var(--x, 0), var(--y, 0), 0) scale(1);
     opacity: 0.6;
   }
   50% {
-    transform: translate(-50%, -50%) translate(var(--x, 0), var(--y, 0)) scale(1.5);
+    transform: translate3d(-50%, -50%, 0) translate3d(var(--x, 0), var(--y, 0), 0) scale(1.5);
     opacity: 1;
   }
 }

@@ -8,7 +8,7 @@ interface HeaderProps {
   description: string;
   isEditingDescription: boolean;
   coins: number;
-  balls?: number; // For hamster users
+  balls?: number | undefined; // For hamster users - undefined means not loaded yet
   isHamster?: boolean;
   theme: 'light' | 'dark';
   onDescriptionChange: (value: string) => void;
@@ -22,7 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   description,
   isEditingDescription,
   coins,
-  balls = 0,
+  balls,
   isHamster = false,
   theme,
   onDescriptionChange,
@@ -32,54 +32,92 @@ export const Header: React.FC<HeaderProps> = ({
   coinDisplayRef,
 }) => {
   // Use balls for hamster, coins for regular users
-  const displayValue = isHamster ? balls : coins;
+  // For hamster users, only use balls if it's defined (not undefined)
+  // For regular users, always use coins
+  const displayValue = isHamster 
+    ? (balls !== undefined ? balls : null) 
+    : (coins !== undefined ? coins : null);
   const [displayAmount, setDisplayAmount] = useState(displayValue);
   const [isAnimating, setIsAnimating] = useState(false);
-  const previousValueRef = useRef(displayValue);
+  const previousValueRef = useRef<number | null>(null); // Use null to track initial load
+  const isInitialLoadRef = useRef(true);
   const animationFrameRef = useRef<number>();
 
   useEffect(() => {
-    if (displayValue !== previousValueRef.current) {
-      setIsAnimating(true);
-      
-      // Animate from previous value to new value
-      const startValue = previousValueRef.current;
-      const endValue = displayValue;
-      const difference = endValue - startValue;
-      const duration = 1000; // 1 second for smooth counting
-      const startTime = performance.now();
+    // Skip if displayValue is invalid (null or undefined)
+    // We allow 0 as a valid value (user might have 0 balls/coins)
+    if (displayValue === null || displayValue === undefined) {
+      return;
+    }
 
-      const animate = (currentTime: number) => {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
+    // On initial load, set value directly without animation
+    if (isInitialLoadRef.current) {
+      setDisplayAmount(displayValue);
+      previousValueRef.current = displayValue;
+      isInitialLoadRef.current = false;
+      return;
+    }
+
+    // Only animate if we have a valid previous value
+    if (previousValueRef.current !== null) {
+      // For hamster users: prevent downward animations (balls should only increase or stay the same)
+      // Never animate downward for hamster users - only allow increases or no change
+      if (isHamster && displayValue < previousValueRef.current) {
+        // Don't animate downward - this prevents the bug where balls decrease to 0
+        // If backend actually sets balls to a lower value, it will update directly without animation
+        setDisplayAmount(displayValue);
+        previousValueRef.current = displayValue;
+        return;
+      }
+
+      // Only animate if values actually changed
+      if (displayValue !== previousValueRef.current) {
+        setIsAnimating(true);
         
-        // Easing function for smooth animation
-        const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-        const easedProgress = easeOutCubic(progress);
-        
-        const currentValue = Math.round(startValue + difference * easedProgress);
-        setDisplayAmount(currentValue);
+        // Animate from previous value to new value
+        const startValue = previousValueRef.current;
+        const endValue = displayValue;
+        const difference = endValue - startValue;
+        const duration = 1000; // 1 second for smooth counting
+        const startTime = performance.now();
 
-        if (progress < 1) {
-          animationFrameRef.current = requestAnimationFrame(animate);
-        } else {
-          setDisplayAmount(endValue);
-          setIsAnimating(false);
-          previousValueRef.current = endValue;
-        }
-      };
+        const animate = (currentTime: number) => {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          
+          // Easing function for smooth animation
+          const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+          const easedProgress = easeOutCubic(progress);
+          
+          const currentValue = Math.round(startValue + difference * easedProgress);
+          setDisplayAmount(currentValue);
 
-      animationFrameRef.current = requestAnimationFrame(animate);
+          if (progress < 1) {
+            animationFrameRef.current = requestAnimationFrame(animate);
+          } else {
+            setDisplayAmount(endValue);
+            setIsAnimating(false);
+            previousValueRef.current = endValue;
+          }
+        };
 
-      return () => {
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current);
-        }
-      };
+        animationFrameRef.current = requestAnimationFrame(animate);
+
+        return () => {
+          if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+          }
+        };
+      } else {
+        // Value didn't change, just update the ref
+        previousValueRef.current = displayValue;
+      }
     } else {
+      // If we have a valid value but no previous value, set it directly
+      setDisplayAmount(displayValue);
       previousValueRef.current = displayValue;
     }
-  }, [displayValue]);
+  }, [displayValue, isHamster]);
 
   return (
     <div className={`shadow-sm p-4 transition-colors ${theme === 'dark' ? 'bg-gray-800 border-b border-gray-700' : 'bg-white'}`}>

@@ -15,6 +15,7 @@ export const useUI = () => {
   const [showImageUploadModal, setShowImageUploadModal] = useState<boolean>(false);
   const [selectedObjective, setSelectedObjective] = useState<{ questId: number; objectiveIndex: number } | null>(null);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [objectiveComment, setObjectiveComment] = useState<string>('');
 
   return {
     activeTab,
@@ -43,6 +44,8 @@ export const useUI = () => {
     setSelectedObjective,
     uploadedImage,
     setUploadedImage,
+    objectiveComment,
+    setObjectiveComment,
   };
 };
 
