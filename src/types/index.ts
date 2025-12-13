@@ -110,6 +110,10 @@ export interface Quest {
   rewardSubmissionStatus: ApprovalStatus; // Track reward claim approval status
   questRewardsAwarded: boolean; // Track if quest rewards have been awarded
   category: string;
+  isMemberQuest?: boolean; // Flag for Hamster Member Quests
+  teamQuestId?: string; // Original Team Quest ID (for Member Quests)
+  memberQuestIndex?: number; // Index of the member quest in the array (for Member Quests)
+  subQuestIndex?: number; // Index of the sub quest (for SubQuest-level submission)
 }
 
 export interface LeaderboardItem {

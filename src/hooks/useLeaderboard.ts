@@ -20,14 +20,20 @@ export const useLeaderboard = (isHamster: boolean = false): UseLeaderboardResult
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchLeaderboard = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
+        if (isMounted) {
+          setIsLoading(true);
+          setError(null);
+        }
 
         if (isHamster) {
           // Hamster user: fetch hamster leaderboard (hamsters and teams)
           const response = await leaderboardAPI.getHamsterLeaderboard();
+
+          if (!isMounted) return;
 
           // Map hamsters with rank position
           const mappedHamsters: HamsterLeaderboardItem[] = (response.hamsters || []).map((h: any, index: number) => ({
@@ -66,12 +72,17 @@ export const useLeaderboard = (isHamster: boolean = false): UseLeaderboardResult
           // Regular user: fetch house leaderboard
           const response = await leaderboardAPI.getLeaderboard();
 
+          if (!isMounted) return;
+
           // Get houses from response (prioritize houses over users)
           const houses = response.houses || [];
 
           if (houses.length === 0) {
             console.warn('No houses found in leaderboard response');
             setHouseLeaderboard([]);
+            // Don't clear others if empty response? No, we should probably clear to be safe
+            setTeamLeaderboard([]);
+            setHamsterLeaderboard([]);
             return;
           }
 
@@ -94,17 +105,25 @@ export const useLeaderboard = (isHamster: boolean = false): UseLeaderboardResult
           setHamsterLeaderboard([]);
         }
       } catch (err) {
-        console.error('Failed to fetch leaderboard:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
-        setHouseLeaderboard([]);
-        setTeamLeaderboard([]);
-        setHamsterLeaderboard([]);
+        if (isMounted) {
+          console.error('Failed to fetch leaderboard:', err);
+          setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
+          setHouseLeaderboard([]);
+          setTeamLeaderboard([]);
+          setHamsterLeaderboard([]);
+        }
       } finally {
-        setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     fetchLeaderboard();
+
+    return () => {
+      isMounted = false;
+    };
   }, [isHamster]);
 
   return { houseLeaderboard, teamLeaderboard, hamsterLeaderboard, isLoading, error };

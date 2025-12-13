@@ -201,27 +201,71 @@ Hamsters สามารถใช้ User APIs ทั้งหมดได้ด
 
 ---
 
-## 7. Team Quest Submission (Members)
-
-สมาชิกในทีม (Members) สามารถส่งงาน (Submission) สำหรับ Member Quest ที่ได้รับมอบหมายได้:
-
-### 7.1 Submit Work
-**URL:** `POST /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex/submit`
-**Description:** ส่งหลักฐานการทำงาน (รูปภาพ/ข้อความ)
-
-**Request (Form Data):**
-| Field | Type | Required | Description |
-| :--- | :--- | :--- | :--- |
-| `description` | String | No | รายละเอียดงานที่ทำ |
-| `imageProof` | File | No | รูปภาพหลักฐาน (Screenshot) |
-
-**Response:**
-```json
-{
-  "message": "Work submitted successfully",
-  "memberQuest": { ...Updated Object... }
-}
-```
+## 7. Member Quest System (Teams)
+ 
+ ### 7.1 Leader Actions
+ 
+ #### 7.1.1 Get Team Quests
+ **URL:** `GET /api/v1/hamsters/team-quests`
+ **Description:** ดู Team Quests ทั้งหมดที่ทีมของตนได้รับมอบหมาย
+ 
+ #### 7.1.2 Create Member Quest (Assign Work)
+ **URL:** `POST /api/v1/hamsters/team-quests/:id/member-quests`
+ **Description:** สร้าง Member Quest ย่อยและมอบหมายให้สมาชิกในทีม
+ 
+ **Request Body:**
+ ```json
+ {
+   "title": "Design Logo",
+   "description": "Create a logo for the team",
+   "assignedTo": "hamsterId...",
+   "deadline": "2024-01-01"
+ }
+ ```
+ 
+ #### 7.1.3 Update Member Quest
+ **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex`
+ 
+ #### 7.1.4 Delete Member Quest
+ **URL:** `DELETE /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex`
+ 
+ #### 7.1.5 Approve Member Quest Work
+ **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex/approve`
+ **Description:** อนุมัติงานที่สมาชิกส่งมา
+ 
+ #### 7.1.6 Reject Member Quest Work
+ **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex/reject`
+ **Description:** สั่งแก้เกน (สามารถระบุ Note ได้)
+ 
+ #### 7.1.7 Submit Team Quest (For Review)
+ **URL:** `POST /api/v1/hamsters/team-quests/:id/submit`
+ **Description:** ส่งงาน Team Quest ทั้งหมดให้ Admin/Manager ตรวจสอบ
+ 
+ ---
+ 
+ ### 7.2 Member Actions
+ 
+ #### 7.2.1 Get My Member Quests
+ **URL:** `GET /api/v1/hamsters/my-quests`
+ **Description:** ดูรายการงานที่ได้รับมอบหมาย
+ 
+ #### 7.2.2 Submit Work
+ **URL:** `POST /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex/submit`
+ **Description:** ส่งหลักฐานการทำงาน (รูปภาพ/ข้อความ)
+ 
+ **Request (Form Data):**
+ | Field | Type | Required | Description |
+ | :--- | :--- | :--- | :--- |
+ | `description` | String | No | รายละเอียดงานที่ทำ |
+ | `imageProof` | File | No | รูปภาพหลักฐาน (Screenshot) |
+ 
+ **Response:**
+ ```json
+ {
+   "message": "Work submitted successfully",
+   "memberQuest": { ...Updated Object... }
+ }
+ ```
 
 ---
 

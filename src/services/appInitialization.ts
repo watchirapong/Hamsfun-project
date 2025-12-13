@@ -92,6 +92,13 @@ export const initializeApp = async (params: InitializeAppParams) => {
       console.log('Badges type:', typeof profile.badges);
       console.log('Badges is array?', Array.isArray(profile.badges));
 
+      // Store hamster questList for later processing (Team Quests from profile)
+      let hamsterQuestList: any[] = [];
+      if (isHamsterUser && profile.hamster?.questList && Array.isArray(profile.hamster.questList)) {
+        hamsterQuestList = profile.hamster.questList;
+        console.log('Hamster questList from profile:', hamsterQuestList);
+      }
+
       // Handle badges - could be object or array
       let badgesObject: { [key: string]: any } = {};
       if (profile.badges) {
@@ -196,6 +203,51 @@ export const initializeApp = async (params: InitializeAppParams) => {
         const defaultSkills = getDefaultSkills();
         setSkills(defaultSkills);
       }
+
+      // Map hamster questList (Team Quests) to Quest interface if available
+      if (hamsterQuestList.length > 0) {
+        const mappedHamsterQuests = hamsterQuestList.map((tq: any) => {
+          // Map Team Quest from profile.hamster.questList
+          // Structure: { _id, title, icon, type, description, rewardPool, subQuests, deadline }
+          return {
+            id: tq._id,
+            type: tq.type || "Team",
+            title: tq.title,
+            description: tq.description || "",
+            steps: tq.subQuests?.map((_: any, i: number) => i + 1) || [],
+            currentStep: 0, // Will be updated when active-quests are fetched
+            rewards: [], // Team quests have rewardPool, not direct rewards
+            completed: false,
+            objectives: tq.subQuests?.map((sq: any) => ({
+              text: sq.title || sq.description || "Sub Task",
+              reward: { type: 'exp' as const, value: 0 },
+              subQuestId: sq._id,
+              description: sq.description
+            })) || [{
+              text: tq.title,
+              reward: { type: 'exp' as const, value: 0 },
+              description: tq.description
+            }],
+            objectiveCompleted: tq.subQuests?.map(() => false) || [false],
+            objectiveSubmissions: tq.subQuests?.map(() => ({
+              imageUrl: null,
+              status: 'none' as ApprovalStatus
+            })) || [{ imageUrl: null, status: 'none' as ApprovalStatus }],
+            objectiveRewardsAwarded: tq.subQuests?.map(() => false) || [false],
+            rewardClaimed: false,
+            rewardSubmissionStatus: 'none' as ApprovalStatus,
+            questRewardsAwarded: false,
+            category: "Team Quest",
+            isMemberQuest: false, // This is a Team Quest, not a Member Quest
+            teamQuestId: tq._id
+          };
+        });
+
+        // Set the hamster quests initially
+        setQuestsState(mappedHamsterQuests);
+        console.log('Mapped Hamster Team Quests:', mappedHamsterQuests);
+      }
+
     } catch (error: any) {
       console.error('Error fetching profile:', error);
       // Handle 401 Unauthorized or 400 Bad Request
@@ -209,9 +261,11 @@ export const initializeApp = async (params: InitializeAppParams) => {
 
     // Fetch active quests - use hamsterAPI for Hamster users, userAPI for regular users
     try {
+      console.log('Fetching active quests, isHamsterUser:', isHamsterUser);
       const activeQuests = isHamsterUser
         ? await hamsterAPI.getActiveQuests()
         : await userAPI.getActiveQuests();
+      console.log('Active quests from API:', activeQuests);
       // Map backend quests to frontend Quest interface
       // Filter out quests where questId is null or not populated (not an object)
       const mappedQuests = activeQuests
@@ -416,7 +470,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
               const objectives = quest.subQuests || [];
               const rewardsMap = new Map();
               const submissionsMap = new Map();
-              
+
               // Create a map of subQuestId -> reward awarded status
               // Also create a map of subQuestId -> submission status
               aq.subQuestsProgress?.forEach((p: any, idx: number) => {
@@ -428,7 +482,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
                   submissionsMap.set(subQuestId.toString(), status);
                 }
               });
-              
+
               // Map each objective to its reward awarded status by matching subQuestId
               return objectives.map((sq: any, idx: number) => {
                 const subQuestId = extractSubQuestIdFromSubQuest(sq)?.toString();
@@ -573,6 +627,118 @@ export const initializeApp = async (params: InitializeAppParams) => {
       setBackpackItems(mappedItems);
     } catch (error) {
       console.error('Error fetching inventory:', error);
+    }
+
+    // Fetch member quests (for Hamsters)
+    if (isHamsterUser) {
+      try {
+        const memberQuests = await hamsterAPI.getMyMemberQuests();
+
+        // Map member quests to Quest interface
+        // API Response structure:
+        // { teamQuestId, teamQuestTitle, teamName, memberQuestIndex, title, description, status,
+        //   rewardBalls, rewardLeaderboardScore, subQuests, assignedAt, leaderFeedback }
+        console.log('Member quests from API:', memberQuests);
+
+        const mappedMemberQuests = memberQuests.map((mq: any) => {
+          // Create a unique ID using teamQuestId + memberQuestIndex
+          const uniqueId = `${mq.teamQuestId}-mq-${mq.memberQuestIndex}`;
+
+          // Map subQuests to objectives with their individual status
+          // SubQuest status: Active | Pending | Approved
+          const objectives = mq.subQuests && mq.subQuests.length > 0
+            ? mq.subQuests.map((sq: any, idx: number) => ({
+              text: sq.title || `Sub Task ${idx + 1}`,
+              reward: { type: 'exp' as const, value: 0 },
+              description: sq.description || '',
+              subQuestId: `${uniqueId}-sq-${idx}`,
+              // Store SubQuest index for submission
+              subQuestIndex: idx
+            }))
+            : [{
+              text: mq.title || "Complete Task",
+              reward: { type: 'exp' as const, value: 0 },
+              description: mq.description || '',
+              subQuestIndex: 0
+            }];
+
+          // Map SubQuest status to objective completion
+          // Approved = completed, Pending = submitted (waiting), Active = not done
+          const objectiveCompleted = mq.subQuests && mq.subQuests.length > 0
+            ? mq.subQuests.map((sq: any) => sq.status === 'Approved' || sq.status === 'Pending')
+            : [mq.status === 'Completed'];
+
+          // Map SubQuest status to submission status per SubQuest
+          const objectiveSubmissions = mq.subQuests && mq.subQuests.length > 0
+            ? mq.subQuests.map((sq: any) => ({
+              imageUrl: sq.imageProof || null,
+              status: (sq.status === 'Approved' ? 'approved' : sq.status === 'Pending' ? 'pending' : 'none') as ApprovalStatus
+            }))
+            : [{
+              imageUrl: null,
+              status: 'none' as ApprovalStatus
+            }];
+
+          // Track which SubQuests are fully approved
+          const objectiveRewardsAwarded = mq.subQuests && mq.subQuests.length > 0
+            ? mq.subQuests.map((sq: any) => sq.status === 'Approved')
+            : [mq.status === 'Completed'];
+
+          return {
+            id: uniqueId,
+            type: "Member",
+            title: `${mq.title || "Team Task"} (${mq.teamName || 'Team'})`,
+            description: mq.description || "",
+            steps: objectives.map((_: any, i: number) => i + 1),
+            currentStep: objectiveRewardsAwarded.filter((c: boolean) => c).length,
+            rewards: [
+              ...(mq.rewardBalls ? [{ type: 'coins' as const, value: mq.rewardBalls }] : []),
+              ...(mq.rewardLeaderboardScore ? [{ type: 'leaderboard' as const, value: mq.rewardLeaderboardScore }] : [])
+            ],
+            completed: mq.status === 'Completed',
+            objectives,
+            objectiveCompleted,
+            objectiveSubmissions,
+            objectiveRewardsAwarded,
+            rewardClaimed: mq.status === 'Completed',
+            rewardSubmissionStatus: (mq.status === 'Completed' ? 'approved' : 'none') as ApprovalStatus,
+            questRewardsAwarded: mq.status === 'Completed',
+            category: "Team Work",
+            // Member Quest specific fields
+            isMemberQuest: true,
+            teamQuestId: mq.teamQuestId,
+            memberQuestIndex: mq.memberQuestIndex,
+            // Extra info for display
+            teamName: mq.teamName,
+            leaderFeedback: mq.leaderFeedback
+          };
+        });
+
+        if (mappedMemberQuests.length > 0) {
+          // Merge member quests with existing quests, avoiding duplicates
+          setQuestsState(prev => {
+            const questMap = new Map<string | number, any>();
+
+            // Add existing quests
+            prev.forEach(quest => {
+              const normalizedId = String(quest.id);
+              questMap.set(normalizedId, quest);
+            });
+
+            // Add member quests (if not already present)
+            mappedMemberQuests.forEach(mq => {
+              const normalizedId = String(mq.id);
+              if (!questMap.has(normalizedId)) {
+                questMap.set(normalizedId, mq);
+              }
+            });
+
+            return Array.from(questMap.values());
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching member quests:', error);
+      }
     }
 
   } catch (error) {

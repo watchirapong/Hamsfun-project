@@ -89,7 +89,28 @@ This guide details the public API endpoints available for users and external app
       "defense": "Number"
     }
   },
-  "hamster": "(Optional) Hamster data if user is a hamster"
+  "hamster": {
+    "_id": "String (Hamster ID)",
+    "hamsterRank": "String",
+    "balls": "Number",
+    "activeQuests": [],
+    "completedQuests": [],
+    "leaderOf": [
+        { "_id": "TeamID", "name": "TeamName" }
+    ],
+    "questList": [
+        {
+            "_id": "QuestID",
+            "title": "Quest Title",
+            "icon": "Icon URL",
+            "type": "Quest Type",
+            "description": "Quest Description",
+            "rewardPool": { "totalBalls": 100, "totalLeaderboardScore": 50 },
+            "subQuests": [],
+            "deadline": "Date"
+        }
+    ]
+  }
 }
 ```
 

@@ -205,5 +205,12 @@ export const hamsterAPI = {
 
   // Get hamster completed quests
   getCompletedQuests: () => apiCall<any[]>('/api/v1/hamsters/me/completed-quests'),
+
+  // Get my member quests (assigned by team leader)
+  getMyMemberQuests: () => apiCall<any[]>('/api/v1/hamsters/my-quests'),
+
+  // Submit SubQuest work (individual SubQuest submission)
+  submitSubQuest: (teamQuestId: string, memberQuestIndex: number, subQuestIndex: number, formData: FormData) =>
+    apiCallMultipart(`/api/v1/hamsters/team-quests/${teamQuestId}/member-quests/${memberQuestIndex}/sub-quests/${subQuestIndex}/submit`, formData),
 };
 

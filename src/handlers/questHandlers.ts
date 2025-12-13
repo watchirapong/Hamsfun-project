@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { questAPI } from '@/lib/api';
+import { questAPI, hamsterAPI } from '@/lib/api';
 import { Quest, ObjectiveReward } from '@/types';
 import { getApprovedObjectivesCount, areAllObjectivesCompleted } from '@/utils/helpers';
 import { hasValidGrantedRewards } from '@/utils/rewardHelpers';
@@ -217,7 +217,27 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       }
 
       // Submit to API and get response with grantedRewards
-      const submitResponse: any = await questAPI.submitQuest(quest.id.toString(), formData);
+      let submitResponse: any;
+
+      if (quest.isMemberQuest && quest.teamQuestId && typeof quest.memberQuestIndex === 'number') {
+        // Handle Member Quest SubQuest Submission using hamsterAPI
+        // Get subQuestIndex from the objective (stored during mapping)
+        const subQuestIndex = (objective as any).subQuestIndex ?? selectedObjective.objectiveIndex;
+        console.log('Submitting SubQuest:', {
+          teamQuestId: quest.teamQuestId,
+          memberQuestIndex: quest.memberQuestIndex,
+          subQuestIndex
+        });
+        submitResponse = await hamsterAPI.submitSubQuest(
+          quest.teamQuestId,
+          quest.memberQuestIndex,
+          subQuestIndex,
+          formData
+        );
+      } else {
+        // Standard Quest Submission
+        submitResponse = await questAPI.submitQuest(quest.id.toString(), formData);
+      }
 
       // Log full response to debug
       console.log('API submitResponse (full):', JSON.stringify(submitResponse, null, 2));
