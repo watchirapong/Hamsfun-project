@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { userAPI } from '@/lib/api';
+import { userAPI, hamsterAPI } from '@/lib/api';
 import { Quest } from '@/types';
 import { processBadgePointsFromApi, processCoinsFromApi, processRankPointsFromApi, processLeaderboardPointsFromApi, processItemsFromApi } from '@/utils/rewardHelpers';
 import { getItemIconUrl } from '@/utils/itemHelpers';
@@ -14,6 +14,7 @@ interface UseRewardPollingParams {
   handleSkillLevelUp: (skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => void;
   awardedRewards: Set<string>;
   awardObjectiveReward: (reward: any, contextKey?: string) => void;
+  isHamster?: boolean; // Whether user is a Hamster (for API selection)
 }
 
 /**
@@ -29,7 +30,8 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
     triggerRewardAnimation,
     handleSkillLevelUp,
     awardedRewards,
-    awardObjectiveReward
+    awardObjectiveReward,
+    isHamster = false
   } = params;
 
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -51,9 +53,13 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
         return;
       }
 
-      // Fetch fresh quest data from API
-      const activeQuests = await userAPI.getActiveQuests();
-      const completedQuests = await userAPI.getCompletedQuests();
+      // Fetch fresh quest data from API - use hamsterAPI for Hamster users, userAPI for regular users
+      const activeQuests = isHamster
+        ? await hamsterAPI.getActiveQuests()
+        : await userAPI.getActiveQuests();
+      const completedQuests = isHamster
+        ? await hamsterAPI.getCompletedQuests()
+        : await userAPI.getCompletedQuests();
       const allQuestsFromApi = [...activeQuests, ...completedQuests];
 
       // Check each pending quest
@@ -147,8 +153,13 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
   useEffect(() => {
     const checkOnMount = async () => {
       try {
-        const activeQuests = await userAPI.getActiveQuests();
-        const completedQuests = await userAPI.getCompletedQuests();
+        // Fetch fresh quest data from API - use hamsterAPI for Hamster users, userAPI for regular users
+        const activeQuests = isHamster
+          ? await hamsterAPI.getActiveQuests()
+          : await userAPI.getActiveQuests();
+        const completedQuests = isHamster
+          ? await hamsterAPI.getCompletedQuests()
+          : await userAPI.getCompletedQuests();
         const allQuestsFromApi = [...activeQuests, ...completedQuests];
 
         // Find quests that were approved but we haven't awarded yet
@@ -204,6 +215,6 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
     };
 
     checkOnMount();
-  }, []); // Only run on mount
+  }, [isHamster]); // Run on mount and when isHamster changes
 };
 

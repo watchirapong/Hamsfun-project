@@ -60,34 +60,28 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
       return 0;
     });
   
-  // Track if panel should animate (only on manual open)
-  const [shouldAnimate, setShouldAnimate] = useState(false);
+  // Track opening animation state
   const [isOpening, setIsOpening] = useState(false);
   
-  // Reset animation flag when overlay closes
+  // Handle opening animation - always animate when panel opens
   useEffect(() => {
-    if (!showQuestOverlay) {
-      questPanelShouldAnimate.current = false;
-      setShouldAnimate(false);
-      setIsOpening(false);
-    } else if (showQuestOverlay) {
+    if (showQuestOverlay) {
       // Always animate on open
       setIsOpening(true);
-      if (questPanelShouldAnimate.current) {
-        setShouldAnimate(true);
-      }
-      // Remove animation classes after animation completes
-      setTimeout(() => {
+      // Remove animation class after animation completes (300ms for slide-up)
+      const timer = setTimeout(() => {
         setIsOpening(false);
-        setShouldAnimate(false);
-        questPanelShouldAnimate.current = false; // Reset flag after animation
-      }, 400); // Slightly longer than animation duration
+      }, 300); // Match animation duration
+      return () => clearTimeout(timer);
+    } else {
+      // Reset when closed
+      setIsOpening(false);
     }
-  }, [showQuestOverlay, questPanelShouldAnimate]);
+  }, [showQuestOverlay]);
 
-  // Scroll to selected quest when overlay opens (only if quest was manually selected, not from objective submission)
+  // Scroll to selected quest when overlay opens (after animation completes)
   useEffect(() => {
-    if (selectedQuestId && questPanelShouldAnimate.current) {
+    if (selectedQuestId && showQuestOverlay && !isOpening) {
       const element = document.getElementById(`quest-${selectedQuestId}`);
       if (element) {
         setTimeout(() => {
@@ -100,7 +94,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
         }, 100);
       }
     }
-  }, [selectedQuestId, showQuestOverlay, questPanelShouldAnimate]);
+  }, [selectedQuestId, showQuestOverlay, isOpening]);
 
   // State to store item details for rewards
   const [itemDetailsCache, setItemDetailsCache] = useState<Map<string, { name: string; icon: string }>>(new Map());
@@ -651,7 +645,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
       <div 
         ref={panelRef}
         className={`w-full max-w-md rounded-t-xl shadow-lg pb-20 transition-colors ${
-          (isOpening || (!isDragging && dragY === 0 && !isAnimating && !isClosing)) ? 'animate-slide-up' : ''
+          isOpening ? 'animate-slide-up' : ''
         } ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}

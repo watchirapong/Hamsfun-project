@@ -290,6 +290,7 @@ const StudentPage: React.FC = () => {
   
   // Reward polling
   useRewardPolling({
+    isHamster: false,
     questsState,
     setQuestsState,
     setUser,

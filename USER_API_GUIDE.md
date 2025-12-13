@@ -80,14 +80,25 @@ This guide details the public API endpoints available for users and external app
   "roles": [],
   "dailyShop": {},
   "partnerPet": {
+    "itemId": "String (Template ID - ObjectId ref to Item)",
+    "kind": "String ('Pet')",
+    "nickname": "String",
     "level": "Number",
     "experience": "Number",
     "maxExperience": "Number",
-    "stats": {
+    "currentStats": {
       "maxHealth": "Number",
       "attackDamage": "Number",
       "defense": "Number"
-    }
+    },
+    "iv": {
+      "maxHealth": "Number (0-100)",
+      "attackDamage": "Number (0-100)",
+      "defense": "Number (0-100)"
+    },
+    "name": "String (Populated)",
+    "icon": "String (Populated, URL)",
+    "rarity": "String (Populated)"
   },
   "hamster": {
     "_id": "String (Hamster ID)",
@@ -142,9 +153,11 @@ This guide details the public API endpoints available for users and external app
 > - **TicketItem:** Status changes to 'Approving'. A TicketSubmission is created.
 > - **QuestItem:** Grants the associated Quest to the user.
 > - **GachaItem:** Opens and grants a random reward from potential items.
-> - **ExpItem:** Feeds partner pet with experience points.
-> - **PetStatItem:** Boosts partner pet stats (random min-max per stat configured).
-> - **RobloxItem:** Can be redeemed in Roblox (only type that supports redeem code).
+> - **ExpItem:** Feeds partner pet with experience points. **Requirement:** Must have an active `partnerPet`.
+> - **PetItem:** **Swaps** the active pet. The current pet returns to inventory (saving progress), and the new pet becomes active (removed from inventory).
+> - **PetStatItem:** Boosts partner pet stats.
+> - **RobloxItem:** Can be redeemed in Roblox.
+> - **EggItem:** (**NEW**) Hatches a pet from the egg. Returns a new pet with random IVs (0-100) added to inventory.
 
 ### 2.5 Generate Item Redeem Code
 **URL:** `POST /api/v1/users/me/inventory/redeem-code`

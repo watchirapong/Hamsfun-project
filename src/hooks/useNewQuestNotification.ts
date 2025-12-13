@@ -33,7 +33,7 @@ export const useNewQuestNotification = (
 
     try {
       const userId = getUserId();
-      const storageKey = getQuestStorageKey(userId);
+      const storageKey = getQuestStorageKey(userId, isHamsterUser);
       const stored = localStorage.getItem(storageKey);
       if (!stored) {
         return null;
@@ -44,7 +44,7 @@ export const useNewQuestNotification = (
       console.error('Error reading previous quest IDs from localStorage:', error);
       return null;
     }
-  }, []);
+  }, [isHamsterUser]);
 
   /**
    * Store current quest IDs to localStorage (user-specific)
@@ -56,12 +56,12 @@ export const useNewQuestNotification = (
 
     try {
       const userId = getUserId();
-      const storageKey = getQuestStorageKey(userId);
+      const storageKey = getQuestStorageKey(userId, isHamsterUser);
       localStorage.setItem(storageKey, JSON.stringify(questIds));
     } catch (error) {
       console.error('Error storing quest IDs to localStorage:', error);
     }
-  }, []);
+  }, [isHamsterUser]);
 
   /**
    * Extract quest IDs from backend active quests response

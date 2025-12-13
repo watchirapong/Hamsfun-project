@@ -87,12 +87,16 @@ export const getUserId = (): string | null => {
 
 /**
  * Get user-specific localStorage key for quest tracking
+ * @param userId - User ID for namespacing
+ * @param isHamster - Whether user is a Hamster (for complete separation of quest types)
  */
-export const getQuestStorageKey = (userId: string | null): string => {
+export const getQuestStorageKey = (userId: string | null, isHamster: boolean = false): string => {
   if (!userId) {
     // Fallback to global key if no user ID (shouldn't happen when authenticated)
-    return 'hamster_activeQuestIds_v1';
+    const userType = isHamster ? 'hamster' : 'user';
+    return `hamster_activeQuestIds_${userType}_v1`;
   }
-  return `hamster_activeQuestIds_${userId}_v1`;
+  const userType = isHamster ? 'hamster' : 'user';
+  return `hamster_activeQuestIds_${userId}_${userType}_v1`;
 };
 

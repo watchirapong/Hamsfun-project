@@ -240,6 +240,7 @@ const HamsterPage: React.FC = () => {
   
   // Reward polling
   useRewardPolling({
+    isHamster: true,
     questsState,
     setQuestsState,
     setUser,

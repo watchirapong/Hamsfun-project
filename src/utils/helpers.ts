@@ -139,11 +139,34 @@ export const calculateProgress = (quest: Quest): number => {
 
 export const areAllObjectivesCompleted = (quest: Quest): boolean => {
   if (!quest.objectives || quest.objectives.length === 0) return false;
-  return quest.objectiveCompleted.every(Boolean);
+  
+  // An objective is fully completed only when:
+  // 1. It has been submitted (status !== 'none')
+  // 2. The reward has been awarded (objectiveRewardsAwarded[index] === true)
+  return quest.objectives.every((_, index) => {
+    const submission = quest.objectiveSubmissions?.[index];
+    const status = submission?.status || 'none';
+    const rewardAwarded = quest.objectiveRewardsAwarded?.[index] || false;
+    
+    // Objective is fully completed only if submitted AND reward awarded
+    return status !== 'none' && rewardAwarded;
+  });
 };
 
 export const isQuestTrulyCompleted = (quest: Quest): boolean => {
-  return areAllObjectivesCompleted(quest) && quest.rewardClaimed;
+  // First, all objectives must be fully completed (submitted AND reward claimed)
+  if (!areAllObjectivesCompleted(quest)) {
+    return false;
+  }
+  
+  // If the quest has main rewards, the main reward must also be claimed
+  const hasMainRewards = quest.rewards && quest.rewards.length > 0;
+  if (hasMainRewards) {
+    return quest.rewardClaimed === true;
+  }
+  
+  // If no main rewards, quest is completed once all objectives are done
+  return true;
 };
 
 // Helper function to get approved objectives count
