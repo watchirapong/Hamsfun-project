@@ -1,0 +1,318 @@
+'use client';
+
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Quest } from '@/types';
+import { QuestCard } from './QuestCard';
+import { isQuestTrulyCompleted } from '@/utils/helpers';
+import { BossArrivalCinematic } from './BossArrivalCinematic';
+
+interface AnimatedQuestDisplayProps {
+  quests: Quest[];
+  newQuestIds: string[];
+  onQuestClick: (questId: number) => void;
+  theme: 'light' | 'dark';
+  onBossCinematicChange?: (isActive: boolean) => void; // Callback when Boss cinematic starts/ends
+}
+
+export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
+  quests,
+  newQuestIds,
+  onQuestClick,
+  theme,
+  onBossCinematicChange,
+}) => {
+  const [mainQuest, setMainQuest] = useState<Quest | null>(null);
+  const [temporaryQuests, setTemporaryQuests] = useState<Quest[]>([]);
+  const [containerRect, setContainerRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [showBossCinematic, setShowBossCinematic] = useState(false);
+  const [isBossRevealing, setIsBossRevealing] = useState(false);
+  const hasAnimatedRef = useRef<Set<string>>(new Set());
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Get filtered and sorted quests (Boss first, then Main, then others)
+  const filteredQuests = useMemo(() => {
+    return quests
+      .filter(quest => !isQuestTrulyCompleted(quest))
+      .sort((a, b) => {
+        const aIsBoss = a.type === "Boss";
+        const bIsBoss = b.type === "Boss";
+        const aIsMain = a.type === "Main";
+        const bIsMain = b.type === "Main";
+        
+        // Boss quests always come first
+        if (aIsBoss && !bIsBoss) return -1;
+        if (!aIsBoss && bIsBoss) return 1;
+        
+        // Then Main quests
+        if (aIsMain && !bIsMain) return -1;
+        if (!aIsMain && bIsMain) return 1;
+        
+        return 0;
+      });
+  }, [quests]);
+
+  // Check if there are new quests to animate
+  const newQuests = useMemo(() => {
+    return filteredQuests.filter(quest => 
+      newQuestIds.includes(String(quest.id)) && !hasAnimatedRef.current.has(String(quest.id))
+    );
+  }, [filteredQuests, newQuestIds]);
+
+  // Initialize with first quest if available
+  useEffect(() => {
+    if (filteredQuests.length > 0 && !mainQuest) {
+      setMainQuest(filteredQuests[0]);
+    }
+  }, [filteredQuests, mainQuest]);
+
+  // Trigger animation sequence when new quests are detected
+  useEffect(() => {
+    if (newQuests.length === 0 || newQuestIds.length === 0) {
+      return;
+    }
+
+    // Mark these quests as animated
+    newQuests.forEach(quest => {
+      hasAnimatedRef.current.add(String(quest.id));
+    });
+
+    // Check if any new quest is a Boss quest
+    const hasBossQuest = newQuests.some(quest => quest.type === "Boss");
+    const firstQuest = filteredQuests[0];
+    const isFirstQuestBoss = firstQuest?.type === "Boss";
+    const isFirstQuestNew = firstQuest && newQuestIds.includes(String(firstQuest.id));
+
+    // If first quest is a new Boss quest, trigger cinematic
+    if (isFirstQuestBoss && isFirstQuestNew && firstQuest) {
+      setShowBossCinematic(true);
+      setIsBossRevealing(true);
+      onBossCinematicChange?.(true); // Notify parent to hide notifications
+      // Clear main quest to prepare for reveal
+      setMainQuest(null);
+      return; // Exit early, cinematic will handle the reveal
+    }
+
+    // Regular quest animation (non-Boss or Boss not first)
+    // Separate new quests: first quest vs others
+    const otherNewQuests = newQuests.filter(q => q.id !== firstQuest?.id);
+
+    // If the first quest is new, animate it landing in the main slot
+    if (isFirstQuestNew && firstQuest) {
+      // The first quest will fly in and replace the main quest
+      setMainQuest(null); // Clear first to trigger exit animation
+      setTimeout(() => {
+        setMainQuest(firstQuest);
+      }, 100);
+    }
+
+    // Other new quests fly in as temporary overlays
+    if (otherNewQuests.length > 0) {
+      setTemporaryQuests(otherNewQuests);
+
+      // Remove temporary quests after they fade out
+      // Duration: fly-in (800ms + stagger) + visible time (400ms) + fade out (600ms)
+      const fadeOutDuration = 800 + (otherNewQuests.length - 1) * 200 + 400 + 600;
+      setTimeout(() => {
+        setTemporaryQuests([]);
+      }, fadeOutDuration);
+    }
+  }, [newQuests, filteredQuests, newQuestIds.length]);
+
+  // Update main quest when filtered quests change (non-animation case)
+  useEffect(() => {
+    if (filteredQuests.length > 0) {
+      const firstQuest = filteredQuests[0];
+      // Only update if not currently animating new quests and quest actually changed
+      if (newQuests.length === 0 && firstQuest?.id !== mainQuest?.id) {
+        setMainQuest(firstQuest);
+      }
+    }
+  }, [filteredQuests, newQuests.length]);
+
+  // Update container position for temporary quests
+  useEffect(() => {
+    const updatePosition = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setContainerRect({
+          top: rect.top + rect.height,
+          left: rect.left,
+          width: rect.width,
+        });
+      }
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition);
+    };
+  }, [mainQuest]);
+
+  // Handle Boss cinematic completion
+  const handleBossCinematicComplete = () => {
+    const firstQuest = filteredQuests[0];
+    if (firstQuest && firstQuest.type === "Boss") {
+      // Reveal the Boss quest after cinematic
+      setMainQuest(firstQuest);
+      setIsBossRevealing(false);
+    }
+    setShowBossCinematic(false);
+    onBossCinematicChange?.(false); // Notify parent to show notifications again
+  };
+
+  // Get quest slot position for cinematic
+  const questSlotPosition = containerRef.current
+    ? (() => {
+        const rect = containerRef.current!.getBoundingClientRect();
+        return {
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+        };
+      })()
+    : null;
+
+  // Animation variants for first quest (lands in slot)
+  const firstQuestVariants = {
+    initial: {
+      x: typeof window !== 'undefined' ? window.innerWidth * 0.3 : 300,
+      y: typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400,
+      opacity: 0,
+      rotate: -15,
+      scale: 0.8,
+    },
+    animate: {
+      x: 0,
+      y: 0,
+      opacity: 1,
+      rotate: 0,
+      scale: 1,
+      transition: {
+        duration: 0.8,
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    },
+  };
+
+  // Animation variants for temporary quests (fly in, drift down, fade out)
+  const temporaryQuestVariants = {
+    initial: (index: number) => ({
+      x: typeof window !== 'undefined' ? window.innerWidth * 0.3 : 300,
+      y: typeof window !== 'undefined' ? window.innerHeight * 0.5 : 400,
+      opacity: 0,
+      rotate: -15 + (index * 5),
+      scale: 0.8,
+    }),
+    animate: (index: number) => ({
+      x: 0,
+      y: 100 + (index * 20), // Drift down, stacked
+      opacity: [0, 1, 1, 0],
+      rotate: 0,
+      scale: [0.8, 1, 1, 0.9],
+      transition: {
+        duration: 1.8,
+        delay: index * 0.2,
+        times: [0, 0.4, 0.6, 1], // Fly in at 40%, visible at 60%, fade out
+        ease: [0.25, 0.46, 0.45, 0.94] as const,
+      },
+    }),
+    exit: {
+      opacity: 0,
+      scale: 0.9,
+      y: 150,
+      transition: {
+        duration: 0.3,
+        ease: 'easeIn' as const,
+      },
+    },
+  };
+
+  return (
+    <>
+      {/* Boss Arrival Cinematic */}
+      <BossArrivalCinematic
+        isActive={showBossCinematic}
+        onComplete={handleBossCinematicComplete}
+        questSlotPosition={questSlotPosition}
+        theme={theme}
+      />
+
+      {/* Main quest slot - always shows first quest */}
+      <div ref={containerRef} className="relative">
+        <AnimatePresence mode="wait">
+          {mainQuest && (
+            <motion.div
+              key={mainQuest.id}
+              initial={
+                (newQuestIds.includes(String(mainQuest.id)) && !isBossRevealing) ? 'initial' : false
+              }
+              animate={
+                (newQuestIds.includes(String(mainQuest.id)) && !isBossRevealing) ? 'animate' : {}
+              }
+              exit="exit"
+              variants={firstQuestVariants}
+              style={{
+                pointerEvents: showBossCinematic ? 'none' : 'auto',
+                opacity: isBossRevealing ? 0 : 1,
+              }}
+            >
+              <motion.div
+                animate={{
+                  opacity: isBossRevealing ? [0, 0, 0.3, 1] : 1,
+                  filter: isBossRevealing ? ['brightness(0.2)', 'brightness(0.2)', 'brightness(0.5)', 'brightness(1)'] : 'brightness(1)',
+                }}
+                transition={{
+                  duration: 1.5,
+                  delay: isBossRevealing ? 0.3 : 0,
+                  times: [0, 0.3, 0.7, 1],
+                }}
+              >
+                <QuestCard 
+                  quest={mainQuest} 
+                  onQuestClick={(showBossCinematic || isBossRevealing) ? () => {} : onQuestClick}
+                  theme={theme}
+                />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Temporary quest overlays - fly in and fade out */}
+      {containerRect && (
+        <AnimatePresence>
+          {temporaryQuests.map((quest, index) => (
+            <motion.div
+              key={quest.id}
+              custom={index}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              variants={temporaryQuestVariants}
+              style={{
+                position: 'fixed',
+                top: containerRect.top + 20 + (index * 20),
+                left: containerRect.left,
+                width: containerRect.width || 'calc(100% - 2rem)',
+                maxWidth: '428px',
+                zIndex: 1000 - index, // Higher z-index for later quests
+                pointerEvents: 'none', // Don't block interactions
+              }}
+            >
+              <QuestCard 
+                quest={quest} 
+                onQuestClick={() => {}} // No click on temporary quests
+                theme={theme}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      )}
+    </>
+  );
+};

@@ -39,7 +39,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           <div className="relative w-full h-full flex items-center justify-center group cursor-pointer" style={{ minHeight: '280px' }}>
             {/* Pet Image */}
             <img 
-              src={user.petIcon ? getItemIconUrl(user.petIcon) : getAssetUrl("/Asset/pets/dog.png")} 
+              src={user.petIcon ? getItemIconUrl(user.petIcon) : getAssetUrl("/Asset/pets/whothatpet.png")} 
               alt="Pet" 
               className="w-full h-auto object-contain max-w-full transition-all duration-300 group-hover:blur-sm group-hover:scale-105" 
               style={{ maxHeight: '280px' }}
@@ -54,29 +54,32 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               }}
             />
             
-            {/* Pet Level Badge - Always Visible */}
-            <div className={`absolute top-2 left-2 px-2.5 py-1 rounded-full text-xs font-bold shadow-lg ${
-              theme === 'dark' 
-                ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' 
-                : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-            }`}>
-              Lv. {user.petLevel}
-            </div>
+            {/* Pet Level Badge - Only show if user has a pet */}
+            {user.petIcon && (
+              <div className={`absolute top-2 left-2 px-2.5 py-1 rounded-full text-xs font-bold shadow-lg ${
+                theme === 'dark' 
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' 
+                  : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+              }`}>
+                Lv. {user.petLevel}
+              </div>
+            )}
             
-            {/* Pet Stats Overlay - Shown on Hover with Flip Functionality */}
-            <div 
-              className={`absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl backdrop-blur-md ${
-                theme === 'dark' ? 'bg-black/40' : 'bg-white/50'
-              }`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setPetStatsFlipped(!petStatsFlipped);
-              }}
-              onMouseLeave={() => {
-                // Reset flip state when hover ends
-                setPetStatsFlipped(false);
-              }}
-            >
+            {/* Pet Stats Overlay - Shown on Hover with Flip Functionality - Only show if user has a pet */}
+            {user.petIcon && (
+              <div 
+                className={`absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl backdrop-blur-md ${
+                  theme === 'dark' ? 'bg-black/40' : 'bg-white/50'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPetStatsFlipped(!petStatsFlipped);
+                }}
+                onMouseLeave={() => {
+                  // Reset flip state when hover ends
+                  setPetStatsFlipped(false);
+                }}
+              >
               {/* Flip Card Container */}
               <div 
                 className={`flip-card ${petStatsFlipped ? 'flipped' : ''}`} 
@@ -225,7 +228,8 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                   </div>
                 </div>
               </div>
-            </div>
+              </div>
+            )}
           </div>
         </div>
         

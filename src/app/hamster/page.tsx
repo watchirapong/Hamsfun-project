@@ -8,6 +8,7 @@ import { isQuestTrulyCompleted, sortItems } from '@/utils/helpers';
 import { Header } from '@/components/profile/Header';
 import { ProfileSection } from '@/components/profile/ProfileSection';
 import { QuestCard } from '@/components/quests/QuestCard';
+import { AnimatedQuestDisplay } from '@/components/quests/AnimatedQuestDisplay';
 import { SkillCard } from '@/components/skills/SkillCard';
 import { RewardAnimation } from '@/components/common/RewardAnimation';
 import { RewardNotificationContainer } from '@/components/common/RewardNotification';
@@ -107,6 +108,7 @@ const HamsterPage: React.FC = () => {
   
   // Quest notification state
   const [questNotification, setQuestNotification] = useState<QuestNotificationData | null>(null);
+  const [isBossCinematicActive, setIsBossCinematicActive] = useState(false);
   
   const [questsState, setQuestsState] = useState<Quest[]>([]);
   
@@ -375,12 +377,14 @@ const HamsterPage: React.FC = () => {
             onRemove={removeRewardNotification}
           />
           
-          <QuestNotificationContainer
-            notification={questNotification}
-            onRemove={handleRemoveQuestNotification}
-            onViewQuests={handleViewQuests}
-            theme={theme}
-          />
+          {!isBossCinematicActive && (
+            <QuestNotificationContainer
+              notification={questNotification}
+              onRemove={handleRemoveQuestNotification}
+              onViewQuests={handleViewQuests}
+              theme={theme}
+            />
+          )}
           
           {/* Coin flight animations disabled for hamster users - they use balls, not coins */}
           
@@ -423,24 +427,12 @@ const HamsterPage: React.FC = () => {
           </div>
           
           <div className="px-4 py-4">
-            {questsState
-              .filter(quest => !isQuestTrulyCompleted(quest))
-              .sort((a, b) => {
-                const aIsMain = a.type === "Main";
-                const bIsMain = b.type === "Main";
-                if (aIsMain && !bIsMain) return -1;
-                if (!aIsMain && bIsMain) return 1;
-                return 0;
-              })
-              .slice(0, 1)
-              .map((quest) => (
-                <QuestCard 
-                  key={quest.id} 
-                  quest={quest} 
-                  onQuestClick={handleQuestCardClick}
-                  theme={theme}
-                />
-              ))}
+            <AnimatedQuestDisplay
+              quests={questsState}
+              newQuestIds={newQuestIds}
+              onQuestClick={handleQuestCardClick}
+              theme={theme}
+            />
             <button 
               className="w-full bg-[#4EAAFF] text-white py-3 rounded-xl font-medium hover:bg-blue-600 transition-colors"
               onClick={() => {

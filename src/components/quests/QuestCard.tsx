@@ -13,37 +13,71 @@ interface QuestCardProps {
 
 export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick, theme }) => {
   const isCompleted = isQuestTrulyCompleted(quest);
+  const isBossQuest = quest.type === "Boss";
   
   // Use objectives count instead of steps
   const totalObjectives = quest.objectives.length;
   const completedObjectives = quest.objectiveCompleted.filter(completed => completed).length;
 
+  // Boss quest styling - soft red theme
+  const bossStyles = isBossQuest ? {
+    background: theme === 'dark' 
+      ? 'linear-gradient(135deg, rgba(139, 0, 0, 0.3) 0%, rgba(178, 34, 34, 0.2) 100%)'
+      : 'linear-gradient(135deg, rgba(255, 200, 200, 0.4) 0%, rgba(255, 182, 193, 0.3) 100%)',
+    borderColor: theme === 'dark' ? 'rgba(220, 20, 60, 0.5)' : 'rgba(220, 20, 60, 0.4)',
+    hoverBackground: theme === 'dark'
+      ? 'linear-gradient(135deg, rgba(139, 0, 0, 0.4) 0%, rgba(178, 34, 34, 0.3) 100%)'
+      : 'linear-gradient(135deg, rgba(255, 200, 200, 0.5) 0%, rgba(255, 182, 193, 0.4) 100%)',
+  } : null;
+
   return (
     <div 
       className={`rounded-xl p-4 mb-3 shadow-sm border cursor-pointer transition-all ${
-        theme === 'dark' 
-          ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' 
-          : 'bg-white border-gray-100 hover:bg-gray-50'
+        isBossQuest
+          ? ''
+          : theme === 'dark' 
+            ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' 
+            : 'bg-white border-gray-100 hover:bg-gray-50'
       } ${
         isCompleted 
           ? 'opacity-50 hover:opacity-60' 
           : ''
       }`}
+      style={bossStyles ? {
+        background: bossStyles.background,
+        borderColor: bossStyles.borderColor,
+      } : undefined}
+      onMouseEnter={(e) => {
+        if (bossStyles && !isCompleted) {
+          e.currentTarget.style.background = bossStyles.hoverBackground;
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (bossStyles && !isCompleted) {
+          e.currentTarget.style.background = bossStyles.background;
+        }
+      }}
       onClick={() => onQuestClick(quest.id)}
     >
       <div className="flex justify-between items-start mb-2">
         <div>
           <span className={`text-xs font-semibold py-1 rounded-full flex items-center gap-1 ${
-            theme === 'dark' ? 'text-[#F67BA4]' : 'text-[#BF5475]'
+            isBossQuest
+              ? theme === 'dark' ? 'text-red-400' : 'text-red-600'
+              : theme === 'dark' ? 'text-[#F67BA4]' : 'text-[#BF5475]'
           }`}>
             <img src={getAssetUrl("/Asset/check-circle.png")} alt="" className="w-3 h-3" />
             {quest.type}
           </span>
           <h3 className={`font-bold text-lg mt-1 ${
-            theme === 'dark' ? 'text-white' : 'text-black'
+            isBossQuest
+              ? theme === 'dark' ? 'text-red-300' : 'text-red-700'
+              : theme === 'dark' ? 'text-white' : 'text-black'
           }`}>{quest.title}</h3>
           <p className={`text-sm ${
-            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+            isBossQuest
+              ? theme === 'dark' ? 'text-red-400/80' : 'text-red-600/80'
+              : theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
           }`}>{quest.description}</p>
         </div>
       </div>
