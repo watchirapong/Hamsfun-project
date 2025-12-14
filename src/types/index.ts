@@ -38,6 +38,12 @@ export interface PetStats {
   defense: number;
 }
 
+export interface PetIV {
+  maxHealth: number; // 0-100
+  attackDamage: number; // 0-100
+  defense: number; // 0-100
+}
+
 export interface User {
   name: string;
   avatar: string;
@@ -53,6 +59,7 @@ export interface User {
   petXp: number;
   petMaxXp: number;
   petStats: PetStats; // Pet combat stats
+  petIV?: PetIV; // Pet IV values (0-100 for each stat)
   leaderboardScore?: number; // Leaderboard points
   isHamster: boolean; // Whether user is a Hamster (special role)
   hamsterRank?: string; // Hamster rank (Enigma, Cadet, Ranger, etc.)

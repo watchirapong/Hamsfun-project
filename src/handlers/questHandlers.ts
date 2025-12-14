@@ -346,13 +346,61 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
         errorStack: error?.stack
       });
 
-      // Don't close modal on error so user can retry
-      alert(`Failed to submit quest: ${errorMessage}. Please check the console for details.`);
+      // Check if this is a "already pending" error
+      const isAlreadyPendingError = errorMessage.toLowerCase().includes('already pending') || 
+                                     errorMessage.toLowerCase().includes('pending approval');
+
+      if (isAlreadyPendingError) {
+        // Update local state to reflect pending status from backend
+        setQuestsState(prevQuests =>
+          prevQuests.map(q => {
+            if (q.id === selectedObjective.questId) {
+              const newSubmissions = [...q.objectiveSubmissions];
+              if (!newSubmissions[selectedObjective.objectiveIndex]) {
+                newSubmissions[selectedObjective.objectiveIndex] = {
+                  imageUrl: uploadedImage || null,
+                  status: 'pending'
+                };
+              } else {
+                newSubmissions[selectedObjective.objectiveIndex] = {
+                  ...newSubmissions[selectedObjective.objectiveIndex],
+                  status: 'pending'
+                };
+              }
+
+              const newCompleted = [...q.objectiveCompleted];
+              newCompleted[selectedObjective.objectiveIndex] = true;
+
+              return {
+                ...q,
+                objectiveSubmissions: newSubmissions,
+                objectiveCompleted: newCompleted
+              };
+            }
+            return q;
+          })
+        );
+
+        // Show user-friendly message and close modal
+        alert('This objective already has a pending submission. Please wait for it to be reviewed.');
+        
+        // Close modal since there's nothing the user can do
+        setTimeout(() => {
+          setShowImageUploadModal(false);
+          setSelectedObjective(null);
+          setUploadedImage(null);
+          setDescription('');
+        }, 300);
+      } else {
+        // For other errors, don't close modal so user can retry
+        alert(`Failed to submit quest: ${errorMessage}. Please check the console for details.`);
+      }
+
       if (selectedObjective) {
         const errorProcessingKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
         processingObjectives.current.delete(errorProcessingKey);
       }
-      return; // Exit early on error, don't close modal
+      return; // Exit early on error
     }
   };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, Heart, Sword, Shield } from 'lucide-react';
 import { User, Quest } from '@/types';
@@ -27,18 +27,21 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   onRankUp,
   canRankUp,
 }) => {
+  const [petStatsFlipped, setPetStatsFlipped] = useState(false);
+
   return (
     <div className={`p-4 shadow-sm mb-4 transition-colors ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
       <div className="flex items-center gap-3 sm:gap-6 w-full">
         {/* Pet Display on Left - 50% of screen width */}
-        <div className="flex flex-col items-center w-1/2">
+        <div className="flex flex-col items-center justify-center w-1/2" style={{ minHeight: '280px' }}>
           {/* Pet Image Container with Hover Effect */}
-          <div className="relative w-full group cursor-pointer">
+          <div className="relative w-full h-full flex items-center justify-center group cursor-pointer" style={{ minHeight: '280px' }}>
             {/* Pet Image */}
             <img 
               src={/*user.avatar*/ getAssetUrl("/Asset/pets/dog.png") /*TESTING*/} 
               alt="Pet" 
               className="w-full h-auto object-contain max-w-full transition-all duration-300 group-hover:blur-sm group-hover:scale-105" 
+              style={{ maxHeight: '280px' }}
             />
             
             {/* Pet Level Badge - Always Visible */}
@@ -50,57 +53,158 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               Lv. {user.petLevel}
             </div>
             
-            {/* Pet Stats Overlay - Shown on Hover */}
-            <div className={`absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl backdrop-blur-md ${
-              theme === 'dark' ? 'bg-black/40' : 'bg-white/50'
-            }`}>
-              {/* Stats Container */}
-              <div className={`text-center p-3 rounded-xl ${
-                theme === 'dark' ? 'bg-gray-800/80' : 'bg-white/80'
-              } shadow-xl backdrop-blur-sm min-w-[140px]`}>
-                <h3 className={`text-sm font-bold mb-2 ${
-                  theme === 'dark' ? 'text-white' : 'text-gray-800'
-                }`}>Pet Stats</h3>
-                
-                {/* Combat Stats Grid */}
-                <div className="space-y-1.5 mb-2">
-                  {/* HP */}
-                  <div className="flex items-center gap-2">
-                    <Heart size={14} className="text-red-500 fill-red-500" />
-                    <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>HP:</span>
-                    <span className={`text-xs font-bold text-red-500`}>{user.petStats.maxHealth}</span>
+            {/* Pet Stats Overlay - Shown on Hover with Flip Functionality */}
+            <div 
+              className={`absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl backdrop-blur-md ${
+                theme === 'dark' ? 'bg-black/40' : 'bg-white/50'
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setPetStatsFlipped(!petStatsFlipped);
+              }}
+              onMouseLeave={() => {
+                // Reset flip state when hover ends
+                setPetStatsFlipped(false);
+              }}
+            >
+              {/* Flip Card Container */}
+              <div className={`flip-card ${petStatsFlipped ? 'flipped' : ''}`} style={{ width: '160px' }}>
+                <div className="flip-card-inner">
+                  {/* Front Side - Pet Stats */}
+                  <div className="flip-card-front">
+                    {/* Shared Card Container - Pet Stats */}
+                    <div className={`text-center p-4 rounded-xl ${
+                      theme === 'dark' ? 'bg-gray-800/80' : 'bg-white/80'
+                    } shadow-xl backdrop-blur-sm w-full cursor-pointer flex flex-col`} style={{ boxSizing: 'border-box', minHeight: 'auto' }}>
+                      <h3 className={`text-sm font-bold mb-2.5 ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-800'
+                      }`}>Pet Stats</h3>
+                      
+                      {/* Combat Stats Grid */}
+                      <div className="space-y-1.5 mb-2.5">
+                        {/* HP */}
+                        <div className="flex items-center gap-2 justify-center">
+                          <Heart size={14} className="text-red-500 fill-red-500 flex-shrink-0" />
+                          <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>HP:</span>
+                          <span className={`text-xs font-bold text-red-500`}>{user.petStats.maxHealth}</span>
+                        </div>
+                        
+                        {/* Attack */}
+                        <div className="flex items-center gap-2 justify-center">
+                          <Sword size={14} className="text-orange-500 flex-shrink-0" />
+                          <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>ATK:</span>
+                          <span className={`text-xs font-bold text-orange-500`}>{user.petStats.attackDamage}</span>
+                        </div>
+                        
+                        {/* Defense */}
+                        <div className="flex items-center gap-2 justify-center">
+                          <Shield size={14} className="text-blue-500 flex-shrink-0" />
+                          <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>DEF:</span>
+                          <span className={`text-xs font-bold text-blue-500`}>{user.petStats.defense}</span>
+                        </div>
+                      </div>
+                      
+                      {/* XP Progress */}
+                      <div className="pt-2 border-t border-gray-600/30">
+                        <div className="flex items-center justify-between text-[10px] mb-1.5">
+                          <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>XP</span>
+                          <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                            {user.petXp}/{user.petMaxXp}
+                          </span>
+                        </div>
+                        <div className={`w-full rounded-full h-1.5 mb-1.5 ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                          <div 
+                            className="bg-gradient-to-r from-green-400 to-emerald-500 h-1.5 rounded-full transition-all duration-300" 
+                            style={{ 
+                              width: `${user.petMaxXp > 0 ? Math.min((user.petXp / user.petMaxXp) * 100, 100) : 0}%` 
+                            }}
+                          ></div>
+                        </div>
+                        {/* Tap to show IV text */}
+                        <div className={`text-[10px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Tap to show IV
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  
-                  {/* Attack */}
-                  <div className="flex items-center gap-2">
-                    <Sword size={14} className="text-orange-500" />
-                    <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>ATK:</span>
-                    <span className={`text-xs font-bold text-orange-500`}>{user.petStats.attackDamage}</span>
-                  </div>
-                  
-                  {/* Defense */}
-                  <div className="flex items-center gap-2">
-                    <Shield size={14} className="text-blue-500" />
-                    <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>DEF:</span>
-                    <span className={`text-xs font-bold text-blue-500`}>{user.petStats.defense}</span>
-                  </div>
-                </div>
-                
-                {/* XP Progress */}
-                <div className="pt-1.5 border-t border-gray-600/30">
-                  <div className="flex items-center justify-between text-[10px] mb-1">
-                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>XP</span>
-                    <span className={theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
-                      {user.petXp}/{user.petMaxXp}
-                    </span>
-                  </div>
-                  <div className={`w-full rounded-full h-1.5 ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'}`}>
+
+                  {/* Back Side - Pet IV */}
+                  <div className="flip-card-back">
+                    {/* Shared Card Container - Pet IV */}
                     <div 
-                      className="bg-gradient-to-r from-green-400 to-emerald-500 h-1.5 rounded-full transition-all duration-300" 
-                      style={{ 
-                        width: `${user.petMaxXp > 0 ? Math.min((user.petXp / user.petMaxXp) * 100, 100) : 0}%` 
-                      }}
-                    ></div>
+                      className={`p-4 rounded-xl ${
+                        theme === 'dark' ? 'bg-gray-800/80' : 'bg-white/80'
+                      } shadow-xl backdrop-blur-sm w-full cursor-pointer flex flex-col`}
+                      style={{ boxSizing: 'border-box', minHeight: 'auto' }}
+                    >
+                      <h3 className={`text-xs font-bold mb-3 text-center ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-800'
+                      }`}>Pet IV</h3>
+                      
+                      {/* IV Stats Grid */}
+                      <div className="space-y-2.5 mb-3">
+                        {/* HP IV */}
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2 justify-start">
+                            <Heart size={14} className="text-red-500 fill-red-500 flex-shrink-0" />
+                            <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>HP</span>
+                          </div>
+                          <div className={`w-full rounded-full h-2 ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                            <div 
+                              className="bg-gradient-to-r from-red-400 to-red-600 h-2 rounded-full transition-all duration-300" 
+                              style={{ 
+                                width: `${user.petIV?.maxHealth || 0}%` 
+                              }}
+                            ></div>
+                          </div>
+                          <span className={`text-[10px] text-left ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {user.petIV?.maxHealth || 0}/100
+                          </span>
+                        </div>
+                        
+                        {/* ATK IV */}
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2 justify-start">
+                            <Sword size={14} className="text-orange-500 flex-shrink-0" />
+                            <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>ATK</span>
+                          </div>
+                          <div className={`w-full rounded-full h-2 ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                            <div 
+                              className="bg-gradient-to-r from-orange-400 to-orange-600 h-2 rounded-full transition-all duration-300" 
+                              style={{ 
+                                width: `${user.petIV?.attackDamage || 0}%` 
+                              }}
+                            ></div>
+                          </div>
+                          <span className={`text-[10px] text-left ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {user.petIV?.attackDamage || 0}/100
+                          </span>
+                        </div>
+                        
+                        {/* DEF IV */}
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2 justify-start">
+                            <Shield size={14} className="text-blue-500 flex-shrink-0" />
+                            <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>DEF</span>
+                          </div>
+                          <div className={`w-full rounded-full h-2 ${theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'}`}>
+                            <div 
+                              className="bg-gradient-to-r from-blue-400 to-blue-600 h-2 rounded-full transition-all duration-300" 
+                              style={{ 
+                                width: `${user.petIV?.defense || 0}%` 
+                              }}
+                            ></div>
+                          </div>
+                          <span className={`text-[10px] text-left ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                            {user.petIV?.defense || 0}/100
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className={`text-[10px] text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Tap to flip back
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

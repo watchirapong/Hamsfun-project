@@ -79,10 +79,15 @@ export const useAuth = () => {
             petXp: profile.partnerPet?.experience || profile.petXp || 0,
             petMaxXp: profile.partnerPet?.maxExperience || 1000,
             petStats: {
-              maxHealth: profile.partnerPet?.stats?.maxHealth || 100,
-              attackDamage: profile.partnerPet?.stats?.attackDamage || 10,
-              defense: profile.partnerPet?.stats?.defense || 5,
+              maxHealth: profile.partnerPet?.currentStats?.maxHealth || 100,
+              attackDamage: profile.partnerPet?.currentStats?.attackDamage || 10,
+              defense: profile.partnerPet?.currentStats?.defense || 5,
             },
+            petIV: profile.partnerPet?.iv ? {
+              maxHealth: profile.partnerPet.iv.maxHealth || 0,
+              attackDamage: profile.partnerPet.iv.attackDamage || 0,
+              defense: profile.partnerPet.iv.defense || 0,
+            } : undefined,
             rankObjectives: profile.rankObjectives || [],
             isHamster: profile.isHamster || false,
             hamsterRank: profile.hamster?.hamsterRank || undefined

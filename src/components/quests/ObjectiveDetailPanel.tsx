@@ -228,7 +228,7 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
           {/* Image Button and Comment Input Row */}
           <div className="mb-4">
             <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              Image & Message(Optional) to submit
+              Message(Optional)
             </label>
             <div className="flex gap-3 items-start">
               {/* Image Button */}
