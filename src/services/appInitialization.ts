@@ -652,8 +652,10 @@ export const initializeApp = async (params: InitializeAppParams) => {
         console.log('Member quests from API:', memberQuests);
 
         const mappedMemberQuests = memberQuests.map((mq: any) => {
-          // Create a unique ID using teamQuestId + memberQuestIndex
-          const uniqueId = `${mq.teamQuestId}-mq-${mq.memberQuestIndex}`;
+          // Get memberQuestId from API response (_id field) or fallback to index-based
+          const memberQuestId = mq._id || mq.memberQuestId || `mq-${mq.memberQuestIndex}`;
+          // Create a unique ID for Quest interface
+          const uniqueId = `${mq.teamQuestId}-${memberQuestId}`;
 
           // Map subQuests to objectives with their individual status
           // SubQuest status: Active | Pending | Approved
@@ -662,21 +664,25 @@ export const initializeApp = async (params: InitializeAppParams) => {
               text: sq.title || `Sub Task ${idx + 1}`,
               reward: { type: 'exp' as const, value: 0 },
               description: sq.description || '',
-              subQuestId: `${uniqueId}-sq-${idx}`,
-              // Store SubQuest index for submission
+              // Use _id from subQuest if available, otherwise fallback to index
+              subQuestId: sq._id || `sq-${idx}`,
+              // Store SubQuest index for fallback
               subQuestIndex: idx
             }))
             : [{
               text: mq.title || "Complete Task",
               reward: { type: 'exp' as const, value: 0 },
               description: mq.description || '',
+              subQuestId: 'sq-0',
               subQuestIndex: 0
             }];
 
           // Map SubQuest status to objective completion
-          // Approved = completed, Pending = submitted (waiting), Active = not done
+          // Approved = completed
+          // Pending = submitted (waiting) -> NOT completed yet
+          // Active = not done -> NOT completed
           const objectiveCompleted = mq.subQuests && mq.subQuests.length > 0
-            ? mq.subQuests.map((sq: any) => sq.status === 'Approved' || sq.status === 'Pending')
+            ? mq.subQuests.map((sq: any) => sq.status === 'Approved')
             : [mq.status === 'Completed'];
 
           // Map SubQuest status to submission status per SubQuest
@@ -718,6 +724,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
             // Member Quest specific fields
             isMemberQuest: true,
             teamQuestId: mq.teamQuestId,
+            memberQuestId: memberQuestId, // Store actual ID for API calls
             memberQuestIndex: mq.memberQuestIndex,
             // Extra info for display
             teamName: mq.teamName,

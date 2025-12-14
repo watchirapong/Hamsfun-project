@@ -219,21 +219,38 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       // Submit to API and get response with grantedRewards
       let submitResponse: any;
 
-      if (quest.isMemberQuest && quest.teamQuestId && typeof quest.memberQuestIndex === 'number') {
-        // Handle Member Quest SubQuest Submission using hamsterAPI
-        // Get subQuestIndex from the objective (stored during mapping)
-        const subQuestIndex = (objective as any).subQuestIndex ?? selectedObjective.objectiveIndex;
-        console.log('Submitting SubQuest:', {
-          teamQuestId: quest.teamQuestId,
-          memberQuestIndex: quest.memberQuestIndex,
-          subQuestIndex
-        });
-        submitResponse = await hamsterAPI.submitSubQuest(
-          quest.teamQuestId,
-          quest.memberQuestIndex,
-          subQuestIndex,
-          formData
-        );
+      if (quest.isMemberQuest && quest.teamQuestId && quest.memberQuestId) {
+        // Check if MemberQuest has SubQuests
+        const hasSubQuests = quest.objectives && quest.objectives.length > 0 &&
+          (objective as any).subQuestId &&
+          !(objective as any).subQuestId.startsWith('sq-0');
+
+        if (hasSubQuests || quest.objectives.length > 1) {
+          // CASE 1: MemberQuest HAS SubQuests → submit each SubQuest individually
+          const subQuestId = (objective as any).subQuestId || `sq-${selectedObjective.objectiveIndex}`;
+          console.log('Submitting SubQuest (ID-based):', {
+            teamQuestId: quest.teamQuestId,
+            memberQuestId: quest.memberQuestId,
+            subQuestId
+          });
+          submitResponse = await hamsterAPI.submitSubQuest(
+            quest.teamQuestId,
+            quest.memberQuestId,
+            subQuestId,
+            formData
+          );
+        } else {
+          // CASE 2: MemberQuest has NO SubQuests → submit MemberQuest directly
+          console.log('Submitting MemberQuest directly (no SubQuests):', {
+            teamQuestId: quest.teamQuestId,
+            memberQuestId: quest.memberQuestId
+          });
+          submitResponse = await hamsterAPI.submitMemberQuest(
+            quest.teamQuestId,
+            quest.memberQuestId,
+            formData
+          );
+        }
       } else {
         // Standard Quest Submission
         submitResponse = await questAPI.submitQuest(quest.id.toString(), formData);
@@ -347,8 +364,8 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       });
 
       // Check if this is a "already pending" error
-      const isAlreadyPendingError = errorMessage.toLowerCase().includes('already pending') || 
-                                     errorMessage.toLowerCase().includes('pending approval');
+      const isAlreadyPendingError = errorMessage.toLowerCase().includes('already pending') ||
+        errorMessage.toLowerCase().includes('pending approval');
 
       if (isAlreadyPendingError) {
         // Update local state to reflect pending status from backend
@@ -383,7 +400,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
 
         // Show user-friendly message and close modal
         alert('This objective already has a pending submission. Please wait for it to be reviewed.');
-        
+
         // Close modal since there's nothing the user can do
         setTimeout(() => {
           setShowImageUploadModal(false);

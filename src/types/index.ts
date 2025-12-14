@@ -120,6 +120,7 @@ export interface Quest {
   category: string;
   isMemberQuest?: boolean; // Flag for Hamster Member Quests
   teamQuestId?: string; // Original Team Quest ID (for Member Quests)
+  memberQuestId?: string; // ID of the member quest (for ID-based API)
   memberQuestIndex?: number; // Index of the member quest in the array (for Member Quests)
   subQuestIndex?: number; // Index of the sub quest (for SubQuest-level submission)
 }

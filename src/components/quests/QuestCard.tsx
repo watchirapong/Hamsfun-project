@@ -52,10 +52,17 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick, theme
       {totalObjectives > 0 && (
         <div className="flex items-center gap-1 mt-3">
           {Array.from({ length: totalObjectives }).map((_, index) => {
-            // Count how many objectives are completed (not which ones)
-            // Fill balls from left to right based on count
+            // Check specific completion for this step if array corresponds to steps
+            // But relying on count for simplified progress bar behavior as before
+            // However, we want to know if the CURRENT step is pending
+            
             const isStepCompleted = index < completedObjectives;
-            // Next progress level is the first uncompleted objective (or reward if all completed)
+            
+            // Check if this specific step is pending
+            const submission = quest.objectiveSubmissions?.[index];
+            const isPending = submission?.status === 'pending';
+            
+            // Next progress level is the first uncompleted objective
             const isNextProgressLevel = index === completedObjectives;
             
             return (
@@ -63,16 +70,22 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick, theme
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs relative ${
                   isStepCompleted
                     ? 'bg-[#4CCC51] text-white' 
-                    : theme === 'dark' ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-600'
+                    : isPending
+                      ? 'bg-yellow-500 text-white'
+                      : theme === 'dark' ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-600'
                 } ${
-                  isNextProgressLevel ? 'ring-2 ring-[#4CCC51] ring-offset-1' : ''
+                  isNextProgressLevel && !isPending ? 'ring-2 ring-[#4CCC51] ring-offset-1' : ''
+                } ${
+                  isPending ? 'ring-2 ring-yellow-500 ring-offset-1' : ''
                 }`}>
                   {index + 1}
                 </div>
                 <div className={`h-0.5 flex-1 ${
                   isStepCompleted 
                     ? 'bg-[#4CCC51]' 
-                    : theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
+                    : isPending
+                      ? 'bg-yellow-500'
+                      : theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'
                 }`}></div>
               </React.Fragment>
             );
@@ -81,9 +94,15 @@ export const QuestCard: React.FC<QuestCardProps> = ({ quest, onQuestClick, theme
           <div className={`w-6 h-6 rounded-full flex items-center justify-center relative ${
             quest.rewardClaimed
               ? 'bg-blue-500 text-white' 
-              : theme === 'dark' ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-600'
+              : quest.rewardSubmissionStatus === 'pending'
+                ? 'bg-yellow-500 text-white'
+                : theme === 'dark' ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-600'
           } ${
-            completedObjectives === totalObjectives && !quest.rewardClaimed ? 'ring-2 ring-[#4CCC51] ring-offset-1' : ''
+            completedObjectives === totalObjectives && !quest.rewardClaimed && quest.rewardSubmissionStatus !== 'pending' 
+              ? 'ring-2 ring-[#4CCC51] ring-offset-1' 
+              : ''
+          } ${
+            quest.rewardSubmissionStatus === 'pending' ? 'ring-2 ring-yellow-500 ring-offset-1' : ''
           }`}>
             <Gift size={14} />
           </div>

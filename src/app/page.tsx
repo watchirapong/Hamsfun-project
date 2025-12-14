@@ -17,11 +17,16 @@ const RootPage: React.FC = () => {
   const { theme } = useTheme();
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated && user) {
-      // Redirect based on user role
-      if (user.isHamster) {
-        router.push('/hamster');
+    if (!isLoading) {
+      if (isAuthenticated && user) {
+        // Redirect based on user role
+        if (user.isHamster) {
+          router.push('/hamster');
+        } else {
+          router.push('/student');
+        }
       } else {
+        // No user - redirect to student page
         router.push('/student');
       }
     }

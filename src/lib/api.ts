@@ -209,8 +209,12 @@ export const hamsterAPI = {
   // Get my member quests (assigned by team leader)
   getMyMemberQuests: () => apiCall<any[]>('/api/v1/hamsters/my-quests'),
 
-  // Submit SubQuest work (individual SubQuest submission)
-  submitSubQuest: (teamQuestId: string, memberQuestIndex: number, subQuestIndex: number, formData: FormData) =>
-    apiCallMultipart(`/api/v1/hamsters/team-quests/${teamQuestId}/member-quests/${memberQuestIndex}/sub-quests/${subQuestIndex}/submit`, formData),
+  // Submit SubQuest work (when MemberQuest HAS SubQuests)
+  submitSubQuest: (teamQuestId: string, mqId: string, sqId: string, formData: FormData) =>
+    apiCallMultipart(`/api/v1/hamsters/team-quests/${teamQuestId}/member-quests/${mqId}/sub-quests/${sqId}/submit`, formData),
+
+  // Submit MemberQuest directly (when MemberQuest has NO SubQuests)
+  submitMemberQuest: (teamQuestId: string, mqId: string, formData: FormData) =>
+    apiCallMultipart(`/api/v1/hamsters/team-quests/${teamQuestId}/member-quests/${mqId}/submit`, formData),
 };
 
