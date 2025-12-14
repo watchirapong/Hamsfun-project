@@ -596,7 +596,7 @@ const StudentPage: React.FC = () => {
           
           {selectedObjective && (() => {
             const quest = questsState.find(q => q.id === selectedObjective.questId);
-            const questTitle = quest?.title || 'Quest';
+            const objectiveName = quest?.objectives[selectedObjective.objectiveIndex]?.text || 'Objective';
             const objectiveDescription = 
               quest?.objectives[selectedObjective.objectiveIndex]?.description ||
               quest?.description ||
@@ -605,7 +605,7 @@ const StudentPage: React.FC = () => {
             return (
               <ObjectiveDetailPanel
                 isOpen={showImageUploadModal}
-                questTitle={questTitle}
+                objectiveName={objectiveName}
                 objectiveDescription={objectiveDescription}
                 uploadedImage={uploadedImage}
                 onImageSelect={handleImageSelect}

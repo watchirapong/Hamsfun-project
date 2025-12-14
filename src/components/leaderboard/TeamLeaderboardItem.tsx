@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { TeamLeaderboardItem } from '@/types';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -13,6 +14,7 @@ export const TeamLeaderboardItemComponent: React.FC<TeamLeaderboardItemComponent
   team,
   theme,
 }) => {
+  const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Calculate total score from members if totalScore is 0 or not provided
@@ -119,12 +121,19 @@ export const TeamLeaderboardItemComponent: React.FC<TeamLeaderboardItemComponent
           {team.members && team.members.length > 0 ? (
             [...team.members]
               .sort((a, b) => (b.leaderboardScore || 0) - (a.leaderboardScore || 0))
-              .map((member) => (
+              .map((member) => {
+                const handleMemberClick = () => {
+                  // Navigate to profile page with user ID
+                  router.push(`/profile?userId=${member._id}`);
+                };
+
+                return (
               <div 
                 key={member._id}
-                className={`flex items-center gap-2 p-2 rounded-lg ${
-                  theme === 'dark' ? 'bg-gray-800/50' : 'bg-gray-50'
+                className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                  theme === 'dark' ? 'bg-gray-800/50 hover:bg-gray-700/50' : 'bg-gray-50 hover:bg-gray-100'
                 }`}
+                onClick={handleMemberClick}
               >
                 {member.avatar ? (
                   <img 
@@ -151,7 +160,8 @@ export const TeamLeaderboardItemComponent: React.FC<TeamLeaderboardItemComponent
                   {member.leaderboardScore}
                 </div>
               </div>
-            ))
+            );
+            })
           ) : (
             <div className="text-center py-2 text-gray-500 text-sm">No members found</div>
           )}

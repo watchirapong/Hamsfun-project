@@ -27,6 +27,7 @@ export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
   const [containerRect, setContainerRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const [showBossCinematic, setShowBossCinematic] = useState(false);
   const [isBossRevealing, setIsBossRevealing] = useState(false);
+  const [shouldShowBossQuest, setShouldShowBossQuest] = useState(false);
   const hasAnimatedRef = useRef<Set<string>>(new Set());
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -87,9 +88,9 @@ export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
     if (isFirstQuestBoss && isFirstQuestNew && firstQuest) {
       setShowBossCinematic(true);
       setIsBossRevealing(true);
+      setShouldShowBossQuest(false); // Hide quest until reveal phase
+      setMainQuest(firstQuest); // Set the quest but hide it
       onBossCinematicChange?.(true); // Notify parent to hide notifications
-      // Clear main quest to prepare for reveal
-      setMainQuest(null);
       return; // Exit early, cinematic will handle the reveal
     }
 
@@ -153,15 +154,26 @@ export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
     };
   }, [mainQuest]);
 
-  // Handle Boss cinematic completion
-  const handleBossCinematicComplete = () => {
+  // Handle Boss quest reveal start (during reveal phase)
+  const handleBossRevealStart = () => {
     const firstQuest = filteredQuests[0];
     if (firstQuest && firstQuest.type === "Boss") {
-      // Reveal the Boss quest after cinematic
+      // Start showing Boss quest card (morphing from dark box)
       setMainQuest(firstQuest);
-      setIsBossRevealing(false);
+      setShouldShowBossQuest(true);
     }
+  };
+
+  // Handle Boss cinematic completion
+  const handleBossCinematicComplete = () => {
+    setIsBossRevealing(false);
     setShowBossCinematic(false);
+    // Ensure Boss Quest is visible after cinematic
+    const firstQuest = filteredQuests[0];
+    if (firstQuest && firstQuest.type === "Boss") {
+      setMainQuest(firstQuest);
+      setShouldShowBossQuest(true);
+    }
     onBossCinematicChange?.(false); // Notify parent to show notifications again
   };
 
@@ -238,6 +250,7 @@ export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
       <BossArrivalCinematic
         isActive={showBossCinematic}
         onComplete={handleBossCinematicComplete}
+        onRevealStart={handleBossRevealStart}
         questSlotPosition={questSlotPosition}
         theme={theme}
       />
@@ -249,35 +262,46 @@ export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
             <motion.div
               key={mainQuest.id}
               initial={
-                (newQuestIds.includes(String(mainQuest.id)) && !isBossRevealing) ? 'initial' : false
+                (newQuestIds.includes(String(mainQuest.id)) && !isBossRevealing && mainQuest.type !== "Boss") ? 'initial' : false
               }
               animate={
-                (newQuestIds.includes(String(mainQuest.id)) && !isBossRevealing) ? 'animate' : {}
+                (newQuestIds.includes(String(mainQuest.id)) && !isBossRevealing && mainQuest.type !== "Boss") ? 'animate' : {}
               }
               exit="exit"
               variants={firstQuestVariants}
               style={{
-                pointerEvents: showBossCinematic ? 'none' : 'auto',
-                opacity: isBossRevealing ? 0 : 1,
+                pointerEvents: (showBossCinematic || isBossRevealing) ? 'none' : 'auto',
+                opacity: (mainQuest.type === "Boss" && showBossCinematic && !shouldShowBossQuest) ? 0 : 1,
               }}
             >
-              <motion.div
-                animate={{
-                  opacity: isBossRevealing ? [0, 0, 0.3, 1] : 1,
-                  filter: isBossRevealing ? ['brightness(0.2)', 'brightness(0.2)', 'brightness(0.5)', 'brightness(1)'] : 'brightness(1)',
-                }}
-                transition={{
-                  duration: 1.5,
-                  delay: isBossRevealing ? 0.3 : 0,
-                  times: [0, 0.3, 0.7, 1],
-                }}
-              >
+              {/* Boss Quest morph animation during reveal phase */}
+              {mainQuest.type === "Boss" && shouldShowBossQuest ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, filter: 'brightness(0.2)' }}
+                  animate={{
+                    opacity: [0, 0.5, 1],
+                    scale: [0.95, 1, 1],
+                    filter: ['brightness(0.2)', 'brightness(0.6)', 'brightness(1)'],
+                  }}
+                  transition={{
+                    duration: 1.2,
+                    times: [0, 0.5, 1],
+                    ease: 'easeOut',
+                  }}
+                >
+                  <QuestCard 
+                    quest={mainQuest} 
+                    onQuestClick={(showBossCinematic || isBossRevealing) ? () => {} : onQuestClick}
+                    theme={theme}
+                  />
+                </motion.div>
+              ) : (
                 <QuestCard 
                   quest={mainQuest} 
                   onQuestClick={(showBossCinematic || isBossRevealing) ? () => {} : onQuestClick}
                   theme={theme}
                 />
-              </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

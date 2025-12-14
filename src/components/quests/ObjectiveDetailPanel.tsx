@@ -7,7 +7,7 @@ type SubmissionType = 'image' | null;
 
 interface ObjectiveDetailPanelProps {
   isOpen: boolean;
-  questTitle: string;
+  objectiveName: string; // Objective name/title (from objective.text)
   objectiveDescription: string;
   uploadedImage: string | null;
   onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -22,7 +22,7 @@ interface ObjectiveDetailPanelProps {
 
 export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
   isOpen,
-  questTitle,
+  objectiveName,
   objectiveDescription,
   uploadedImage,
   onImageSelect,
@@ -188,10 +188,10 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
         onClick={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
       >
-        {/* Header with Close Button */}
+        {/* Header with Objective Name and Close Button */}
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className={`font-bold text-lg ${isDark ? 'text-white' : 'text-black'}`}>
-            Objective Details
+          <h2 className={`font-bold text-xl ${isDark ? 'text-white' : 'text-black'}`}>
+            {objectiveName}
           </h2>
           <button
             onClick={handleClose}
@@ -208,19 +208,15 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
           ref={staticContentRef}
           className="p-4 overflow-y-auto flex-1"
         >
-          {/* Quest Title */}
-          <div className="mb-4">
-            <h3 className={`font-bold text-xl ${isDark ? 'text-white' : 'text-black'}`}>
-              {questTitle}
-            </h3>
-          </div>
-
           {/* Objective Description */}
           <div className="mb-6">
-            <h4 className={`font-bold text-base mb-2 ${isDark ? 'text-white' : 'text-black'}`}>
+            <h4 className={`text-xs font-medium mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               Description
             </h4>
-            <p className={`text-sm leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+            <p 
+              className={`text-base leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
+              style={{ whiteSpace: 'pre-line' }}
+            >
               {objectiveDescription}
             </p>
           </div>

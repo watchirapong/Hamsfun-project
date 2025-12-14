@@ -128,6 +128,9 @@ export const userAPI = {
   // Get my profile
   getMyProfile: () => apiCall<any>('/api/v1/users/me'),
 
+  // Get user profile by ID (public profile)
+  getUserProfile: (userId: string) => apiCall<any>(`/api/v1/users/${userId}`),
+
   // Get my inventory
   getMyInventory: () => apiCall<any[]>('/api/v1/users/me/inventory'),
 

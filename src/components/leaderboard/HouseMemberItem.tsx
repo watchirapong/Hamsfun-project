@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { HouseMember } from '@/types';
 import { getRankFromScore } from '@/utils/rankHelpers';
 import { RankBadge } from './RankBadge';
@@ -16,13 +17,22 @@ export const HouseMemberItem: React.FC<HouseMemberItemProps> = ({
   theme,
   shouldAnimate = false
 }) => {
+  const router = useRouter();
   const rank = getRankFromScore(member.leaderboardScore);
   const petLevel = member.petLevel || member.rank?.points || 0;
 
+  const handleClick = () => {
+    // Navigate to profile page with user ID
+    router.push(`/profile?userId=${member._id}`);
+  };
+
   return (
-    <div className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
-      theme === 'dark' ? 'bg-gray-800 hover:bg-gray-750' : 'bg-gray-50 hover:bg-gray-100'
-    }`}>
+    <div 
+      className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer ${
+        theme === 'dark' ? 'bg-gray-800 hover:bg-gray-750' : 'bg-gray-50 hover:bg-gray-100'
+      }`}
+      onClick={handleClick}
+    >
       <RankBadge 
         rank={rank} 
         theme={theme} 

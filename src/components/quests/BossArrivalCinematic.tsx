@@ -7,15 +7,17 @@ import { getAssetUrl } from '@/utils/helpers';
 interface BossArrivalCinematicProps {
   isActive: boolean;
   onComplete: () => void;
+  onRevealStart?: () => void; // Callback when quest should start appearing (during reveal phase)
   questSlotPosition: { top: number; left: number; width: number } | null;
   theme: 'light' | 'dark';
 }
 
-type CinematicPhase = 'fade-to-black' | 'demon-in' | 'demon-out' | 'fade-to-ui' | 'fog' | 'reveal' | 'complete';
+type CinematicPhase = 'fade-to-black' | 'demon-in' | 'demon-out' | 'fade-to-ui' | 'fog' | 'dark-placeholder' | 'reveal' | 'complete';
 
 export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
   isActive,
   onComplete,
+  onRevealStart,
   questSlotPosition,
   theme,
 }) => {
@@ -68,27 +70,35 @@ export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
       fogStartTimeRef.current = Date.now(); // Track when fog phase starts
     }, 800 + 1200 + 1000 + 600));
 
-    // Step 5: Fog pause (500ms) + rush to quest (2000ms) = 2500ms total
+    // Step 5: Fog pause (500ms) + rush to quest (1800ms) = 2300ms total
+    // When fog has almost fully gathered, show dark placeholder
+    timeouts.push(setTimeout(() => {
+      setPhase('dark-placeholder');
+    }, 800 + 1200 + 1000 + 600 + 2300));
+
+    // Step 6: Morph dark placeholder into Boss Quest (1200ms)
     timeouts.push(setTimeout(() => {
       setPhase('reveal');
-    }, 800 + 1200 + 1000 + 600 + 2500));
+      // Trigger quest appearance when reveal phase starts
+      onRevealStart?.();
+    }, 800 + 1200 + 1000 + 600 + 2300 + 1200));
 
-    // Step 6: Quest reveal and fog disperses (1500ms)
+    // Step 7: Quest fully revealed and fog disperses (1000ms)
     timeouts.push(setTimeout(() => {
       setPhase('complete');
       setTimeout(() => {
         onComplete();
       }, 500);
-    }, 800 + 1200 + 1000 + 600 + 2500 + 1500));
+    }, 800 + 1200 + 1000 + 600 + 2300 + 1200 + 1000));
 
     return () => {
       timeouts.forEach(timeout => clearTimeout(timeout));
     };
-  }, [isActive, onComplete]);
+  }, [isActive, onComplete, onRevealStart]);
 
   // Fog particle animation
   useEffect(() => {
-    if (phase !== 'fog' && phase !== 'reveal') {
+    if (phase !== 'fog' && phase !== 'dark-placeholder' && phase !== 'reveal') {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -190,8 +200,11 @@ export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
           let pullStrength = 0.035; // Much stronger pull
           let rotationStrength = 0.15; // Faster rotation
           
-          // Even stronger for reveal phase
-          if (phase === 'reveal') {
+          // Even stronger during dark-placeholder and reveal phases
+          if (phase === 'dark-placeholder') {
+            pullStrength = 0.045;
+            rotationStrength = 0.18;
+          } else if (phase === 'reveal') {
             pullStrength = 0.05;
             rotationStrength = 0.2;
           }
@@ -215,8 +228,8 @@ export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
         particle.x += particle.vx;
         particle.y += particle.vy;
         
-        // During reveal phase, particles fade out as they reach center
-        if (phase === 'reveal') {
+        // During dark-placeholder and reveal phases, particles fade out as they reach center
+        if (phase === 'dark-placeholder' || phase === 'reveal') {
           if (distance < 120) {
             particle.opacity = Math.max(0, particle.opacity - 0.05);
           }
@@ -249,8 +262,11 @@ export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
 
   if (!isActive) return null;
 
+  // Block interactions during cinematic, allow after reveal phase
+  const shouldBlockInteractions = phase !== 'complete';
+
   return (
-    <div className="fixed inset-0 z-[9999] pointer-events-auto">
+    <div className={`fixed inset-0 z-[9999] ${shouldBlockInteractions ? 'pointer-events-auto' : 'pointer-events-none'}`}>
       {/* Step 1: Smooth Fade to Black */}
       <AnimatePresence>
         {(phase === 'fade-to-black' || phase === 'demon-in' || phase === 'demon-out' || phase === 'fade-to-ui') && (
@@ -341,8 +357,8 @@ export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Step 4-5: Dark Fog Canvas - Visible on Normal UI */}
-      {(phase === 'fog' || phase === 'reveal') && (
+      {/* Step 4-7: Dark Fog Canvas - Visible on Normal UI */}
+      {(phase === 'fog' || phase === 'dark-placeholder' || phase === 'reveal') && (
         <canvas
           ref={canvasRef}
           className="absolute inset-0"
@@ -350,7 +366,81 @@ export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
         />
       )}
 
-      {/* Step 5: Quest Reveal - Dark Fog Silhouette Effect */}
+      {/* Step 3: Dark Quest Placeholder - Solid Black Box */}
+      {(phase === 'dark-placeholder' || phase === 'reveal') && questSlotPosition && (
+        <motion.div
+          initial={phase === 'dark-placeholder' ? { opacity: 0, scale: 0.95 } : { opacity: 1, scale: 1 }}
+          animate={phase === 'dark-placeholder' ? {
+            opacity: 1,
+            scale: 1,
+          } : {
+            opacity: [1, 1, 0],
+            scale: [1, 1.02, 1.05],
+          }}
+          transition={phase === 'dark-placeholder' ? {
+            duration: 0.3,
+            ease: 'easeOut',
+          } : {
+            duration: 1.2,
+            times: [0, 0.5, 1],
+            ease: 'easeInOut',
+          }}
+          className="absolute rounded-xl"
+          style={{
+            top: questSlotPosition.top,
+            left: questSlotPosition.left,
+            width: questSlotPosition.width,
+            height: '180px',
+            background: phase === 'dark-placeholder'
+              ? 'linear-gradient(135deg, rgba(0, 0, 0, 1) 0%, rgba(10, 10, 10, 0.98) 100%)'
+              : 'linear-gradient(135deg, rgba(139, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.98) 100%)',
+            border: phase === 'dark-placeholder'
+              ? '2px solid rgba(0, 0, 0, 0.9)'
+              : '2px solid rgba(139, 0, 0, 0.8)',
+            boxShadow: phase === 'dark-placeholder'
+              ? '0 0 30px rgba(0, 0, 0, 1), inset 0 0 20px rgba(0, 0, 0, 0.8)'
+              : '0 0 40px rgba(139, 0, 0, 0.6), inset 0 0 30px rgba(0, 0, 0, 0.8)',
+            pointerEvents: 'none',
+            zIndex: 10000, // Above fog canvas, below cinematic overlay
+          }}
+        >
+          {/* Cursed/sealed effect - pulsing during dark-placeholder */}
+          {phase === 'dark-placeholder' && (
+            <motion.div
+              className="absolute inset-0 rounded-xl"
+              animate={{
+                opacity: [0.3, 0.6, 0.3],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+              style={{
+                background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.6) 100%)',
+              }}
+            />
+          )}
+          {/* Red glow emerging during reveal */}
+          {phase === 'reveal' && (
+            <motion.div
+              className="absolute inset-0 rounded-xl"
+              animate={{
+                opacity: [0, 0.4, 0.6, 0.3],
+              }}
+              transition={{
+                duration: 1.2,
+                times: [0, 0.3, 0.6, 1],
+              }}
+              style={{
+                background: 'radial-gradient(ellipse at center, rgba(139, 0, 0, 0.5) 0%, transparent 70%)',
+              }}
+            />
+          )}
+        </motion.div>
+      )}
+
+      {/* Step 4: Quest Reveal - Dark Fog Silhouette Effect (fading out) */}
       {phase === 'reveal' && questSlotPosition && (
         <>
           {/* Dark smoke shadow covering quest */}
