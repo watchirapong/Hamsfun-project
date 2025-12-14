@@ -68,7 +68,14 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               }}
             >
               {/* Flip Card Container */}
-              <div className={`flip-card ${petStatsFlipped ? 'flipped' : ''}`} style={{ width: '160px' }}>
+              <div 
+                className={`flip-card ${petStatsFlipped ? 'flipped' : ''}`} 
+                style={{ 
+                  width: '160px', 
+                  height: petStatsFlipped ? '240px' : '180px',
+                  transition: 'height 0.6s ease-in-out'
+                }}
+              >
                 <div className="flip-card-inner">
                   {/* Front Side - Pet Stats */}
                   <div className="flip-card-front">
