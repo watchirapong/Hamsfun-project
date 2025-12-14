@@ -88,6 +88,7 @@ export const useAuth = () => {
               attackDamage: profile.partnerPet.iv.attackDamage || 0,
               defense: profile.partnerPet.iv.defense || 0,
             } : undefined,
+            petIcon: profile.partnerPet?.icon || undefined,
             rankObjectives: profile.rankObjectives || [],
             isHamster: profile.isHamster || false,
             hamsterRank: profile.hamster?.hamsterRank || undefined

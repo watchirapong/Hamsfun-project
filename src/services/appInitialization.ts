@@ -87,6 +87,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
           attackDamage: profile.partnerPet.iv.attackDamage || 0,
           defense: profile.partnerPet.iv.defense || 0,
         } : undefined,
+        petIcon: profile.partnerPet?.icon || undefined,
         rankObjectives: profile.rankObjectives || [],
         isHamster: isHamsterUser,
         hamsterRank: profile.hamster?.hamsterRank || undefined

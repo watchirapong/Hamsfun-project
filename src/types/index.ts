@@ -60,6 +60,7 @@ export interface User {
   petMaxXp: number;
   petStats: PetStats; // Pet combat stats
   petIV?: PetIV; // Pet IV values (0-100 for each stat)
+  petIcon?: string; // Pet icon URL from partnerPet.icon
   leaderboardScore?: number; // Leaderboard points
   isHamster: boolean; // Whether user is a Hamster (special role)
   hamsterRank?: string; // Hamster rank (Enigma, Cadet, Ranger, etc.)

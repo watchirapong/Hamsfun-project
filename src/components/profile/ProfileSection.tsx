@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Check, Heart, Sword, Shield } from 'lucide-react';
 import { User, Quest } from '@/types';
 import { isQuestTrulyCompleted, getAssetUrl } from '@/utils/helpers';
+import { getItemIconUrl } from '@/utils/itemHelpers';
 import { rankCardAttention } from './rankCardVariants';
 import { rankCardGlowPulse } from './rankCardGlowPulseVariants';
 
@@ -38,10 +39,19 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           <div className="relative w-full h-full flex items-center justify-center group cursor-pointer" style={{ minHeight: '280px' }}>
             {/* Pet Image */}
             <img 
-              src={/*user.avatar*/ getAssetUrl("/Asset/pets/dog.png") /*TESTING*/} 
+              src={user.petIcon ? getItemIconUrl(user.petIcon) : getAssetUrl("/Asset/pets/dog.png")} 
               alt="Pet" 
               className="w-full h-auto object-contain max-w-full transition-all duration-300 group-hover:blur-sm group-hover:scale-105" 
               style={{ maxHeight: '280px' }}
+              key={`pet-${user.petIcon || 'default'}-${user.petLevel}-${user.petXp}`}
+              onError={(e) => {
+                // Fallback to default pet image if icon fails to load
+                const target = e.target as HTMLImageElement;
+                const fallbackUrl = getAssetUrl("/Asset/pets/dog.png");
+                if (target.src !== fallbackUrl) {
+                  target.src = fallbackUrl;
+                }
+              }}
             />
             
             {/* Pet Level Badge - Always Visible */}
