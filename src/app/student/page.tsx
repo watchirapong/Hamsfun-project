@@ -116,8 +116,14 @@ const StudentPage: React.FC = () => {
   
   const [questsState, setQuestsState] = useState<Quest[]>([]);
   
-  // Handle authentication and fetch initial data
+  // Ref to prevent duplicate initializeApp calls
+  const hasInitializedRef = useRef(false);
+  
+  // Handle authentication and fetch initial data (only once)
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+    
     initializeApp({
       setIsLoading,
       setIsAuthenticated,
@@ -139,9 +145,10 @@ const StudentPage: React.FC = () => {
           token: token
         });
         
-        socket.on('quest_updated', (data: any) => {
+        socket.on('quest_updated', async (data: any) => {
           console.log('Quest Update Received:', data);
-          initializeApp({
+          // Re-fetch quest data
+          await initializeApp({
             setIsLoading: () => {},
             setIsAuthenticated,
             setUser,
@@ -149,6 +156,8 @@ const StudentPage: React.FC = () => {
             setQuestsState,
             setBackpackItems
           });
+          // Recheck for new quests to trigger Boss animation if new quest is a Boss
+          recheckQuests();
         });
         
         return () => {
@@ -251,7 +260,7 @@ const StudentPage: React.FC = () => {
   }, []);
   
   // Use new quest notification hook (for students, isHamster = false)
-  const { hasNewQuests, newQuestIds } = useNewQuestNotification(
+  const { hasNewQuests, newQuestIds, recheckQuests } = useNewQuestNotification(
     isAuthenticated,
     false // Students are not hamsters
   );
@@ -276,9 +285,9 @@ const StudentPage: React.FC = () => {
     setShowQuestOverlay(true);
     setQuestNotification(null);
   }, [setSelectedQuestId, setShowQuestOverlay]);
-  
-  // Leaderboard data (houses for students)
-  const { houseLeaderboard, isLoading: leaderboardLoading, error: leaderboardError } = useLeaderboard(false);
+
+  // Leaderboard data (houses for students) - filtered by user's city
+  const { houseLeaderboard, isLoading: leaderboardLoading, error: leaderboardError } = useLeaderboard(false, user.ownerCity?._id);
   
   const handleFetchHouseMembers = async (houseId: string) => {
     try {
@@ -312,7 +321,7 @@ const StudentPage: React.FC = () => {
     setShowImageUploadModal,
     setSelectedObjective,
     setUploadedImage,
-    setDescription,
+    setDescription: setObjectiveComment,
     setRewardAnimations,
     setUser,
     setSkills,
@@ -324,7 +333,7 @@ const StudentPage: React.FC = () => {
     scrollPositionRef,
     selectedObjective,
     uploadedImage,
-    description,
+    description: objectiveComment,
     awardObjectiveReward,
     awardQuestRewards,
     applyPendingRewards: () => {},
@@ -498,7 +507,7 @@ const StudentPage: React.FC = () => {
           </div>
           
           <div className="px-4 py-4">
-            <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Leader Board</h2>
+            <h2 className={`font-bold text-lg mb-3 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Leaderboard</h2>
             {leaderboardLoading ? (
               <div className="text-center py-4 text-gray-500">Loading leaderboard...</div>
             ) : leaderboardError ? (

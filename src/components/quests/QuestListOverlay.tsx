@@ -773,11 +773,13 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                               <div className="flex items-center justify-between w-full">
                                 <div className="flex-1 flex flex-col gap-1 min-w-0 pr-3">
                                   <div className="flex items-center gap-2">
-                                    {isCompletedState ? (
+                                    {isCompletedState && !isRejected ? (
                                       // Completed "Task completed" state
                                       <span className="text-sm font-semibold text-[#9A86F1]">
                                         {objective.text} task completed
                                       </span>
+                                    ) : isRejected ? (
+                                      <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
                                     ) : (
                                       // Normal state
                                       <span 
@@ -789,9 +791,6 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                       >
                                         {objective.text}
                                       </span>
-                                    )}
-                                    {isRejected && (
-                                      <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
                                     )}
                                   </div>
                                   {/* Tap to details label for clickable objectives (normal state only) */}
@@ -805,6 +804,9 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                   {isCompletedState ? (
                                     // Show checkmark icon for completed state
                                     <Check className="w-5 h-5 flex-shrink-0 text-[#9A86F1]" />
+                                  ) : isRejected ? (
+                                    // Show nothing for rejected state (text already shows rejection)
+                                    null
                                   ) : (
                                     // Show reward icon for normal states
                                     rewards.map((reward, rewardIndex) => {

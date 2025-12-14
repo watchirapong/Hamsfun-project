@@ -189,7 +189,11 @@ export const itemAPI = {
 // Leaderboard APIs
 export const leaderboardAPI = {
   // Get leaderboard (returns both users and houses) - for regular users
-  getLeaderboard: () => apiCall<{ users: any[]; houses?: any[] }>('/api/v1/leaderboard'),
+  // Pass cityId from user.ownerCity._id to filter by city
+  getLeaderboard: (cityId?: string) =>
+    apiCall<{ users: any[]; houses?: any[] }>(
+      cityId ? `/api/v1/leaderboard?cityId=${cityId}` : '/api/v1/leaderboard'
+    ),
 
   // Get hamster leaderboard (returns hamsters and teams sorted by balls) - for hamster users
   getHamsterLeaderboard: () => apiCall<{ hamsters: any[]; teams: any[] }>('/api/v1/leaderboard/hamster'),

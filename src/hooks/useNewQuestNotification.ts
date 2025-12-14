@@ -7,6 +7,7 @@ interface NewQuestNotificationResult {
   newQuestIds: string[];
   isLoading: boolean;
   error: Error | null;
+  recheckQuests: () => Promise<void>; // Allow external trigger to recheck
 }
 
 /**
@@ -178,6 +179,56 @@ export const useNewQuestNotification = (
     storeCurrentQuestIds,
   ]);
 
+  /**
+   * Force recheck for new quests (called on WebSocket updates)
+   * Bypasses the hasCheckedRef guard to allow re-checking
+   */
+  const recheckQuests = useCallback(async () => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Fetch current active quests from backend (source of truth)
+      const activeQuests = isHamsterUser
+        ? await hamsterAPI.getActiveQuests()
+        : await userAPI.getActiveQuests();
+
+      // Extract current quest IDs
+      const currentQuestIds = extractQuestIds(activeQuests);
+
+      // Get previous quest IDs from localStorage
+      const prevQuestIds = getPreviousQuestIds();
+
+      // Detect new quests
+      const detectionResult = detectNewQuests(currentQuestIds, prevQuestIds);
+
+      // Update state
+      setHasNewQuests(detectionResult.hasNew);
+      setNewQuestIds(detectionResult.newIds);
+
+      // Always update localStorage with current quest IDs after check
+      storeCurrentQuestIds(currentQuestIds);
+    } catch (err) {
+      console.error('Error rechecking for new quests:', err);
+      setError(err instanceof Error ? err : new Error('Unknown error'));
+      setHasNewQuests(false);
+      setNewQuestIds([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    isAuthenticated,
+    isHamsterUser,
+    extractQuestIds,
+    getPreviousQuestIds,
+    detectNewQuests,
+    storeCurrentQuestIds,
+  ]);
+
   // Check for new quests when authenticated (on mount/reload)
   useEffect(() => {
     if (isAuthenticated) {
@@ -192,6 +243,7 @@ export const useNewQuestNotification = (
     newQuestIds,
     isLoading,
     error,
+    recheckQuests,
   };
 };
 

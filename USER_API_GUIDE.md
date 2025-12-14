@@ -121,6 +121,10 @@ This guide details the public API endpoints available for users and external app
             "deadline": "Date"
         }
     ]
+  },
+  "ownerCity": {
+    "_id": "String (City ID) or null",
+    "name": "String (City Name) or null"
   }
 }
 ```
@@ -129,13 +133,98 @@ This guide details the public API endpoints available for users and external app
 **URL:** `GET /api/v1/users/:id`
 **Description:** Retrieves a specific user's public profile.
 
-> **Note:** Excludes sensitive fields: `discordId`, `email`, `inventory`, `activeQuests`, `roles`
+**Response Structure:**
+```json
+{
+  "_id": "String (User ID)",
+  "discordId": "String",
+  "discordUsername": "String",
+  "discordNickname": "String",
+  "avatar": "String (URL)",
+  "leaderboardScore": "Number",
+  "rank": {
+    "currentTier": "String (e.g., 'Meteor I')",
+    "points": "Number",
+    "maxPoints": "Number (Points needed for next rank)",
+    "nextRank": "String or null",
+    "nextRankPoints": "Number or null"
+  },
+  "badges": {
+    "[BadgeCategory]": {
+      "rank": "String (e.g., 'Bronze', 'Unranked')",
+      "points": "Number",
+      "maxPoints": "Number",
+      "nextRank": "String or null",
+      "nextRankPoints": "Number or null"
+    }
+  },
+  "partnerPet": {
+    "itemId": "String (ObjectId)",
+    "kind": "String ('Pet')",
+    "nickname": "String",
+    "level": "Number",
+    "experience": "Number",
+    "maxExperience": "Number",
+    "currentStats": {
+      "maxHealth": "Number",
+      "attackDamage": "Number",
+      "defense": "Number"
+    },
+    "name": "String (Populated)",
+    "icon": "String (URL)",
+    "rarity": "String"
+  },
+  "lastActiveQuest": {
+    "questId": "String (ObjectId)",
+    "title": "String",
+    "icon": "String (URL)",
+    "type": "String ('Main' or 'Boss')",
+    "status": "String",
+    "startedAt": "Date"
+  }
+}
+```
+
+> [!NOTE]
+> - **Partner Pet IV is excluded** from this response for privacy.
+> - **Only Main or Boss quests** are returned in `lastActiveQuest`. If no such quest exists, it will be `null`.
 
 ### 2.3 Get My Inventory
 **URL:** `GET /api/v1/users/me/inventory`
 **Description:** Retrieves the current user's inventory.
 
-### 2.4 Use Item
+### 2.4 Get My Partner Pet
+**URL:** `GET /api/v1/users/me/partner-pet`
+**Description:** Retrieves the current user's active partner pet with full details.
+
+**Response Structure:**
+```json
+{
+  "itemId": {
+    "_id": "String (Item Template ID)",
+    "name": "String",
+    "icon": "String (URL)",
+    "rarity": "String"
+  },
+  "kind": "Pet",
+  "nickname": "String",
+  "level": "Number",
+  "experience": "Number",
+  "maxExperience": "Number",
+  "currentStats": {
+    "maxHealth": "Number",
+    "attackDamage": "Number",
+    "defense": "Number"
+  },
+  "iv": {
+    "maxHealth": "Number (0-100)",
+    "attackDamage": "Number (0-100)",
+    "defense": "Number (0-100)"
+  }
+}
+```
+
+### 2.5 Use Item
 **URL:** `POST /api/v1/users/me/inventory/use`
 **Description:** Consumes an item from the inventory.
 
@@ -162,7 +251,7 @@ This guide details the public API endpoints available for users and external app
 > [!TIP]
 > **Pet IV Distribution:** IVs (0-100) use a bell curve distribution. Middle values (~40-60) are most common, while extreme values (0-10 or 90-100) are rare. This makes high-IV pets more valuable!
 
-### 2.5 Generate Item Redeem Code
+### 2.6 Generate Item Redeem Code
 **URL:** `POST /api/v1/users/me/inventory/redeem-code`
 **Description:** Generates a 10-character code for redeeming an item in Roblox.
 
@@ -191,15 +280,15 @@ This guide details the public API endpoints available for users and external app
 }
 ```
 
-### 2.6 Get Active Quests
+### 2.7 Get Active Quests
 **URL:** `GET /api/v1/users/me/active-quests`
 **Description:** Retrieves quests currently in progress.
 
-### 2.7 Get Completed Quests
+### 2.8 Get Completed Quests
 **URL:** `GET /api/v1/users/me/completed-quests`
 **Description:** Retrieves a history of completed quests.
 
-### 2.8 Rank Up
+### 2.9 Rank Up
 **URL:** `POST /api/v1/users/rank-up`
 **Description:** Attempts to rank up the user if they have enough points.
 
@@ -213,7 +302,7 @@ This guide details the public API endpoints available for users and external app
 }
 ```
 
-### 2.9 Get Timed Quests
+### 2.10 Get Timed Quests
 **URL:** `GET /api/v1/users/me/timed-quests`
 **Description:** Get current Daily/Weekly/Monthly quests with user progress.
 

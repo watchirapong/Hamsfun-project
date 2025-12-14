@@ -90,7 +90,8 @@ export const initializeApp = async (params: InitializeAppParams) => {
         petIcon: profile.partnerPet?.icon || undefined,
         rankObjectives: profile.rankObjectives || [],
         isHamster: isHamsterUser,
-        hamsterRank: profile.hamster?.hamsterRank || undefined
+        hamsterRank: profile.hamster?.hamsterRank || undefined,
+        ownerCity: profile.ownerCity || undefined
       });
 
       // Map badges/skills from backend

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { userAPI } from '@/lib/api';
 import { useTheme } from '@/hooks/useTheme';
@@ -61,7 +61,7 @@ const getBadgeLevel = (badgeData: any): number => {
   return 1; // Unranked
 };
 
-export default function ProfilePage() {
+function ProfileContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { theme } = useTheme();
@@ -271,3 +271,15 @@ export default function ProfilePage() {
   );
 }
 
+function ProfileLoadingFallback() {
+  const { theme } = useTheme();
+  return <LoadingScreen theme={theme} />;
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={<ProfileLoadingFallback />}>
+      <ProfileContent />
+    </Suspense>
+  );
+}

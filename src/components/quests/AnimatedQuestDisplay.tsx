@@ -124,10 +124,14 @@ export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
   useEffect(() => {
     if (filteredQuests.length > 0) {
       const firstQuest = filteredQuests[0];
-      // Only update if not currently animating new quests and quest actually changed
-      if (newQuests.length === 0 && firstQuest?.id !== mainQuest?.id) {
+      // Update if not currently animating new quests
+      // Always update to keep mainQuest in sync with latest quest data
+      if (newQuests.length === 0) {
+        // Update mainQuest to latest data (even if same quest ID, data may have changed)
         setMainQuest(firstQuest);
       }
+    } else {
+      setMainQuest(null);
     }
   }, [filteredQuests, newQuests.length]);
 

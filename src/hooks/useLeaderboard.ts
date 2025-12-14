@@ -12,7 +12,7 @@ interface UseLeaderboardResult {
   error: string | null;
 }
 
-export const useLeaderboard = (isHamster: boolean = false): UseLeaderboardResult => {
+export const useLeaderboard = (isHamster: boolean = false, cityId?: string): UseLeaderboardResult => {
   const [houseLeaderboard, setHouseLeaderboard] = useState<HouseLeaderboardItem[]>([]);
   const [teamLeaderboard, setTeamLeaderboard] = useState<TeamLeaderboardItem[]>([]);
   const [hamsterLeaderboard, setHamsterLeaderboard] = useState<HamsterLeaderboardItem[]>([]);
@@ -69,8 +69,8 @@ export const useLeaderboard = (isHamster: boolean = false): UseLeaderboardResult
           setTeamLeaderboard(mappedTeams);
           setHouseLeaderboard([]);
         } else {
-          // Regular user: fetch house leaderboard
-          const response = await leaderboardAPI.getLeaderboard();
+          // Regular user: fetch house leaderboard with cityId
+          const response = await leaderboardAPI.getLeaderboard(cityId);
 
           if (!isMounted) return;
 
@@ -124,7 +124,7 @@ export const useLeaderboard = (isHamster: boolean = false): UseLeaderboardResult
     return () => {
       isMounted = false;
     };
-  }, [isHamster]);
+  }, [isHamster, cityId]);
 
   return { houseLeaderboard, teamLeaderboard, hamsterLeaderboard, isLoading, error };
 };

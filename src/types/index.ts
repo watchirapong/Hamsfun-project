@@ -64,6 +64,7 @@ export interface User {
   leaderboardScore?: number; // Leaderboard points
   isHamster: boolean; // Whether user is a Hamster (special role)
   hamsterRank?: string; // Hamster rank (Enigma, Cadet, Ranger, etc.)
+  ownerCity?: { _id: string; name: string }; // User's city for leaderboard filtering
 }
 
 export interface Skill {

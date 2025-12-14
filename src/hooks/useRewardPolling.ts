@@ -149,72 +149,7 @@ export const useRewardPolling = (params: UseRewardPollingParams) => {
     };
   }, [questsState]);
 
-  // Check on mount/refresh for any newly approved rewards
-  useEffect(() => {
-    const checkOnMount = async () => {
-      try {
-        // Fetch fresh quest data from API - use hamsterAPI for Hamster users, userAPI for regular users
-        const activeQuests = isHamster
-          ? await hamsterAPI.getActiveQuests()
-          : await userAPI.getActiveQuests();
-        const completedQuests = isHamster
-          ? await hamsterAPI.getCompletedQuests()
-          : await userAPI.getCompletedQuests();
-        const allQuestsFromApi = [...activeQuests, ...completedQuests];
-
-        // Find quests that were approved but we haven't awarded yet
-        allQuestsFromApi.forEach((apiQuest: any) => {
-          const questId = apiQuest.questId?._id || apiQuest.questId?.id;
-          const isCompleted = apiQuest.isCompleted || false;
-          const hasRewardsGranted = apiQuest.rewardAwarded || apiQuest.questRewardsAwarded || false;
-
-          if (isCompleted && hasRewardsGranted) {
-            // Check if we have this quest in state and if rewards haven't been awarded
-            const existingQuest = questsState.find(q =>
-              String(q.id) === String(questId)
-            );
-
-            if (existingQuest && !existingQuest.questRewardsAwarded) {
-              // Award rewards from quest definition
-              if (existingQuest.rewards && existingQuest.rewards.length > 0) {
-                const rewardKey = `quest-${existingQuest.id}-approved`;
-                if (!awardedRewards.has(rewardKey)) {
-                  // Process each reward (same logic as polling)
-                  existingQuest.rewards.forEach((reward: any, index: number) => {
-                    const individualKey = `quest-${existingQuest.id}-reward-${index}`;
-                    if (!awardedRewards.has(individualKey)) {
-                      // Queue the reward instead of applying immediately
-                      awardObjectiveReward(reward, individualKey);
-                    }
-                  });
-
-                  // Update quest state
-                  setQuestsState(prevQuests =>
-                    prevQuests.map(q => {
-                      if (q.id === existingQuest.id) {
-                        return {
-                          ...q,
-                          rewardSubmissionStatus: 'approved',
-                          questRewardsAwarded: true,
-                          rewardClaimed: true
-                        };
-                      }
-                      return q;
-                    })
-                  );
-
-                  console.log('Rewards detected and awarded on refresh for quest:', existingQuest.id);
-                }
-              }
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Error checking for approved rewards on mount:', error);
-      }
-    };
-
-    checkOnMount();
-  }, [isHamster]); // Run on mount and when isHamster changes
+  // Note: checkOnMount was removed because quests are already fetched by initializeApp.
+  // The polling above will handle any newly approved rewards for quests already in state.
 };
 

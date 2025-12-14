@@ -112,8 +112,14 @@ const HamsterPage: React.FC = () => {
   
   const [questsState, setQuestsState] = useState<Quest[]>([]);
   
-  // Handle authentication and fetch initial data
+  // Ref to prevent duplicate initializeApp calls
+  const hasInitializedRef = useRef(false);
+  
+  // Handle authentication and fetch initial data (only once)
   useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+    
     initializeApp({
       setIsLoading,
       setIsAuthenticated,
@@ -135,9 +141,10 @@ const HamsterPage: React.FC = () => {
           token: token
         });
         
-        socket.on('quest_updated', (data: any) => {
+        socket.on('quest_updated', async (data: any) => {
           console.log('Quest Update Received:', data);
-          initializeApp({
+          // Re-fetch quest data
+          await initializeApp({
             setIsLoading: () => {},
             setIsAuthenticated,
             setUser,
@@ -145,6 +152,8 @@ const HamsterPage: React.FC = () => {
             setQuestsState,
             setBackpackItems
           });
+          // Recheck for new quests to trigger Boss animation if new quest is a Boss
+          recheckQuests();
         });
         
         return () => {
@@ -211,7 +220,7 @@ const HamsterPage: React.FC = () => {
   // Coin flight handler removed - hamster users don't use coin animations
   
   // Use new quest notification hook (for hamsters, isHamster = true)
-  const { hasNewQuests, newQuestIds } = useNewQuestNotification(
+  const { hasNewQuests, newQuestIds, recheckQuests } = useNewQuestNotification(
     isAuthenticated,
     true // Hamsters are hamster users
   );
@@ -262,7 +271,7 @@ const HamsterPage: React.FC = () => {
     setShowImageUploadModal,
     setSelectedObjective,
     setUploadedImage,
-    setDescription,
+    setDescription: setObjectiveComment,
     setRewardAnimations,
     setUser,
     setSkills,
@@ -274,7 +283,7 @@ const HamsterPage: React.FC = () => {
     scrollPositionRef,
     selectedObjective,
     uploadedImage,
-    description,
+    description: objectiveComment,
     awardObjectiveReward,
     awardQuestRewards,
     applyPendingRewards: () => {},
