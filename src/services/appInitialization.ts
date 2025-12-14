@@ -8,6 +8,7 @@ import {
   extractSubQuestIdFromSubQuest
 } from '@/utils/questHelpers';
 import { mapApiSkillNameToDisplayName } from '@/utils/rewardHelpers';
+import { populateItemCache } from '@/utils/itemHelpers';
 
 interface InitializeAppParams {
   setIsLoading: (loading: boolean) => void;
@@ -616,6 +617,10 @@ export const initializeApp = async (params: InitializeAppParams) => {
     // Fetch inventory
     try {
       const inventory = await userAPI.getMyInventory();
+
+      // Populate item cache from inventory data (for use in quest rewards display)
+      populateItemCache(inventory);
+
       // Map backend inventory to frontend BackpackItem interface
       const mappedItems = inventory.map((inv: any, idx: number) => ({
         id: inv._id,

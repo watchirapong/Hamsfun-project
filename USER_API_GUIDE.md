@@ -157,7 +157,10 @@ This guide details the public API endpoints available for users and external app
 > - **PetItem:** **Swaps** the active pet. The current pet returns to inventory (saving progress), and the new pet becomes active (removed from inventory).
 > - **PetStatItem:** Boosts partner pet stats.
 > - **RobloxItem:** Can be redeemed in Roblox.
-> - **EggItem:** (**NEW**) Hatches a pet from the egg. Returns a new pet with random IVs (0-100) added to inventory.
+> - **EggItem:** Hatches a pet from the egg. Returns a new pet with random IVs (0-100) added to inventory. IVs use **bell curve distribution** where middle values (~50) are more common than extremes.
+
+> [!TIP]
+> **Pet IV Distribution:** IVs (0-100) use a bell curve distribution. Middle values (~40-60) are most common, while extreme values (0-10 or 90-100) are rare. This makes high-IV pets more valuable!
 
 ### 2.5 Generate Item Redeem Code
 **URL:** `POST /api/v1/users/me/inventory/redeem-code`

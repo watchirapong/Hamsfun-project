@@ -1,16 +1,47 @@
 import { itemAPI } from '@/lib/api';
 import { getAssetUrl } from './helpers';
 
-// Cache for item details to avoid repeated API calls
+// Cache for item details - populated from inventory data or other sources
 const itemCache = new Map<string, { name: string; icon: string; description?: string }>();
 
 /**
- * Fetches item details by ID and caches the result
+ * Populates the item cache from inventory data
+ * Call this after fetching inventory from /me or /inventory endpoint
+ * @param inventoryItems - Array of inventory items with populated itemId data
+ */
+export const populateItemCache = (inventoryItems: any[]): void => {
+  inventoryItems.forEach(inv => {
+    if (inv.itemId && typeof inv.itemId === 'object' && inv.itemId._id) {
+      const itemId = inv.itemId._id.toString();
+      if (!itemCache.has(itemId)) {
+        itemCache.set(itemId, {
+          name: inv.itemId.name || 'Item',
+          icon: inv.itemId.icon || '',
+          description: inv.itemId.description
+        });
+      }
+    }
+  });
+};
+
+/**
+ * Adds a single item to the cache
  * @param itemId - The item ID
- * @returns Item details with name and icon
+ * @param itemData - Item details (name, icon, description)
+ */
+export const addItemToCache = (itemId: string, itemData: { name: string; icon: string; description?: string }): void => {
+  if (!itemCache.has(itemId)) {
+    itemCache.set(itemId, itemData);
+  }
+};
+
+/**
+ * Gets item details from cache (no API call)
+ * @param itemId - The item ID
+ * @returns Item details with name and icon from cache, or null if not found
  */
 export const getItemDetails = async (itemId: string): Promise<{ name: string; icon: string; description?: string } | null> => {
-  // Check cache first
+  // Only return from cache - no individual API calls
   if (itemCache.has(itemId)) {
     return itemCache.get(itemId)!;
   }
@@ -40,21 +71,23 @@ export const getItemDetails = async (itemId: string): Promise<{ name: string; ic
 };
 
 /**
- * Fetches multiple item details at once
+ * Gets item details from cache synchronously
+ * @param itemId - The item ID
+ * @returns Item details with name and icon from cache, or null if not found
+ */
+export const getItemDetailsSync = (itemId: string): { name: string; icon: string; description?: string } | null => {
+  return itemCache.get(itemId) || null;
+};
+
+/**
+ * Gets multiple item details from cache
  * @param itemIds - Array of item IDs
- * @returns Map of itemId to item details
+ * @returns Map of itemId to item details (only items found in cache)
  */
 export const getItemDetailsBatch = async (itemIds: string[]): Promise<Map<string, { name: string; icon: string; description?: string }>> => {
   const results = new Map<string, { name: string; icon: string; description?: string }>();
 
-  // Filter out already cached items
-  const uncachedIds = itemIds.filter(id => !itemCache.has(id));
-
-  // Fetch all uncached items in parallel
-  const promises = uncachedIds.map(id => getItemDetails(id));
-  await Promise.all(promises);
-
-  // Collect results from cache
+  // Collect results from cache only
   itemIds.forEach(id => {
     if (itemCache.has(id)) {
       results.set(id, itemCache.get(id)!);
@@ -62,6 +95,13 @@ export const getItemDetailsBatch = async (itemIds: string[]): Promise<Map<string
   });
 
   return results;
+};
+
+/**
+ * Clears the item cache (useful for testing or cache invalidation)
+ */
+export const clearItemCache = (): void => {
+  itemCache.clear();
 };
 
 /**
