@@ -54,14 +54,12 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               }}
             />
             
-            {/* Pet Level Badge - Only show if user has a pet */}
+            {/* Pet Level - Bottom Right, Plain Black Text - Only show if user has a pet */}
             {user.petIcon && (
-              <div className={`absolute top-2 left-2 px-2.5 py-1 rounded-full text-xs font-bold shadow-lg ${
-                theme === 'dark' 
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' 
-                  : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+              <div className={`absolute bottom-5 right-5 text-xl font-medium ${
+                theme === 'dark' ? 'text-white' : 'text-black'
               }`}>
-                Lv. {user.petLevel}
+                Lv{user.petLevel}
               </div>
             )}
             

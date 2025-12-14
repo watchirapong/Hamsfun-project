@@ -189,7 +189,7 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
         onTouchStart={(e) => e.stopPropagation()}
       >
         {/* Header with Objective Name and Close Button */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200 dark:border-gray-700">
           <h2 className={`font-bold text-xl ${isDark ? 'text-white' : 'text-black'}`}>
             {objectiveName}
           </h2>
@@ -206,27 +206,74 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
         {/* Scrollable Content */}
         <div 
           ref={staticContentRef}
-          className="p-4 overflow-y-auto flex-1"
+          className="px-4 py-3 overflow-y-auto flex-1"
         >
           {/* Objective Description */}
-          <div className="mb-6">
-            <h4 className={`text-xs font-medium mb-3 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          <div className="mb-4">
+            <h4 className={`text-xs font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               Description
             </h4>
-            <p 
-              className={`text-base leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
-              style={{ whiteSpace: 'pre-line' }}
-            >
-              {objectiveDescription}
-            </p>
+            {(() => {
+              // Check if description contains "Output" keyword (case-insensitive)
+              const outputIndex = objectiveDescription.toLowerCase().indexOf('output');
+              const hasOutput = outputIndex !== -1;
+              
+              if (!hasOutput) {
+                // No Output section - render normally
+                return (
+                  <p 
+                    className={`text-base leading-relaxed ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
+                    style={{ whiteSpace: 'pre-line' }}
+                  >
+                    {objectiveDescription}
+                  </p>
+                );
+              }
+              
+              // Split description into two parts
+              const descriptionPart = objectiveDescription.substring(0, outputIndex).trim();
+              let outputPart = objectiveDescription.substring(outputIndex + 6).trim(); // +6 for "Output"
+              
+              // Remove leading colon, spaces, or line breaks from output part
+              outputPart = outputPart.replace(/^[: \n\r]+/, '');
+              
+              return (
+                <>
+                  {/* First Box - Description */}
+                  <p 
+                    className={`text-base leading-relaxed mb-4 ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
+                    style={{ whiteSpace: 'pre-line' }}
+                  >
+                    {descriptionPart}
+                  </p>
+                  
+                  {/* Output Label */}
+                  <h5 className={`text-xs font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Output
+                  </h5>
+                  
+                  {/* Second Box - Output Example */}
+                  <div 
+                    className={`rounded-lg p-3 ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'} border ${isDark ? 'border-gray-600' : 'border-gray-200'}`}
+                  >
+                    <p 
+                      className={`text-sm leading-relaxed font-mono ${isDark ? 'text-gray-200' : 'text-gray-800'}`}
+                      style={{ whiteSpace: 'pre-line' }}
+                    >
+                      {outputPart}
+                    </p>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Image Button and Comment Input Row */}
-          <div className="mb-4">
-            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+          <div className="mb-2">
+            <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Message(Optional)
             </label>
-            <div className="flex gap-3 items-start">
+            <div className="flex gap-1.5 items-start">
               {/* Image Button */}
               <button
                 onClick={() => handlePanelSwitch('image')}
@@ -239,10 +286,10 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
                     ? 'border-gray-600 bg-gray-700/50 hover:bg-gray-700'
                     : 'border-gray-300 bg-gray-50 hover:bg-gray-100'
                 }`}
-                style={{ width: '80px', height: '80px' }}
+                style={{ width: '47px', height: '47px' }}
               >
                 <ImageIcon 
-                  size={32} 
+                  size={24} 
                   className={activePanel === 'image' 
                     ? 'text-blue-500' 
                     : isDark ? 'text-gray-400' : 'text-gray-600'
@@ -261,8 +308,8 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
                   value={currentComment}
                   onChange={(e) => handleCommentChange(e.target.value)}
                   placeholder="send message..."
-                  rows={3}
-                  className={`w-full px-3 py-2 rounded-lg border text-sm resize-none transition-colors ${
+                  rows={2}
+                  className={`w-full px-3 py-0.5 rounded-lg border text-sm resize-none transition-colors ${
                     isDark
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400'
                       : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
@@ -275,7 +322,7 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
           {/* Animated Image Input Panel Container */}
           <div 
             ref={panelContainerRef}
-            className="relative mb-4 overflow-hidden transition-all duration-300 ease-in-out"
+            className="relative mb-3 overflow-hidden transition-all duration-300 ease-in-out"
             style={{
               height: `${panelContainerHeight}px`,
               minHeight: activePanel ? '0' : '0',
@@ -339,7 +386,7 @@ export const ObjectiveDetailPanel: React.FC<ObjectiveDetailPanelProps> = ({
         </div>
 
         {/* Submit Button */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
           <button
             onClick={onSubmit}
             disabled={!canSubmit}

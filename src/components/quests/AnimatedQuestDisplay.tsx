@@ -154,11 +154,11 @@ export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
     };
   }, [mainQuest]);
 
-  // Handle Boss quest reveal start (during reveal phase)
+  // Handle Boss quest reveal start (immediately after intro completes)
   const handleBossRevealStart = () => {
     const firstQuest = filteredQuests[0];
     if (firstQuest && firstQuest.type === "Boss") {
-      // Start showing Boss quest card (morphing from dark box)
+      // Show Boss quest card immediately
       setMainQuest(firstQuest);
       setShouldShowBossQuest(true);
     }
@@ -168,7 +168,7 @@ export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
   const handleBossCinematicComplete = () => {
     setIsBossRevealing(false);
     setShowBossCinematic(false);
-    // Ensure Boss Quest is visible after cinematic
+    // Ensure Boss Quest is visible and clickable after cinematic
     const firstQuest = filteredQuests[0];
     if (firstQuest && firstQuest.type === "Boss") {
       setMainQuest(firstQuest);
@@ -176,6 +176,9 @@ export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
     }
     onBossCinematicChange?.(false); // Notify parent to show notifications again
   };
+
+  // Make Boss Quest clickable after intro completes (when glow starts)
+  const isBossClickable = mainQuest?.type === "Boss" && shouldShowBossQuest && !showBossCinematic;
 
   // Get quest slot position for cinematic
   const questSlotPosition = containerRef.current
@@ -274,26 +277,66 @@ export const AnimatedQuestDisplay: React.FC<AnimatedQuestDisplayProps> = ({
                 opacity: (mainQuest.type === "Boss" && showBossCinematic && !shouldShowBossQuest) ? 0 : 1,
               }}
             >
-              {/* Boss Quest morph animation during reveal phase */}
+              {/* Boss Quest with dark red glow effect */}
               {mainQuest.type === "Boss" && shouldShowBossQuest ? (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95, filter: 'brightness(0.2)' }}
-                  animate={{
-                    opacity: [0, 0.5, 1],
-                    scale: [0.95, 1, 1],
-                    filter: ['brightness(0.2)', 'brightness(0.6)', 'brightness(1)'],
-                  }}
-                  transition={{
-                    duration: 1.2,
-                    times: [0, 0.5, 1],
-                    ease: 'easeOut',
-                  }}
+                  className="relative"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  <QuestCard 
-                    quest={mainQuest} 
-                    onQuestClick={(showBossCinematic || isBossRevealing) ? () => {} : onQuestClick}
-                    theme={theme}
+                  {/* Dark Red Glow Effect - Pulses then fades out */}
+                  <motion.div
+                    className="absolute inset-0 rounded-xl pointer-events-none"
+                    initial={{ opacity: 0 }}
+                    animate={{
+                      opacity: [0, 0.8, 0.6, 0.4, 0],
+                      scale: [1, 1.05, 1.02, 1.05, 1.1],
+                    }}
+                    transition={{
+                      duration: 2,
+                      times: [0, 0.2, 0.4, 0.6, 1],
+                      ease: 'easeInOut',
+                    }}
+                    style={{
+                      background: theme === 'dark'
+                        ? 'radial-gradient(ellipse at center, rgba(139, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.8) 50%, transparent 100%)'
+                        : 'radial-gradient(ellipse at center, rgba(139, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.6) 50%, transparent 100%)',
+                      boxShadow: theme === 'dark'
+                        ? '0 0 60px rgba(139, 0, 0, 0.8), 0 0 100px rgba(0, 0, 0, 0.6), inset 0 0 40px rgba(139, 0, 0, 0.3)'
+                        : '0 0 60px rgba(139, 0, 0, 0.6), 0 0 100px rgba(0, 0, 0, 0.4), inset 0 0 40px rgba(139, 0, 0, 0.2)',
+                      filter: 'blur(2px)',
+                      zIndex: -1,
+                      margin: '-10px',
+                    }}
                   />
+                  {/* Additional outer glow layer for more intensity */}
+                  <motion.div
+                    className="absolute inset-0 rounded-xl pointer-events-none"
+                    initial={{ opacity: 0 }}
+                    animate={{
+                      opacity: [0, 0.5, 0.3, 0],
+                    }}
+                    transition={{
+                      duration: 2,
+                      times: [0, 0.3, 0.6, 1],
+                      ease: 'easeInOut',
+                    }}
+                    style={{
+                      background: 'radial-gradient(ellipse at center, transparent 0%, rgba(139, 0, 0, 0.3) 40%, transparent 100%)',
+                      boxShadow: '0 0 80px rgba(139, 0, 0, 0.5)',
+                      filter: 'blur(4px)',
+                      zIndex: -2,
+                      margin: '-20px',
+                    }}
+                  />
+                  <div className="relative z-10">
+                    <QuestCard 
+                      quest={mainQuest} 
+                      onQuestClick={isBossClickable ? onQuestClick : () => {}}
+                      theme={theme}
+                    />
+                  </div>
                 </motion.div>
               ) : (
                 <QuestCard 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAssetUrl } from '@/utils/helpers';
 
@@ -12,7 +12,7 @@ interface BossArrivalCinematicProps {
   theme: 'light' | 'dark';
 }
 
-type CinematicPhase = 'fade-to-black' | 'demon-in' | 'demon-out' | 'fade-to-ui' | 'fog' | 'dark-placeholder' | 'reveal' | 'complete';
+type CinematicPhase = 'fade-to-black' | 'demon-in' | 'demon-out' | 'fade-to-ui' | 'complete';
 
 export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
   isActive,
@@ -22,24 +22,16 @@ export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
   theme,
 }) => {
   const [phase, setPhase] = useState<CinematicPhase>('fade-to-black');
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number | null>(null);
-  const fogStartTimeRef = useRef<number | null>(null);
-  const particlesRef = useRef<Array<{
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    size: number;
-    opacity: number;
-  }>>([]);
+  const [introCompleted, setIntroCompleted] = useState<boolean>(false);
 
   // Reset phase when cinematic starts
   useEffect(() => {
     if (isActive) {
       setPhase('fade-to-black');
-      particlesRef.current = [];
-      fogStartTimeRef.current = null;
+      setIntroCompleted(false); // Reset intro flag
+    } else {
+      // Reset when cinematic is inactive
+      setIntroCompleted(false);
     }
   }, [isActive]);
 
@@ -64,213 +56,39 @@ export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
       setPhase('fade-to-ui');
     }, 800 + 1200 + 1000));
 
-    // Step 4: Fade back to normal UI (600ms)
+    // Step 4: Fade back to normal UI (600ms) - then immediately show quest
     timeouts.push(setTimeout(() => {
-      setPhase('fog');
-      fogStartTimeRef.current = Date.now(); // Track when fog phase starts
+      setIntroCompleted(true); // Mark intro as completed - never show black overlay again
+      // Trigger quest appearance immediately after intro completes
+      onRevealStart?.();
     }, 800 + 1200 + 1000 + 600));
 
-    // Step 5: Fog pause (500ms) + rush to quest (1800ms) = 2300ms total
-    // When fog has almost fully gathered, show dark placeholder
-    timeouts.push(setTimeout(() => {
-      setPhase('dark-placeholder');
-    }, 800 + 1200 + 1000 + 600 + 2300));
-
-    // Step 6: Morph dark placeholder into Boss Quest (1200ms)
-    timeouts.push(setTimeout(() => {
-      setPhase('reveal');
-      // Trigger quest appearance when reveal phase starts
-      onRevealStart?.();
-    }, 800 + 1200 + 1000 + 600 + 2300 + 1200));
-
-    // Step 7: Quest fully revealed and fog disperses (1000ms)
+    // Step 5: Complete cinematic after brief delay (allow glow to start)
     timeouts.push(setTimeout(() => {
       setPhase('complete');
       setTimeout(() => {
         onComplete();
-      }, 500);
-    }, 800 + 1200 + 1000 + 600 + 2300 + 1200 + 1000));
+      }, 300);
+    }, 800 + 1200 + 1000 + 600 + 300));
 
     return () => {
       timeouts.forEach(timeout => clearTimeout(timeout));
     };
   }, [isActive, onComplete, onRevealStart]);
 
-  // Fog particle animation
-  useEffect(() => {
-    if (phase !== 'fog' && phase !== 'dark-placeholder' && phase !== 'reveal') {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Set canvas size
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    // Get main page container bounds (phone-sized centered container)
-    // Typically max-width 428px, centered horizontally
-    const mainContainerWidth = 428;
-    const mainContainerLeft = (canvas.width - mainContainerWidth) / 2;
-    const mainContainerRight = mainContainerLeft + mainContainerWidth;
-    const mainContainerTop = 0;
-    const mainContainerBottom = canvas.height;
-
-    // Initialize particles (only once) - random sizes and positions within main page area
-    if (particlesRef.current.length === 0) {
-      const particleCount = 500; // Higher density for more dramatic effect
-      
-      for (let i = 0; i < particleCount; i++) {
-        // Random size distribution: 50% small, 35% medium, 15% large
-        const sizeRand = Math.random();
-        let size: number;
-        if (sizeRand < 0.5) {
-          // Small particles
-          size = Math.random() * 2 + 1.5;
-        } else if (sizeRand < 0.85) {
-          // Medium particles
-          size = Math.random() * 3 + 3.5;
-        } else {
-          // Large particles
-          size = Math.random() * 4 + 6.5;
-        }
-        
-        // Spawn within main page container bounds
-        particlesRef.current.push({
-          x: mainContainerLeft + Math.random() * mainContainerWidth,
-          y: mainContainerTop + Math.random() * (mainContainerBottom - mainContainerTop),
-          vx: (Math.random() - 0.5) * 0.2, // Slow initial velocity for pause
-          vy: (Math.random() - 0.5) * 0.2,
-          size: size,
-          opacity: Math.random() * 0.6 + 0.4,
-        });
-      }
-    }
-
-    const centerX = questSlotPosition 
-      ? questSlotPosition.left + questSlotPosition.width / 2 
-      : canvas.width / 2;
-    const centerY = questSlotPosition 
-      ? questSlotPosition.top + 50 
-      : canvas.height / 2;
-
-    const animate = () => {
-      // Clear canvas - don't draw black background, let UI show through
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Calculate time since fog phase started
-      const currentTime = Date.now();
-      const timeSinceFogStart = fogStartTimeRef.current 
-        ? (currentTime - fogStartTimeRef.current) / 1000 
-        : 0;
-      const pauseDuration = 0.5; // 500ms pause
-      const isPaused = timeSinceFogStart < pauseDuration;
-      const isRushing = timeSinceFogStart >= pauseDuration;
-      
-      particlesRef.current.forEach((particle) => {
-        // Calculate distance to quest position
-        const dx = centerX - particle.x;
-        const dy = centerY - particle.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx);
-        
-        if (isPaused) {
-          // Pause phase: particles hover with minimal random drift
-          const driftX = (Math.random() - 0.5) * 0.15;
-          const driftY = (Math.random() - 0.5) * 0.15;
-          particle.vx += driftX;
-          particle.vy += driftY;
-          
-          // Strong damping to keep particles mostly still
-          particle.vx *= 0.85;
-          particle.vy *= 0.85;
-        } else if (isRushing) {
-          // Rush phase: aggressive pull toward quest position
-          let pullStrength = 0.035; // Much stronger pull
-          let rotationStrength = 0.15; // Faster rotation
-          
-          // Even stronger during dark-placeholder and reveal phases
-          if (phase === 'dark-placeholder') {
-            pullStrength = 0.045;
-            rotationStrength = 0.18;
-          } else if (phase === 'reveal') {
-            pullStrength = 0.05;
-            rotationStrength = 0.2;
-          }
-          
-          // Strong pull toward quest position
-          const pullForce = Math.min(distance * pullStrength, 8); // Higher max force
-          particle.vx += Math.cos(angle) * pullForce;
-          particle.vy += Math.sin(angle) * pullForce;
-          
-          // Aggressive vortex rotation
-          const rotationForce = rotationStrength * (1 + distance / 300);
-          particle.vx += -Math.sin(angle) * rotationForce;
-          particle.vy += Math.cos(angle) * rotationForce;
-          
-          // Less damping for faster motion
-          particle.vx *= 0.98;
-          particle.vy *= 0.98;
-        }
-        
-        // Update position
-        particle.x += particle.vx;
-        particle.y += particle.vy;
-        
-        // During dark-placeholder and reveal phases, particles fade out as they reach center
-        if (phase === 'dark-placeholder' || phase === 'reveal') {
-          if (distance < 120) {
-            particle.opacity = Math.max(0, particle.opacity - 0.05);
-          }
-        }
-        
-        // Draw particle with enhanced dark glow (semi-transparent so UI shows through)
-        ctx.save();
-        ctx.globalAlpha = particle.opacity;
-        ctx.shadowBlur = 25;
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-        ctx.fillStyle = 'rgba(15, 15, 15, 0.9)';
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      });
-
-      animationFrameRef.current = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      window.removeEventListener('resize', resizeCanvas);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [phase, questSlotPosition]);
 
   if (!isActive) return null;
 
-  // Block interactions during cinematic, allow after reveal phase
-  const shouldBlockInteractions = phase !== 'complete';
+  // Block interactions only during intro cinematic
+  const shouldBlockInteractions = !introCompleted;
 
   return (
     <div className={`fixed inset-0 z-[9999] ${shouldBlockInteractions ? 'pointer-events-auto' : 'pointer-events-none'}`}>
-      {/* Step 1: Smooth Fade to Black */}
+      {/* Step 1: Smooth Fade to Black - ONLY show during intro phases, never again after intro completes */}
       <AnimatePresence>
-        {(phase === 'fade-to-black' || phase === 'demon-in' || phase === 'demon-out' || phase === 'fade-to-ui') && (
+        {!introCompleted && (phase === 'fade-to-black' || phase === 'demon-in' || phase === 'demon-out' || phase === 'fade-to-ui') && (
           <motion.div
+            key="intro-black-overlay"
             initial={{ opacity: 0 }}
             animate={{ 
               opacity: phase === 'fade-to-ui' ? 0 : 1 
@@ -356,140 +174,6 @@ export const BossArrivalCinematic: React.FC<BossArrivalCinematicProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Step 4-7: Dark Fog Canvas - Visible on Normal UI */}
-      {(phase === 'fog' || phase === 'dark-placeholder' || phase === 'reveal') && (
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0"
-          style={{ pointerEvents: 'none' }}
-        />
-      )}
-
-      {/* Step 3: Dark Quest Placeholder - Solid Black Box */}
-      {(phase === 'dark-placeholder' || phase === 'reveal') && questSlotPosition && (
-        <motion.div
-          initial={phase === 'dark-placeholder' ? { opacity: 0, scale: 0.95 } : { opacity: 1, scale: 1 }}
-          animate={phase === 'dark-placeholder' ? {
-            opacity: 1,
-            scale: 1,
-          } : {
-            opacity: [1, 1, 0],
-            scale: [1, 1.02, 1.05],
-          }}
-          transition={phase === 'dark-placeholder' ? {
-            duration: 0.3,
-            ease: 'easeOut',
-          } : {
-            duration: 1.2,
-            times: [0, 0.5, 1],
-            ease: 'easeInOut',
-          }}
-          className="absolute rounded-xl"
-          style={{
-            top: questSlotPosition.top,
-            left: questSlotPosition.left,
-            width: questSlotPosition.width,
-            height: '180px',
-            background: phase === 'dark-placeholder'
-              ? 'linear-gradient(135deg, rgba(0, 0, 0, 1) 0%, rgba(10, 10, 10, 0.98) 100%)'
-              : 'linear-gradient(135deg, rgba(139, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.98) 100%)',
-            border: phase === 'dark-placeholder'
-              ? '2px solid rgba(0, 0, 0, 0.9)'
-              : '2px solid rgba(139, 0, 0, 0.8)',
-            boxShadow: phase === 'dark-placeholder'
-              ? '0 0 30px rgba(0, 0, 0, 1), inset 0 0 20px rgba(0, 0, 0, 0.8)'
-              : '0 0 40px rgba(139, 0, 0, 0.6), inset 0 0 30px rgba(0, 0, 0, 0.8)',
-            pointerEvents: 'none',
-            zIndex: 10000, // Above fog canvas, below cinematic overlay
-          }}
-        >
-          {/* Cursed/sealed effect - pulsing during dark-placeholder */}
-          {phase === 'dark-placeholder' && (
-            <motion.div
-              className="absolute inset-0 rounded-xl"
-              animate={{
-                opacity: [0.3, 0.6, 0.3],
-              }}
-              transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-              style={{
-                background: 'radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.6) 100%)',
-              }}
-            />
-          )}
-          {/* Red glow emerging during reveal */}
-          {phase === 'reveal' && (
-            <motion.div
-              className="absolute inset-0 rounded-xl"
-              animate={{
-                opacity: [0, 0.4, 0.6, 0.3],
-              }}
-              transition={{
-                duration: 1.2,
-                times: [0, 0.3, 0.6, 1],
-              }}
-              style={{
-                background: 'radial-gradient(ellipse at center, rgba(139, 0, 0, 0.5) 0%, transparent 70%)',
-              }}
-            />
-          )}
-        </motion.div>
-      )}
-
-      {/* Step 4: Quest Reveal - Dark Fog Silhouette Effect (fading out) */}
-      {phase === 'reveal' && questSlotPosition && (
-        <>
-          {/* Dark smoke shadow covering quest */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ 
-              opacity: [0, 1, 1, 0.3, 0],
-              scale: [0.8, 1, 1, 1, 1.1],
-            }}
-            transition={{ 
-              duration: 1.5, 
-              times: [0, 0.2, 0.5, 0.8, 1],
-              ease: 'easeInOut',
-            }}
-            className="absolute"
-            style={{
-              top: questSlotPosition.top - 30,
-              left: questSlotPosition.left - 30,
-              width: questSlotPosition.width + 60,
-              height: '240px',
-              background: 'radial-gradient(ellipse, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.7) 50%, transparent 100%)',
-              pointerEvents: 'none',
-              borderRadius: '1rem',
-            }}
-          />
-          {/* Additional swirling fog effect */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ 
-              opacity: [0, 0.6, 0.4, 0],
-              rotate: [0, 180, 360],
-            }}
-            transition={{ 
-              duration: 1.5,
-              times: [0, 0.3, 0.7, 1],
-            }}
-            className="absolute"
-            style={{
-              top: questSlotPosition.top - 40,
-              left: questSlotPosition.left - 40,
-              width: questSlotPosition.width + 80,
-              height: '260px',
-              background: 'radial-gradient(ellipse, rgba(20, 20, 20, 0.8) 0%, transparent 80%)',
-              pointerEvents: 'none',
-              borderRadius: '1rem',
-            }}
-          />
-        </>
-      )}
     </div>
   );
 };

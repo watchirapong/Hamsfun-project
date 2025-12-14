@@ -175,8 +175,8 @@ export default function ProfilePage() {
 
         {/* Profile Content */}
         <div className="px-4 py-4">
-          {/* Top User Info Bar (Top-Left) */}
-          <div className="flex items-center gap-3 mb-4">
+          {/* Top User Info Bar (Top-Left) - Card Style */}
+          <div className={`flex items-center w-[220px] gap-3 mb-4 rounded-xl p-3 shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             {/* Avatar */}
             <div className="flex-shrink-0">
               <img
@@ -200,38 +200,32 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Pet Display Section (Center Top) */}
-          <div className={`rounded-xl p-4 shadow-sm mb-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
-            <div className="relative flex items-center justify-center" style={{ minHeight: '200px' }}>
-              <img 
-                src={petIcon ? getItemIconUrl(petIcon) : getAssetUrl("/Asset/pets/whothatpet.png")} 
-                alt="Pet" 
-                className="w-full h-auto object-contain max-w-full" 
-                style={{ maxHeight: '200px' }}
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  const fallbackUrl = getAssetUrl("/Asset/pets/dog.png");
-                  if (target.src !== fallbackUrl) {
-                    target.src = fallbackUrl;
-                  }
-                }}
-              />
-              
-              {/* Pet Level Badge */}
-              {petLevel > 0 && (
-                <div className={`absolute top-2 left-2 px-2.5 py-1 rounded-full text-xs font-bold shadow-lg ${
-                  isDark 
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' 
-                    : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                }`}>
-                  Lv{petLevel}
-                </div>
-              )}
-            </div>
+          {/* Pet Display Section (Center Top) - Free Floating */}
+          <div className="relative flex items-center justify-center mb-4" style={{ minHeight: '200px' }}>
+            <img 
+              src={petIcon ? getItemIconUrl(petIcon) : getAssetUrl("/Asset/pets/whothatpet.png")} 
+              alt="Pet" 
+              className="w-full h-auto object-contain max-w-full" 
+              style={{ maxHeight: '200px' }}
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                const fallbackUrl = getAssetUrl("/Asset/pets/dog.png");
+                if (target.src !== fallbackUrl) {
+                  target.src = fallbackUrl;
+                }
+              }}
+            />
+            
+            {/* Pet Level - Bottom Right, Plain Black Text */}
+            {petLevel > 0 && (
+              <div className={`absolute bottom-0 right-20 text-xl font-medium ${isDark ? 'text-white' : 'text-black'}`}>
+                Lv{petLevel}
+              </div>
+            )}
           </div>
 
-          {/* Rank & Badge Bar (Below Pet) */}
-          <div className={`rounded-xl p-4 shadow-sm ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+          {/* Rank & Badge Bar (Below Pet) - Card Style */}
+          <div className={`rounded-xl p-4 shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
             <div className="flex items-start gap-6">
               {/* Left Side - Rank */}
               <div className="flex flex-col items-center flex-shrink-0">
