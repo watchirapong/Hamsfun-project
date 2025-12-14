@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { userAPI } from '@/lib/api';
 import { useTheme } from '@/hooks/useTheme';
 import { ArrowLeft } from 'lucide-react';
-import { getAssetUrl, getItemIconUrl, getRankIconPath, getBadgeIconPath } from '@/utils/helpers';
+import { getAssetUrl, getRankIconPath, getBadgeIconPath } from '@/utils/helpers';
+import { getItemIconUrl } from '@/utils/itemHelpers';
 import { mapApiSkillNameToDisplayName } from '@/utils/rewardHelpers';
 import LoadingScreen from '@/components/common/LoadingScreen';
 
