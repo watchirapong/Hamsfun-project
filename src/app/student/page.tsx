@@ -19,6 +19,7 @@ import { HouseLeaderboardItemComponent } from '@/components/leaderboard/HouseLea
 import { BackpackItemComponent } from '@/components/items/BackpackItem';
 import { ObjectiveDetailPanel } from '@/components/quests/ObjectiveDetailPanel';
 import { ItemsOverlay } from '@/components/items/ItemsOverlay';
+import { EggHatchCinematic } from '@/components/items/EggHatchCinematic';
 import { SettingsOverlay } from '@/components/common/SettingsOverlay';
 import { QuestListOverlay } from '@/components/quests/QuestListOverlay';
 import { BadgeOverlay } from '@/components/skills/BadgeOverlay';
@@ -119,6 +120,31 @@ const StudentPage: React.FC = () => {
   }, [setUser]);
 
   const { backpackItems, setBackpackItems, handleUseItem, handleDeleteItem } = useItems(handlePetEquipped);
+  
+  // Egg hatching animation state (declared early for use in callbacks)
+  const [isEggHatchActive, setIsEggHatchActive] = useState(false);
+  const [hatchedPet, setHatchedPet] = useState<{ name: string; icon?: string } | null>(null);
+  
+  // Wrapper for handleUseItem to handle egg hatching animation
+  const handleUseItemWithAnimation = useCallback(async (itemId: string) => {
+    // Prevent double-triggering if animation is already active
+    if (isEggHatchActive) {
+      return null;
+    }
+    
+    const item = backpackItems.find(i => i.id === itemId);
+    const isEggItem = item?.type === 'EggItem';
+    
+    const result = await handleUseItem(itemId);
+    
+    // If it's an egg item and we got hatched pet data, trigger animation
+    if (isEggItem && result?.hatchedPet) {
+      setHatchedPet(result.hatchedPet);
+      setIsEggHatchActive(true);
+    }
+    
+    return result;
+  }, [backpackItems, handleUseItem, isEggHatchActive]);
   
   // Ref to prevent duplicate reward awarding
   const processingObjectives = useRef<Set<string>>(new Set());
@@ -628,7 +654,7 @@ const StudentPage: React.FC = () => {
               <BackpackItemComponent 
                 key={item.id} 
                 item={item} 
-                onUse={handleUseItem} 
+                onUse={handleUseItemWithAnimation} 
                 onDelete={handleDeleteItem} 
                 theme={theme}
               />
@@ -663,10 +689,21 @@ const StudentPage: React.FC = () => {
               items={backpackItems}
               theme={theme}
               onClose={() => setShowItemsOverlay(false)}
-              onUseItem={handleUseItem}
+              onUseItem={handleUseItemWithAnimation}
               onDeleteItem={handleDeleteItem}
             />
           )}
+          
+          {/* Egg Hatching Cinematic */}
+          <EggHatchCinematic
+            isActive={isEggHatchActive}
+            onComplete={() => {
+              setIsEggHatchActive(false);
+              setHatchedPet(null);
+            }}
+            hatchedPet={hatchedPet}
+            theme={theme}
+          />
           
           {showBadgeOverlay && (
             <BadgeOverlay

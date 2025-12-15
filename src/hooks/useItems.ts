@@ -40,15 +40,16 @@ export const useItems = (onPetEquipped?: () => void) => {
   const [backpackItems, setBackpackItems] = useState<BackpackItem[]>([]);
 
   // Handle item usage - only 1 used item at a time across all types
-  const handleUseItem = async (itemId: string) => {
+  const handleUseItem = async (itemId: string): Promise<{ hatchedPet?: { name: string; icon?: string } } | null> => {
     const item = backpackItems.find(i => i.id === itemId);
-    if (!item) return;
+    if (!item) return null;
 
-    // Check if this is a pet item before making the API call
+    // Check if this is a pet item or egg item before making the API call
     const isPetItem = item.type === 'PetItem';
+    const isEggItem = item.type === 'EggItem';
 
     try {
-      await userAPI.useItem(itemId);
+      const response = await userAPI.useItem(itemId) as any;
 
       // Update local state
       setBackpackItems(prevItems => {
@@ -82,9 +83,41 @@ export const useItems = (onPetEquipped?: () => void) => {
       if (isPetItem && onPetEquipped) {
         onPetEquipped();
       }
+
+      // If it's an egg item, extract hatched pet data from response or inventory
+      if (isEggItem) {
+        let hatchedPet: { name: string; icon?: string } | undefined;
+
+        // Try to get pet from API response first
+        if (response?.pet || response?.hatchedPet) {
+          const petData = response.pet || response.hatchedPet;
+          hatchedPet = {
+            name: petData.name || petData.itemId?.name || 'Unknown Pet',
+            icon: petData.icon || petData.itemId?.icon,
+          };
+        } else {
+          // Fallback: find the newly added pet in inventory (first Pet item that wasn't there before)
+          const previousPetIds = new Set(backpackItems.filter(i => i.type === 'PetItem').map(i => i.id));
+          const newPet = inventory.find((inv: any) => 
+            inv.itemId?.type === 'Pet' && !previousPetIds.has(inv._id)
+          );
+          
+          if (newPet) {
+            hatchedPet = {
+              name: newPet.itemId?.name || 'Unknown Pet',
+              icon: newPet.itemId?.icon,
+            };
+          }
+        }
+
+        return { hatchedPet: hatchedPet || { name: 'Unknown Pet' } };
+      }
+
+      return null;
     } catch (error) {
       console.error('Error using item:', error);
       alert('Failed to use item. Please try again.');
+      return null;
     }
   };
 

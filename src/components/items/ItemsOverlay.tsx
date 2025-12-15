@@ -10,7 +10,7 @@ interface ItemsOverlayProps {
   items: BackpackItemType[];
   theme: 'light' | 'dark';
   onClose: () => void;
-  onUseItem: (itemId: string) => void;
+  onUseItem: (itemId: string) => Promise<{ hatchedPet?: { name: string; icon?: string } } | null>;
   onDeleteItem: (itemId: string) => void;
 }
 
@@ -445,7 +445,13 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
                   )}
                   {!expired && !isUsed && item.type !== 'NormalItem' && (
                     <button
-                      onClick={() => onUseItem(item.id)}
+                      onClick={async () => {
+                        const result = await onUseItem(item.id);
+                        // Auto-close if it's an egg item (hatched pet will trigger animation)
+                        if (result?.hatchedPet) {
+                          handleClose();
+                        }
+                      }}
                       className="px-3 py-1.5 bg-blue-500 text-white text-xs font-semibold rounded-lg hover:bg-blue-600 transition-colors"
                     >
                       Use
