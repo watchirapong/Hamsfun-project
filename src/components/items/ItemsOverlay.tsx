@@ -369,7 +369,7 @@ export const ItemsOverlay: React.FC<ItemsOverlayProps> = ({
     >
       <div 
         ref={panelRef}
-        className={`w-full max-w-md rounded-t-xl shadow-lg pb-20 transition-colors ${
+        className={`w-full max-w-md max-h-[calc(100vh-112px)] rounded-t-xl shadow-lg pb-20 transition-colors ${
           (isOpening || (!isDragging && dragY === 0 && !isAnimating && !isClosing)) ? 'animate-slide-up' : ''
         } ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}

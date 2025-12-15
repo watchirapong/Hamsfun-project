@@ -226,5 +226,9 @@ export const hamsterAPI = {
   // Submit MemberQuest directly (when MemberQuest has NO SubQuests)
   submitMemberQuest: (teamQuestId: string, mqId: string, formData: FormData) =>
     apiCallMultipart(`/api/v1/hamsters/team-quests/${teamQuestId}/member-quests/${mqId}/submit`, formData),
+
+  // Submit Hamster Quest (New 2024-12-15) - Unified endpoint
+  submitHamsterQuest: (questId: string, formData: FormData) =>
+    apiCallMultipart(`/api/v1/hamster/quests/${questId}/submit`, formData),
 };
 

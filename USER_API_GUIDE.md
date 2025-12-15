@@ -356,6 +356,9 @@ This guide details the public API endpoints available for users and external app
 | `subQuestId` | String | No | ID of sub-quest (if submitting sub-quest) |
 | `imageProof` | File | No | Proof image |
 
+> [!TIP]
+> **Auto Approve Submissions:** When a Quest has `autoApprove: true`, submissions will be automatically approved without requiring Star Master review. Rewards are granted immediately upon submission.
+
 ---
 
 ## 5. Leaderboard
@@ -433,9 +436,36 @@ Emitted when a quest submission is reviewed (Approved/Rejected).
   "status": "Approved",
   "questId": "65672...",
   "submissionId": "65673...",
-  "reason": "Feedback message (if rejected)"
+  "reason": "Feedback message (if rejected)",
+  "grantedRewards": {
+    "coins": 500,
+    "rankPoints": 100,
+    "leaderboardScore": 50,
+    "badgePoints": { "GameDesign": 200 },
+    "items": [
+      { "name": "Golden Sword", "quantity": 1, "type": "Equipment" }
+    ],
+    "petExp": 150,
+    "petLevelUps": [{ "level": 5 }],
+    "balls": 10
+  }
 }
 ```
+
+**grantedRewards Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `coins` | Number | Amount of Coins granted |
+| `rankPoints` | Number | Amount of Rank Points granted |
+| `leaderboardScore` | Number | Amount of Leaderboard Score granted |
+| `badgePoints` | Object | Badge Points by category |
+| `items` | Array | Items granted `[{ name, quantity, type }]` |
+| `petExp` | Number | Pet EXP granted (optional) |
+| `petLevelUps` | Array | Level ups that occurred (optional) |
+| `balls` | Number | Balls granted - Hamster only (optional) |
+
+> [!NOTE]
+> `grantedRewards` will be `null` if Rejected or no rewards were granted.
 
 #### `unity_login_code`
 Emitted to the Unity client after requesting a login.

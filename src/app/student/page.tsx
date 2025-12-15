@@ -14,6 +14,7 @@ import { RewardAnimation } from '@/components/common/RewardAnimation';
 import { RewardNotificationContainer } from '@/components/common/RewardNotification';
 import { CoinFlightAnimation, CoinFlightInstance } from '@/components/common/CoinFlightAnimation';
 import { QuestNotificationContainer, QuestNotificationData } from '@/components/common/QuestNotification';
+import { RewardClaimModal, RewardData } from '@/components/quests/RewardClaimModal';
 import { HouseLeaderboardItemComponent } from '@/components/leaderboard/HouseLeaderboardItem';
 import { BackpackItemComponent } from '@/components/items/BackpackItem';
 import { ObjectiveDetailPanel } from '@/components/quests/ObjectiveDetailPanel';
@@ -142,6 +143,16 @@ const StudentPage: React.FC = () => {
   const [isBossCinematicActive, setIsBossCinematicActive] = useState(false);
   
   const [questsState, setQuestsState] = useState<Quest[]>([]);
+  const questsStateRef = useRef<Quest[]>([]); // Ref to access latest state in socket listeners
+
+  // Sync ref with state
+  useEffect(() => {
+    questsStateRef.current = questsState;
+  }, [questsState]);
+  
+  // Reward Modal State
+  const [rewardModalOpen, setRewardModalOpen] = useState(false);
+  const [rewardModalRewards, setRewardModalRewards] = useState<RewardData[]>([]);
   
   // Ref to prevent duplicate initializeApp calls
   const hasInitializedRef = useRef(false);
@@ -174,6 +185,42 @@ const StudentPage: React.FC = () => {
         
         socket.on('quest_updated', async (data: any) => {
           console.log('Quest Update Received:', data);
+          
+          // Check for granted rewards to show modal
+          if (data.status === 'Approved' && data.grantedRewards) {
+              const rewards: RewardData[] = [];
+              const { grantedRewards } = data;
+              
+              if (grantedRewards.coins) rewards.push({ type: 'coins', value: grantedRewards.coins });
+              if (grantedRewards.rankPoints) rewards.push({ type: 'rank', value: grantedRewards.rankPoints });
+              if (grantedRewards.leaderboardScore) rewards.push({ type: 'leaderboard', value: grantedRewards.leaderboardScore });
+              if (grantedRewards.petExp) rewards.push({ type: 'petExp', value: grantedRewards.petExp });
+              
+              if (grantedRewards.items && Array.isArray(grantedRewards.items)) {
+                  grantedRewards.items.forEach((item: any) => {
+                      rewards.push({
+                          type: 'item',
+                          value: item.quantity,
+                          itemName: item.name,
+                          itemIcon: item.icon || "default" // Icon handling might need improvement if URL is full
+                      });
+                  });
+              }
+              
+              if (grantedRewards.badgePoints) {
+                 Object.entries(grantedRewards.badgePoints).forEach(([key, val]) => {
+                     if (typeof val === 'number' && val > 0) {
+                         rewards.push({ type: 'skill', value: val, skillName: key });
+                     }
+                 });
+              }
+              
+              if (rewards.length > 0) {
+                  setRewardModalRewards(rewards);
+                  setRewardModalOpen(true);
+              }
+          }
+
           // Re-fetch quest data
           await initializeApp({
             setIsLoading: () => {},
@@ -364,6 +411,10 @@ const StudentPage: React.FC = () => {
     awardObjectiveReward,
     awardQuestRewards,
     applyPendingRewards: () => {},
+    onShowRewardModal: (rewards) => {
+      setRewardModalRewards(rewards);
+      setRewardModalOpen(true);
+    }
   });
   
   const {
@@ -451,6 +502,13 @@ const StudentPage: React.FC = () => {
               onLogout={handleLogout}
             />
           )}
+
+          <RewardClaimModal
+            isOpen={rewardModalOpen}
+            onClose={() => setRewardModalOpen(false)}
+            rewards={rewardModalRewards}
+            theme={theme}
+          />
           
           {rewardAnimations.map((animation) => (
             <RewardAnimation key={animation.id} animation={animation} theme={theme} />

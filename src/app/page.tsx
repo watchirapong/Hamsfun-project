@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
+import { initializeApp } from '@/services/appInitialization';
+import { Quest, BackpackItem } from '@/types';
 import LoadingScreen from '@/components/common/LoadingScreen';
 
 /**
@@ -13,8 +15,24 @@ import LoadingScreen from '@/components/common/LoadingScreen';
  */
 const RootPage: React.FC = () => {
   const router = useRouter();
-  const { isLoading, isAuthenticated, user } = useAuth();
+  const { isLoading, setIsLoading, isAuthenticated, setIsAuthenticated, user, setUser, skills, setSkills } = useAuth();
   const { theme } = useTheme();
+  
+  // Dummy states for initializeApp (RootPage only needs user profile for redirection)
+  const [questsState, setQuestsState] = useState<Quest[]>([]);
+  const [backpackItems, setBackpackItems] = useState<BackpackItem[]>([]);
+
+  useEffect(() => {
+    // Only initialize if we confuse that we are loading (which useAuth leaves true now)
+    initializeApp({
+        setIsLoading,
+        setIsAuthenticated,
+        setUser,
+        setSkills,
+        setQuestsState,
+        setBackpackItems
+    });
+  }, []);
 
   useEffect(() => {
     if (!isLoading) {

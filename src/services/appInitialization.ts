@@ -517,8 +517,8 @@ export const initializeApp = async (params: InitializeAppParams) => {
                 return awarded || false;
               });
             })(),
-            rewardClaimed: aq.submissionStatus === 'Completed',
-            rewardSubmissionStatus: (aq.submissionStatus === 'Pending' ? 'pending' : aq.submissionStatus === 'Completed' ? 'approved' : 'none') as ApprovalStatus,
+            rewardClaimed: aq.status === 'Completed',
+            rewardSubmissionStatus: (aq.status === 'Pending' ? 'pending' : aq.status === 'Completed' ? 'approved' : 'none') as ApprovalStatus,
             questRewardsAwarded: aq.isCompleted || false,
             category: quest.category || "General"
           };

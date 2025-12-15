@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { questAPI, hamsterAPI } from '@/lib/api';
 import { Quest, ObjectiveReward } from '@/types';
+import { RewardData } from '@/components/quests/RewardClaimModal';
 import { getApprovedObjectivesCount, areAllObjectivesCompleted } from '@/utils/helpers';
 import { hasValidGrantedRewards } from '@/utils/rewardHelpers';
 import { processBadgePointsFromApi, processCoinsFromApi, processRankPointsFromApi, processLeaderboardPointsFromApi, processItemsFromApi } from '@/utils/rewardHelpers';
@@ -32,6 +33,7 @@ interface QuestHandlersParams {
   awardObjectiveReward: (reward: ObjectiveReward, contextKey?: string) => void;
   awardQuestRewards: (rewards: ObjectiveReward[], questId: number) => void;
   applyPendingRewards: () => void;
+  onShowRewardModal?: (rewards: RewardData[]) => void;
 }
 
 /**
@@ -62,6 +64,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
     awardObjectiveReward,
     awardQuestRewards,
     applyPendingRewards,
+    onShowRewardModal
   } = params;
 
   // Helper function to update quest step based on approved objectives
@@ -252,22 +255,22 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
           );
         }
       } else {
-        // Standard Quest Submission
+        // Standard User Quest Submission
         submitResponse = await questAPI.submitQuest(quest.id.toString(), formData);
       }
-
       // Log full response to debug
       console.log('API submitResponse (full):', JSON.stringify(submitResponse, null, 2));
-      console.log('API submitResponse keys:', Object.keys(submitResponse || {}));
 
-      // Check if rewards were granted by the backend
-      // According to API guide: grantedRewards is only present if rewards were actually granted
-      // Only show reward UI when grantedRewards is present
+      // Check if rewards were granted by the backend (User Quests only)
+      // Hamster Member Quests don't get immediate rewards
       const grantedRewards = submitResponse?.grantedRewards;
       console.log('grantedRewards from API:', grantedRewards);
 
-      const hasGrantedRewards = hasValidGrantedRewards(grantedRewards);
+      const hasGrantedRewards = !quest.isMemberQuest && hasValidGrantedRewards(grantedRewards);
       console.log('hasGrantedRewards calculated as:', hasGrantedRewards);
+
+      // Store grantedRewards in objective for delayed claiming (User wants to show on "Claim Reward" click)
+      // We will pass this to the setQuestsState below
 
       const processingKey = `${selectedObjective.questId}-${selectedObjective.objectiveIndex}`;
 
@@ -308,8 +311,19 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
             const newCompleted = [...q.objectiveCompleted];
             newCompleted[selectedObjective.objectiveIndex] = true; // Visually show as completed
 
+            // Store grantedRewards in the objective for later use when user clicks "Claim Reward"
+            const newObjectives = [...q.objectives];
+            if (hasGrantedRewards && grantedRewards) {
+              newObjectives[selectedObjective.objectiveIndex] = {
+                ...newObjectives[selectedObjective.objectiveIndex],
+                tempGrantedRewards: grantedRewards
+              };
+              console.log('Stored grantedRewards in tempGrantedRewards:', grantedRewards);
+            }
+
             const updatedQuest = {
               ...q,
+              objectives: newObjectives,
               objectiveSubmissions: newSubmissions,
               objectiveCompleted: newCompleted,
               objectiveRewardsAwarded: newRewardsAwarded
@@ -764,30 +778,65 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       })
     );
 
-    // Trigger reward animations using objective's reward data
-    // Backend already granted rewards, so this is just for UX animations
-    const rewards = Array.isArray(objective.reward) ? objective.reward : [objective.reward];
-    rewards.forEach((reward, rewardIndex) => {
-      // Skip hidden rewards (skill, leaderboard)
-      if (reward.type === 'skill' || reward.type === 'leaderboard') {
-        return;
+    // Check for tempGrantedRewards to show modal with exact values
+    if (objective.tempGrantedRewards && onShowRewardModal) {
+      const grantedRewards = objective.tempGrantedRewards;
+      const rewards: RewardData[] = [];
+
+      if (grantedRewards.coins) rewards.push({ type: 'coins', value: grantedRewards.coins });
+      if (grantedRewards.rankPoints) rewards.push({ type: 'rank', value: grantedRewards.rankPoints });
+      if (grantedRewards.leaderboardScore) rewards.push({ type: 'leaderboard', value: grantedRewards.leaderboardScore });
+      if (grantedRewards.petExp) rewards.push({ type: 'petExp', value: grantedRewards.petExp });
+
+      if (grantedRewards.items && Array.isArray(grantedRewards.items)) {
+        grantedRewards.items.forEach((item: any) => {
+          rewards.push({
+            type: 'item',
+            value: item.quantity,
+            itemName: item.name,
+            itemIcon: item.icon || "default"
+          });
+        });
       }
 
-      const rewardKey = `objective-${questId}-${objectiveIndex}-claim-${rewardIndex}`;
-      if (!awardedRewards.has(rewardKey)) {
-        awardedRewards.add(rewardKey);
-        awardObjectiveReward(reward, rewardKey);
+      if (grantedRewards.badgePoints) {
+        Object.entries(grantedRewards.badgePoints).forEach(([key, val]) => {
+          if (typeof val === 'number' && val > 0) {
+            rewards.push({ type: 'skill', value: val, skillName: key });
+          }
+        });
       }
-    });
 
-    // Clean up after 5 seconds
-    setTimeout(() => {
-      rewards.forEach((_, rewardIndex) => {
+      if (rewards.length > 0) {
+        onShowRewardModal(rewards);
+      }
+    } else {
+      // Fallback or additional animations for standard rewards
+      // Trigger reward animations using objective's reward data
+      // Backend already granted rewards, so this is just for UX animations
+      const rewards = Array.isArray(objective.reward) ? objective.reward : [objective.reward];
+      rewards.forEach((reward, rewardIndex) => {
+        // Skip hidden rewards (skill, leaderboard)
+        if (reward.type === 'skill' || reward.type === 'leaderboard') {
+          return;
+        }
+
         const rewardKey = `objective-${questId}-${objectiveIndex}-claim-${rewardIndex}`;
-        awardedRewards.delete(rewardKey);
+        if (!awardedRewards.has(rewardKey)) {
+          awardedRewards.add(rewardKey);
+          awardObjectiveReward(reward, rewardKey);
+        }
       });
-    }, 5000);
-  }, [questsState, awardedRewards, awardObjectiveReward]);
+
+      // Clean up after 5 seconds
+      setTimeout(() => {
+        rewards.forEach((_, rewardIndex) => {
+          const rewardKey = `objective-${questId}-${objectiveIndex}-claim-${rewardIndex}`;
+          awardedRewards.delete(rewardKey);
+        });
+      }, 5000);
+    }
+  }, [questsState, awardedRewards, awardObjectiveReward, onShowRewardModal]);
 
   return {
     handleQuestCardClick,

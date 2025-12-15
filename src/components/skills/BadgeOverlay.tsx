@@ -299,7 +299,7 @@ export const BadgeOverlay: React.FC<BadgeOverlayProps> = ({
     >
       <div 
         ref={panelRef}
-        className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} w-full max-w-md rounded-t-xl shadow-lg pb-20 ${
+        className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} w-full max-w-md max-h-[calc(100vh-112px)] rounded-t-xl shadow-lg pb-20 ${
           (isOpening || (!isDragging && dragY === 0 && !isAnimating && !isClosing)) ? 'animate-slide-up' : ''
         }`}
         onClick={(e) => e.stopPropagation()}

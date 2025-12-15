@@ -648,7 +648,7 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
     >
       <div 
         ref={panelRef}
-        className={`w-full max-w-md rounded-t-xl shadow-lg pb-20 transition-colors ${
+        className={`w-full max-w-md max-h-[calc(100vh-112px)] rounded-t-xl shadow-lg pb-20 transition-colors ${
           isOpening ? 'animate-slide-up' : ''
         } ${theme === 'dark' ? 'bg-gray-900' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
@@ -752,6 +752,8 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                 setClaimingObjectiveKey(key);
                                 try {
                                   await handleClaimObjectiveReward(quest.id, index);
+                                  // Do not manually show modal here using static data
+                                  // handleClaimObjectiveReward will trigger the callback with correct granted rewards
                                 } finally {
                                   setTimeout(() => setClaimingObjectiveKey(null), 500);
                                 }
@@ -805,6 +807,8 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                                       </span>
                                     ) : isRejected ? (
                                       <span className="text-xs text-red-600 font-semibold flex-shrink-0">(Rejected - Click to resubmit)</span>
+                                    ) : status === 'pending' ? (
+                                      <span className="text-xs text-yellow-500 font-semibold flex-shrink-0 animate-pulse">(Pending Verification...)</span>
                                     ) : (
                                       // Normal state
                                       <span 
@@ -868,6 +872,9 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                               setClaimingQuestId(quest.id);
                               try {
                                 await handleClaimReward(quest.id);
+                                
+                                // Do not manually show modal here using static data
+                                // handleClaimReward will trigger the callback with correct granted rewards
                               } finally {
                                 // Reset claiming state after a short delay to show completion
                                 setTimeout(() => setClaimingQuestId(null), 500);
@@ -906,13 +913,23 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                               </div>
                             </div>
                           )}
-                          {/* Tap to claim hint */}
-                          {areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none' && claimingQuestId !== quest.id && (
+                          {/* Tap to claim hint - only show when quest is claimable and not during any claiming */}
+                          {areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none' && claimingQuestId === null && (
                             <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
                               <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
                                 theme === 'dark' ? 'text-green-300 bg-green-900/50' : 'text-green-700 bg-green-100'
                               }`}>
                                 ✨ Tap to claim!
+                              </span>
+                            </div>
+                          )}
+                          {/* Pending status hint */}
+                          {quest.rewardSubmissionStatus === 'pending' && !quest.rewardClaimed && (
+                            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded animate-pulse ${
+                                theme === 'dark' ? 'text-purple-300 bg-purple-900/50' : 'text-purple-700 bg-purple-100'
+                              }`}>
+                                ⏳ Waiting for approval
                               </span>
                             </div>
                           )}

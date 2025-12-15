@@ -61,8 +61,8 @@ export const useAuth = () => {
 
         // Token exists - mark as authenticated
         // Profile fetching is handled by initializeApp in page components
+        // We keep isLoading = true until initializeApp finishes fetching the profile
         setIsAuthenticated(true);
-        setIsLoading(false);
       } catch (error) {
         console.error('Error checking auth:', error);
         setIsLoading(false);

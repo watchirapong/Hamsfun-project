@@ -95,6 +95,7 @@ export interface QuestObjective {
   reward: ObjectiveReward | ObjectiveReward[]; // Single or multiple rewards per objective
   subQuestId?: string; // ID from backend to identify the subQuest
   description?: string; // Description of the subquest (objective)
+  tempGrantedRewards?: any; // Store actual rewards from API for delayed claiming
 }
 
 export interface ObjectiveSubmission {
@@ -119,6 +120,7 @@ export interface Quest {
   rewardSubmissionStatus: ApprovalStatus; // Track reward claim approval status
   questRewardsAwarded: boolean; // Track if quest rewards have been awarded
   category: string;
+  autoApprove?: boolean; // Flag to indicate if quest submissions are auto-approved
   isMemberQuest?: boolean; // Flag for Hamster Member Quests
   teamQuestId?: string; // Original Team Quest ID (for Member Quests)
   memberQuestId?: string; // ID of the member quest (for ID-based API)

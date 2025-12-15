@@ -13,6 +13,7 @@ import { SkillCard } from '@/components/skills/SkillCard';
 import { RewardAnimation } from '@/components/common/RewardAnimation';
 import { RewardNotificationContainer } from '@/components/common/RewardNotification';
 import { QuestNotificationContainer, QuestNotificationData } from '@/components/common/QuestNotification';
+import { RewardClaimModal, RewardData } from '@/components/quests/RewardClaimModal';
 import { TeamLeaderboardItemComponent } from '@/components/leaderboard/TeamLeaderboardItem';
 import { BackpackItemComponent } from '@/components/items/BackpackItem';
 import { ObjectiveDetailPanel } from '@/components/quests/ObjectiveDetailPanel';
@@ -138,6 +139,16 @@ const HamsterPage: React.FC = () => {
   const [isBossCinematicActive, setIsBossCinematicActive] = useState(false);
   
   const [questsState, setQuestsState] = useState<Quest[]>([]);
+  const questsStateRef = useRef<Quest[]>([]); // Ref to access latest state in socket listeners
+
+  // Sync ref with state
+  useEffect(() => {
+    questsStateRef.current = questsState;
+  }, [questsState]);
+  
+  // Reward Modal State
+  const [rewardModalOpen, setRewardModalOpen] = useState(false);
+  const [rewardModalRewards, setRewardModalRewards] = useState<RewardData[]>([]);
   
   // Ref to prevent duplicate initializeApp calls
   const hasInitializedRef = useRef(false);
@@ -170,6 +181,56 @@ const HamsterPage: React.FC = () => {
         
         socket.on('quest_updated', async (data: any) => {
           console.log('Quest Update Received:', data);
+          
+          // Check for granted rewards to show modal
+          if (data.status === 'Approved' && data.grantedRewards) {
+              // Find the quest to check its type
+              const currentQuests = questsStateRef.current;
+              const questId = data.questId;
+              const quest = currentQuests.find(q => String(q.id) === String(questId));
+
+             // User Request Correction:
+              // Show modal for ANY User Quest (not just 'Main'), but NOT for Member Quests (which have SubQuests/Manual Claim).
+              // So we check !quest.isMemberQuest
+
+              if (quest && !quest.isMemberQuest) {
+                  // Show modal for properties User Quests (Main, Daily, etc.)
+                   const rewards: RewardData[] = [];
+                  const { grantedRewards } = data;
+                  
+                  if (grantedRewards.coins) rewards.push({ type: 'coins', value: grantedRewards.coins });
+                  if (grantedRewards.rankPoints) rewards.push({ type: 'rank', value: grantedRewards.rankPoints });
+                  if (grantedRewards.leaderboardScore) rewards.push({ type: 'leaderboard', value: grantedRewards.leaderboardScore });
+                  if (grantedRewards.petExp) rewards.push({ type: 'petExp', value: grantedRewards.petExp });
+                  
+                  if (grantedRewards.items && Array.isArray(grantedRewards.items)) {
+                      grantedRewards.items.forEach((item: any) => {
+                          rewards.push({
+                              type: 'item',
+                              value: item.quantity,
+                              itemName: item.name,
+                              itemIcon: item.icon || "default"
+                          });
+                      });
+                  }
+                  
+                  if (grantedRewards.badgePoints) {
+                     Object.entries(grantedRewards.badgePoints).forEach(([key, val]) => {
+                         if (typeof val === 'number' && val > 0) {
+                             rewards.push({ type: 'skill', value: val, skillName: key });
+                         }
+                     });
+                  }
+                  
+                  if (rewards.length > 0) {
+                      setRewardModalRewards(rewards);
+                      setRewardModalOpen(true);
+                  }
+              } else {
+                 console.log('Skipping reward modal for Member/SubQuest (User wants to claim manually)');
+              }
+          }
+
           // Re-fetch quest data
           await initializeApp({
             setIsLoading: () => {},
@@ -314,6 +375,10 @@ const HamsterPage: React.FC = () => {
     awardObjectiveReward,
     awardQuestRewards,
     applyPendingRewards: () => {},
+    onShowRewardModal: (rewards) => {
+      setRewardModalRewards(rewards);
+      setRewardModalOpen(true);
+    }
   });
   
   const {
@@ -401,6 +466,13 @@ const HamsterPage: React.FC = () => {
               onLogout={handleLogout}
             />
           )}
+
+          <RewardClaimModal
+            isOpen={rewardModalOpen}
+            onClose={() => setRewardModalOpen(false)}
+            rewards={rewardModalRewards}
+            theme={theme}
+          />
           
           {rewardAnimations
             .filter(animation => animation.type !== 'coins')
