@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { userAPI } from '@/lib/api';
 import { useTheme } from '@/hooks/useTheme';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Heart, Sword, Shield } from 'lucide-react';
 import { getAssetUrl, getRankIconPath, getBadgeIconPath } from '@/utils/helpers';
 import { getItemIconUrl } from '@/utils/itemHelpers';
 import { mapApiSkillNameToDisplayName } from '@/utils/rewardHelpers';
@@ -223,6 +223,35 @@ function ProfileContent() {
               </div>
             )}
           </div>
+
+          {/* Pet Stats Section - Only show if user has a partner pet with stats */}
+          {profile.partnerPet?.currentStats && (
+            <div className={`rounded-xl p-4 shadow-xl mb-4 ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+              <h3 className={`text-sm font-bold mb-3 text-center ${isDark ? 'text-white' : 'text-gray-800'}`}>Pet Stats</h3>
+              <div className="flex justify-center gap-6">
+                {/* HP */}
+                <div className="flex items-center gap-2">
+                  <Heart size={16} className="text-red-500 fill-red-500 flex-shrink-0" />
+                  <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>HP:</span>
+                  <span className="text-xs font-bold text-red-500">{profile.partnerPet.currentStats.maxHealth}</span>
+                </div>
+                
+                {/* Attack */}
+                <div className="flex items-center gap-2">
+                  <Sword size={16} className="text-orange-500 flex-shrink-0" />
+                  <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>ATK:</span>
+                  <span className="text-xs font-bold text-orange-500">{profile.partnerPet.currentStats.attackDamage}</span>
+                </div>
+                
+                {/* Defense */}
+                <div className="flex items-center gap-2">
+                  <Shield size={16} className="text-blue-500 flex-shrink-0" />
+                  <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>DEF:</span>
+                  <span className="text-xs font-bold text-blue-500">{profile.partnerPet.currentStats.defense}</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Rank & Badge Bar (Below Pet) - Card Style */}
           <div className={`rounded-xl p-4 shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>

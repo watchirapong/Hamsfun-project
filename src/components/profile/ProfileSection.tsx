@@ -29,19 +29,66 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   canRankUp,
 }) => {
   const [petStatsFlipped, setPetStatsFlipped] = useState(false);
+  const [showPetStats, setShowPetStats] = useState(false);
+  
+  // Detect if device uses coarse pointer (touch) as primary input
+  // This is more reliable than checking for touch capability
+  const isTouchDevice = typeof window !== 'undefined' && 
+    window.matchMedia('(pointer: coarse)').matches;
 
   return (
-    <div className={`p-4 shadow-sm mb-4 transition-colors ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
-      <div className="flex items-center gap-3 sm:gap-6 w-full">
+    <div className={`p-4 shadow-sm mb-4 transition-colors ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} relative`}>
+      {/* Backdrop - click to close pet stats (only on mobile when overlay is pinned) */}
+      {showPetStats && isTouchDevice && (
+        <div 
+          className="fixed inset-0 z-40"
+          onClick={() => {
+            setShowPetStats(false);
+            setPetStatsFlipped(false);
+          }}
+        />
+      )}
+      
+      <div className="flex items-center gap-3 sm:gap-6 w-full relative z-50">
         {/* Pet Display on Left - 50% of screen width */}
         <div className="flex flex-col items-center justify-center w-1/2" style={{ minHeight: '280px' }}>
-          {/* Pet Image Container with Hover Effect */}
-          <div className="relative w-full h-full flex items-center justify-center group cursor-pointer" style={{ minHeight: '280px' }}>
+          {/* Pet Image Container - Tap to show stats or toggle */}
+          <div 
+            className={`relative w-full h-full flex items-center justify-center cursor-pointer ${!isTouchDevice ? 'group' : ''}`}
+            style={{ minHeight: '280px' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (user.petIcon) {
+                if (isTouchDevice) {
+                  // Mobile: first tap opens, subsequent taps toggle
+                  if (!showPetStats) {
+                    setShowPetStats(true);
+                    setPetStatsFlipped(false);
+                  } else {
+                    setPetStatsFlipped(!petStatsFlipped);
+                  }
+                } else {
+                  // Desktop: hover shows overlay, click just toggles stats/IV
+                  setPetStatsFlipped(!petStatsFlipped);
+                }
+              }
+            }}
+            onMouseLeave={() => {
+              // Desktop: reset to Stats when mouse leaves
+              if (!isTouchDevice) {
+                setPetStatsFlipped(false);
+              }
+            }}
+          >
             {/* Pet Image */}
             <img 
               src={user.petIcon ? getItemIconUrl(user.petIcon) : getAssetUrl("/Asset/pets/whothatpet.png")} 
               alt="Pet" 
-              className="w-full h-auto object-contain max-w-full transition-all duration-300 group-hover:blur-sm group-hover:scale-105" 
+              className={`w-full h-auto object-contain max-w-full transition-all duration-300 ${
+                isTouchDevice 
+                  ? (showPetStats ? 'blur-sm scale-105' : '') 
+                  : (showPetStats ? 'blur-sm scale-105' : 'group-hover:blur-sm group-hover:scale-105')
+              }`}
               style={{ maxHeight: '280px' }}
               key={`pet-${user.petIcon || 'default'}-${user.petLevel}-${user.petXp}`}
               onError={(e) => {
@@ -54,8 +101,8 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               }}
             />
             
-            {/* Pet Level - Bottom Right, Plain Black Text - Only show if user has a pet */}
-            {user.petIcon && (
+            {/* Pet Level - Bottom Right, Plain Black Text - Only show if user has a pet and overlay is not shown */}
+            {user.petIcon && !showPetStats && (
               <div className={`absolute bottom-5 right-5 text-xl font-medium ${
                 theme === 'dark' ? 'text-white' : 'text-black'
               }`}>
@@ -63,31 +110,27 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               </div>
             )}
             
-            {/* Pet Stats Overlay - Shown on Hover with Flip Functionality - Only show if user has a pet */}
+            {/* Pet Stats Overlay - Shown on tap (mobile) or hover (desktop) */}
             {user.petIcon && (
               <div 
-                className={`absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl backdrop-blur-md ${
+                className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 rounded-xl backdrop-blur-md pointer-events-none ${
                   theme === 'dark' ? 'bg-black/40' : 'bg-white/50'
+                } ${
+                  isTouchDevice 
+                    ? (showPetStats ? 'opacity-100' : 'opacity-0')
+                    : (showPetStats ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')
                 }`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setPetStatsFlipped(!petStatsFlipped);
-                }}
-                onMouseLeave={() => {
-                  // Reset flip state when hover ends
-                  setPetStatsFlipped(false);
-                }}
               >
               {/* Flip Card Container */}
               <div 
-                className={`flip-card ${petStatsFlipped ? 'flipped' : ''}`} 
+                className={`flip-card pointer-events-none ${petStatsFlipped ? 'flipped' : ''}`} 
                 style={{ 
                   width: '160px', 
                   height: petStatsFlipped ? '240px' : '180px',
                   transition: 'height 0.6s ease-in-out'
                 }}
               >
-                <div className="flip-card-inner">
+                <div className="flip-card-inner pointer-events-none">
                   {/* Front Side - Pet Stats */}
                   <div className="flip-card-front">
                     {/* Shared Card Container - Pet Stats */}
@@ -138,9 +181,9 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                             }}
                           ></div>
                         </div>
-                        {/* Tap to show IV text */}
+                        {/* Tap hint */}
                         <div className={`text-[10px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                          Tap to show IV
+                          Tap for IV →
                         </div>
                       </div>
                     </div>
@@ -220,7 +263,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                       </div>
                       
                       <div className={`text-[10px] text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Tap to flip back
+                        Tap to close ✕
                       </div>
                     </div>
                   </div>

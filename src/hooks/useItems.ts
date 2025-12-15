@@ -36,13 +36,16 @@ const isItemExpiredLocal = (dateString: string): boolean => {
   return now > times.endTime;
 };
 
-export const useItems = () => {
+export const useItems = (onPetEquipped?: () => void) => {
   const [backpackItems, setBackpackItems] = useState<BackpackItem[]>([]);
 
   // Handle item usage - only 1 used item at a time across all types
   const handleUseItem = async (itemId: string) => {
     const item = backpackItems.find(i => i.id === itemId);
     if (!item) return;
+
+    // Check if this is a pet item before making the API call
+    const isPetItem = item.type === 'PetItem';
 
     try {
       await userAPI.useItem(itemId);
@@ -74,6 +77,11 @@ export const useItems = () => {
         active: inv.active || false
       }));
       setBackpackItems(mappedItems);
+
+      // If a pet item was equipped, trigger the callback to reload partner pet data
+      if (isPetItem && onPetEquipped) {
+        onPetEquipped();
+      }
     } catch (error) {
       console.error('Error using item:', error);
       alert('Failed to use item. Please try again.');

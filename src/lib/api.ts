@@ -134,6 +134,9 @@ export const userAPI = {
   // Get my inventory
   getMyInventory: () => apiCall<any[]>('/api/v1/users/me/inventory'),
 
+  // Get my partner pet
+  getMyPartnerPet: () => apiCall<any>('/api/v1/users/me/partner-pet'),
+
   // Use item
   useItem: (inventoryItemId: string, dojoId?: string) =>
     apiCall('/api/v1/users/me/inventory/use', {

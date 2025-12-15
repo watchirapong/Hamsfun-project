@@ -89,8 +89,35 @@ const StudentPage: React.FC = () => {
     setObjectiveComment,
   } = ui;
   
-  // Items management
-  const { backpackItems, setBackpackItems, handleUseItem, handleDeleteItem } = useItems();
+  // Items management - reload partner pet when a pet item is equipped
+  const handlePetEquipped = useCallback(async () => {
+    try {
+      const partnerPet = await userAPI.getMyPartnerPet();
+      if (partnerPet) {
+        setUser(prev => ({
+          ...prev,
+          petLevel: partnerPet.level || 1,
+          petXp: partnerPet.experience || 0,
+          petMaxXp: partnerPet.maxExperience || 1000,
+          petStats: {
+            maxHealth: partnerPet.currentStats?.maxHealth || 100,
+            attackDamage: partnerPet.currentStats?.attackDamage || 10,
+            defense: partnerPet.currentStats?.defense || 5,
+          },
+          petIV: partnerPet.iv ? {
+            maxHealth: partnerPet.iv?.maxHealth || 0,
+            attackDamage: partnerPet.iv?.attackDamage || 0,
+            defense: partnerPet.iv?.defense || 0,
+          } : undefined,
+          petIcon: partnerPet.itemId?.icon || undefined,
+        }));
+      }
+    } catch (error) {
+      console.error('Error reloading partner pet:', error);
+    }
+  }, [setUser]);
+
+  const { backpackItems, setBackpackItems, handleUseItem, handleDeleteItem } = useItems(handlePetEquipped);
   
   // Ref to prevent duplicate reward awarding
   const processingObjectives = useRef<Set<string>>(new Set());

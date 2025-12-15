@@ -35,6 +35,10 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
   handleApproveReward,
   handleClaimObjectiveReward,
 }) => {
+  // Track which quest is currently claiming reward (for loading state)
+  const [claimingQuestId, setClaimingQuestId] = useState<number | null>(null);
+  // Track which objective is currently claiming reward (questId-objectiveIndex)
+  const [claimingObjectiveKey, setClaimingObjectiveKey] = useState<string | null>(null);
   // Separate completed and uncompleted quests, then sort so Main Quests appear first
   const uncompletedQuests = questsState
     .filter(q => !isQuestTrulyCompleted(q))
@@ -728,11 +732,11 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                         return (
                           <div 
                             key={index} 
-                            className={`relative transition-all ${
+                            className={`relative transition-all transform ${
                               isRejected
                                 ? `border-b last:border-b-0 ${theme === 'dark' ? 'bg-red-900/20 border-red-500' : 'bg-red-50 border-red-200'} ${isCompletedState ? 'py-1.5 px-4' : 'py-2 px-4'}`
                                 : isClaimable
-                                ? `rounded-2xl mx-2 my-2 px-5 py-3 border-0 bg-[#FFB246] cursor-pointer hover:shadow-lg transition-all duration-200`
+                                ? `rounded-2xl mx-2 my-2 px-5 py-3 border-0 bg-[#FFB246] cursor-pointer hover:bg-[#FFA520] hover:shadow-lg hover:shadow-orange-500/30 active:scale-95 transition-all duration-200 ${claimingObjectiveKey === `${quest.id}-${index}` ? 'opacity-70 cursor-wait' : 'animate-pulse'}`
                                 : isCompletedState
                                 ? `rounded-2xl mx-2 my-2 px-5 py-2 border-0 bg-[#E3D8FC]`
                                 : isClickable 
@@ -741,10 +745,16 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                             } ${
                               theme === 'dark' && !isClaimable ? 'border-gray-800' : !isClaimable ? 'border-gray-200' : ''
                             }`}
-                            onClick={() => {
-                              if (isClaimable) {
-                                // Click to claim reward
-                                handleClaimObjectiveReward(quest.id, index);
+                            onClick={async () => {
+                              if (isClaimable && claimingObjectiveKey === null) {
+                                // Set loading state
+                                const key = `${quest.id}-${index}`;
+                                setClaimingObjectiveKey(key);
+                                try {
+                                  await handleClaimObjectiveReward(quest.id, index);
+                                } finally {
+                                  setTimeout(() => setClaimingObjectiveKey(null), 500);
+                                }
                               } else if (isClickable) {
                                 // Click to submit/resubmit
                                 handleObjectiveClick(quest.id, index);
@@ -754,19 +764,34 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                             {isClaimable ? (
                               // Premium centered "CLAIM REWARD" state
                               <div className="flex items-center justify-center relative w-full">
-                                <span className="text-base font-bold tracking-wide drop-shadow-sm text-white">
-                                  CLAIM REWARD
-                                </span>
-                                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
-                                  {rewards.map((reward, rewardIndex) => {
-                                    const rewardDisplay = getRewardDisplay(reward);
-                                    return rewardDisplay ? (
-                                      <div key={rewardIndex} className="flex-shrink-0 flex items-center">
-                                        {rewardDisplay}
-                                      </div>
-                                    ) : null;
-                                  })}
-                                </div>
+                                {claimingObjectiveKey === `${quest.id}-${index}` ? (
+                                  // Loading state with spinner
+                                  <div className="flex items-center gap-2">
+                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span className="text-base font-bold tracking-wide drop-shadow-sm text-white">
+                                      Claiming...
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <span className="text-base font-bold tracking-wide drop-shadow-sm text-white">
+                                      CLAIM REWARD
+                                    </span>
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                                      {rewards.map((reward, rewardIndex) => {
+                                        const rewardDisplay = getRewardDisplay(reward);
+                                        return rewardDisplay ? (
+                                          <div key={rewardIndex} className="flex-shrink-0 flex items-center">
+                                            {rewardDisplay}
+                                          </div>
+                                        ) : null;
+                                      })}
+                                    </div>
+                                  </>
+                                )}
                               </div>
                             ) : (
                               // Normal layout for other states
@@ -837,32 +862,61 @@ export const QuestListOverlay: React.FC<QuestListOverlayProps> = ({
                       </div>
                       <div className={`relative rounded-lg pt-8 ${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-100'}`}>
                         <button
-                          onClick={() => {
-                            if (areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none') {
-                              handleClaimReward(quest.id);
+                          onClick={async () => {
+                            const canClaim = areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none';
+                            if (canClaim && claimingQuestId === null) {
+                              setClaimingQuestId(quest.id);
+                              try {
+                                await handleClaimReward(quest.id);
+                              } finally {
+                                // Reset claiming state after a short delay to show completion
+                                setTimeout(() => setClaimingQuestId(null), 500);
+                              }
                             }
                           }}
-                          disabled={quest.rewardClaimed || !areAllObjectivesCompleted(quest) || quest.rewardSubmissionStatus === 'pending'}
-                          className={`w-full p-8 rounded-lg transition-all relative ${
+                          disabled={quest.rewardClaimed || !areAllObjectivesCompleted(quest) || quest.rewardSubmissionStatus === 'pending' || claimingQuestId !== null}
+                          className={`w-full p-8 rounded-lg transition-all relative transform ${
                             quest.rewardClaimed
                               ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed' : 'bg-gray-100 cursor-not-allowed'
-                              : quest.rewardSubmissionStatus === 'pending'
-                              ? theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-70' : 'bg-gray-100 cursor-not-allowed opacity-70'
+                              : quest.rewardSubmissionStatus === 'pending' || claimingQuestId === quest.id
+                              ? theme === 'dark' ? 'bg-gray-900/50 cursor-wait opacity-70' : 'bg-gray-100 cursor-wait opacity-70'
                               : areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none'
-                              ? theme === 'dark' ? 'bg-green-900/40 border-2 border-green-500 hover:bg-green-900/50 cursor-pointer' : 'bg-green-50 border-2 border-green-200 hover:bg-green-100 cursor-pointer'
+                              ? theme === 'dark' 
+                                ? 'bg-green-900/40 border-2 border-green-500 hover:bg-green-900/60 hover:border-green-400 cursor-pointer active:scale-95 hover:shadow-lg hover:shadow-green-500/30 animate-pulse' 
+                                : 'bg-green-50 border-2 border-green-400 hover:bg-green-100 hover:border-green-500 cursor-pointer active:scale-95 hover:shadow-lg hover:shadow-green-200 animate-pulse'
                               : theme === 'dark' ? 'bg-gray-900/50 cursor-not-allowed opacity-15' : 'bg-gray-100 cursor-not-allowed opacity-15'
                           }`}
                         >
-                          {quest.rewardSubmissionStatus === 'pending' && (
+                          {/* Loading/Pending overlay */}
+                          {(quest.rewardSubmissionStatus === 'pending' || claimingQuestId === quest.id) && (
                             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                              <span className={`text-sm font-semibold px-3 py-1 rounded ${
-                                theme === 'dark' 
-                                  ? 'text-white bg-purple-400/60' 
-                                  : 'text-white bg-black/50'
-                              }`}>waited…</span>
+                              <div className="flex items-center gap-2">
+                                {/* Spinner */}
+                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <span className={`text-sm font-semibold px-3 py-1 rounded ${
+                                  theme === 'dark' 
+                                    ? 'text-white bg-purple-400/60' 
+                                    : 'text-white bg-black/50'
+                                }`}>
+                                  {claimingQuestId === quest.id ? 'Claiming...' : 'Pending...'}
+                                </span>
+                              </div>
                             </div>
                           )}
-                          <div className={`flex justify-center gap-6 ${quest.rewardSubmissionStatus === 'pending' ? 'opacity-30' : ''}`}>
+                          {/* Tap to claim hint */}
+                          {areAllObjectivesCompleted(quest) && !quest.rewardClaimed && quest.rewardSubmissionStatus === 'none' && claimingQuestId !== quest.id && (
+                            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10">
+                              <span className={`text-xs font-semibold px-2 py-0.5 rounded ${
+                                theme === 'dark' ? 'text-green-300 bg-green-900/50' : 'text-green-700 bg-green-100'
+                              }`}>
+                                ✨ Tap to claim!
+                              </span>
+                            </div>
+                          )}
+                          <div className={`flex justify-center gap-6 ${(quest.rewardSubmissionStatus === 'pending' || claimingQuestId === quest.id) ? 'opacity-30' : ''}`}>
                             {quest.rewards.filter(reward => reward.type !== 'skill' && reward.type !== 'leaderboard').map((reward, index) => {
                               const formatRange = (min?: number, max?: number, value?: number) => {
                                 if (min !== undefined && max !== undefined && min !== max) {
