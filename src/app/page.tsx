@@ -8,11 +8,6 @@ import { initializeApp } from '@/services/appInitialization';
 import { Quest, BackpackItem } from '@/types';
 import LoadingScreen from '@/components/common/LoadingScreen';
 
-/**
- * Root page that redirects users to the appropriate route based on their role
- * - Normal users (students) → /hamster-quest/student
- * - Hamster users (staff/mentors/admin) → /hamster-quest/hamster
- */
 const RootPage: React.FC = () => {
   const router = useRouter();
   const { isLoading, setIsLoading, isAuthenticated, setIsAuthenticated, user, setUser, skills, setSkills } = useAuth();

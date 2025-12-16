@@ -39,10 +39,6 @@ import { socketService } from '@/services/socketService';
 import LoadingScreen from '@/components/common/LoadingScreen';
 import { useRouter } from 'next/navigation';
 
-/**
- * Hamster Page - For Hamster users (staff/mentors/admin with isHamster: true)
- * Route: /hamster-quest/hamster
- */
 const HamsterPage: React.FC = () => {
   const router = useRouter();
   
@@ -200,8 +196,8 @@ const HamsterPage: React.FC = () => {
       const token = getToken();
       if (token) {
         const socket = socketService.connect({
-          url: process.env.NEXT_PUBLIC_SOCKET_URL || 'https://api.questcity.cloud',
-          path: process.env.NEXT_PUBLIC_SOCKET_PATH || '/hamster-world-api/socket.io',
+          url: process.env.NEXT_PUBLIC_SOCKET_URL || 'https://api.hamsterquest.com',
+          path: process.env.NEXT_PUBLIC_SOCKET_PATH || '/socket',
           token: token
         });
         
