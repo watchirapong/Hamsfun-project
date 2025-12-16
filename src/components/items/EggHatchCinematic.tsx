@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAssetUrl } from '@/utils/helpers';
+import { getItemIconUrl } from '@/utils/itemHelpers';
 
 interface HatchedPet {
   name: string;
   icon?: string;
+  eggIcon?: string;
 }
 
 interface EggHatchCinematicProps {
@@ -14,7 +16,6 @@ interface EggHatchCinematicProps {
   onComplete: () => void;
   hatchedPet: HatchedPet | null;
   theme: 'light' | 'dark';
-  onSkip?: () => void;
 }
 
 type CinematicPhase = 
@@ -33,122 +34,160 @@ export const EggHatchCinematic: React.FC<EggHatchCinematicProps> = ({
   onComplete,
   hatchedPet,
   theme,
-  onSkip,
 }) => {
   const [phase, setPhase] = useState<CinematicPhase>('egg-enter');
-  const [canSkip, setCanSkip] = useState(false);
+  const [shakeIntensity, setShakeIntensity] = useState(0);
 
   // Reset phase when cinematic starts
   useEffect(() => {
     if (isActive) {
       setPhase('egg-enter');
-      setCanSkip(false);
+      // Start with very subtle shake immediately
+      setShakeIntensity(0.3);
     }
   }, [isActive]);
 
-  // Phase transitions with timing
+  // Phase transitions with timing - NO SKIPPING ALLOWED
   useEffect(() => {
     if (!isActive || !hatchedPet) return;
 
     const timeouts: NodeJS.Timeout[] = [];
 
-    // Step 1: Egg enters from bottom (800ms)
+    // Step 1: Egg enters from bottom (600ms) - PROGRESSIVE SHAKE WHILE MOVING UP
+    // Start shaking immediately and gradually increase as egg moves up
+    timeouts.push(setTimeout(() => {
+      setShakeIntensity(0.6); // Slightly stronger
+    }, 150)); // 150ms into upward movement
+    
+    timeouts.push(setTimeout(() => {
+      setShakeIntensity(1.0); // Noticeable shake
+    }, 300)); // 300ms into upward movement
+    
+    timeouts.push(setTimeout(() => {
+      setShakeIntensity(1.5); // Strong shake as it approaches center
+    }, 450)); // 450ms into upward movement
+    
     timeouts.push(setTimeout(() => {
       setPhase('egg-shake');
-    }, 800));
+      // Already at strong intensity when reaching center
+      setShakeIntensity(2.0);
+    }, 600)); // When egg reaches center (reduced from 800ms)
 
-    // Step 2: Egg shakes (1200ms)
+    // Step 2: Quick intensity ramp at center (reduced to 250ms)
+    timeouts.push(setTimeout(() => {
+      setShakeIntensity(2.8); // Rapid increase
+    }, 600 + 125)); // 125ms after reaching center
+    
+    timeouts.push(setTimeout(() => {
+      setShakeIntensity(3.5); // Peak intensity
+    }, 600 + 250)); // 250ms after reaching center (reduced from 400ms)
+    
+    // Step 3: Magic circle appears while egg continues shaking (reduced to 800ms)
     timeouts.push(setTimeout(() => {
       setPhase('magic-circle');
-      setCanSkip(true); // Allow skip after magic circle appears
-    }, 800 + 1200));
+      setShakeIntensity(4.0); // Strong shaking during magic
+    }, 600 + 250 + 150)); // 1000ms total (reduced from 1200ms)
 
-    // Step 3: Magic circle appears and rushes to egg (1500ms)
+    // Step 4: Magic circle completes, egg turns golden (500ms)
     timeouts.push(setTimeout(() => {
       setPhase('golden-egg');
-    }, 800 + 1200 + 1500));
+      setShakeIntensity(5.0); // Very strong shaking before golden
+    }, 600 + 250 + 150 + 800)); // 1800ms total (reduced from 2600ms)
 
-    // Step 4: Golden egg → white flash (600ms)
+    // Step 5: Golden egg → white flash (300ms)
     timeouts.push(setTimeout(() => {
       setPhase('white-flash');
-    }, 800 + 1200 + 1500 + 600));
+    }, 600 + 250 + 150 + 800 + 500)); // 2300ms total (reduced from 3400ms)
 
-    // Step 5: Fade back to normal UI (800ms)
+    // Step 6: Fade back to normal UI (500ms)
     timeouts.push(setTimeout(() => {
       setPhase('fade-back');
-    }, 800 + 1200 + 1500 + 600 + 800));
+    }, 600 + 250 + 150 + 800 + 500 + 300)); // 2600ms total (reduced from 3800ms)
 
-    // Step 6: Reveal pet (immediate after fade-back)
+    // Step 7: Reveal pet (immediate after fade-back)
     timeouts.push(setTimeout(() => {
       setPhase('pet-reveal');
-    }, 800 + 1200 + 1500 + 600 + 800 + 100));
+    }, 600 + 250 + 150 + 800 + 500 + 300 + 500 + 50)); // 3150ms total (reduced from 4700ms)
 
-    // Step 7: Pet stays in center (1500ms)
+    // Step 8: Pet stays in center (1200ms)
     timeouts.push(setTimeout(() => {
       setPhase('pet-exit');
-    }, 800 + 1200 + 1500 + 600 + 800 + 100 + 1500));
+    }, 600 + 250 + 150 + 800 + 500 + 300 + 500 + 50 + 1200)); // 4350ms total (reduced from 6700ms)
 
-    // Step 8: Complete after pet exits (1000ms)
+    // Step 9: Complete after pet exits (600ms)
     timeouts.push(setTimeout(() => {
       setPhase('complete');
       setTimeout(() => {
         onComplete();
-      }, 300);
-    }, 800 + 1200 + 1500 + 600 + 800 + 100 + 1500 + 1000));
+      }, 200);
+    }, 600 + 250 + 150 + 800 + 500 + 300 + 500 + 50 + 1200 + 600)); // 4950ms total (reduced from 7700ms)
 
     return () => {
       timeouts.forEach(timeout => clearTimeout(timeout));
     };
   }, [isActive, hatchedPet, onComplete]);
 
-  // Handle skip
-  const handleSkip = () => {
-    if (!canSkip) return;
-    if (phase === 'egg-enter' || phase === 'egg-shake' || phase === 'magic-circle') {
-      // Skip to pet reveal
-      setPhase('pet-reveal');
-      setTimeout(() => {
-        setPhase('pet-exit');
-        setTimeout(() => {
-          setPhase('complete');
-          setTimeout(() => {
-            onComplete();
-          }, 300);
-        }, 1000);
-      }, 1500);
-    } else if (phase === 'golden-egg' || phase === 'white-flash' || phase === 'fade-back') {
-      // Skip to pet reveal
-      setPhase('pet-reveal');
-      setTimeout(() => {
-        setPhase('pet-exit');
-        setTimeout(() => {
-          setPhase('complete');
-          setTimeout(() => {
-            onComplete();
-          }, 300);
-        }, 1000);
-      }, 1500);
-    } else if (phase === 'pet-reveal') {
-      // Skip to exit
-      setPhase('pet-exit');
-      setTimeout(() => {
-        setPhase('complete');
-        setTimeout(() => {
-          onComplete();
-        }, 300);
-      }, 1000);
-    }
-  };
-
   if (!isActive || !hatchedPet) return null;
 
+  // Calculate shake values based on intensity (0-5)
+  const getShakeValues = (intensity: number) => {
+    const base = intensity * 0.5;
+    return {
+      rotate: [0, -base * 2, base * 2, -base * 2, base * 2, -base, base, 0],
+      x: [0, -base * 3, base * 3, -base * 3, base * 3, -base * 2, base * 2, 0],
+      y: [0, -base, base, -base, base, -base * 0.5, base * 0.5, 0],
+    };
+  };
+
+  const shakeValues = getShakeValues(shakeIntensity);
+  // Egg shakes during enter phase (moving up) and all subsequent phases
+  const isShaking = phase === 'egg-enter' || phase === 'egg-shake' || phase === 'magic-circle' || phase === 'golden-egg';
+  const shouldBlockInteractions = phase !== 'complete';
+
   return (
-    <div 
-      className="fixed inset-0 z-[9999] pointer-events-auto"
-      onClick={canSkip ? handleSkip : undefined}
-      style={{ cursor: canSkip ? 'pointer' : 'default' }}
-    >
-      {/* Step 1-5: Egg and magic circle phases */}
+    <div className="fixed inset-0 z-[9999]">
+      {/* Full-screen interaction blocker - prevents ALL interactions during animation */}
+      {shouldBlockInteractions && (
+        <div 
+          className="absolute inset-0 z-[10000]"
+          style={{ 
+            pointerEvents: 'auto',
+            touchAction: 'none',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onTouchMove={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onMouseMove={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onMouseUp={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        />
+      )}
+
+      {/* Step 1-4: Egg and magic circle phases */}
       <AnimatePresence mode="wait">
         {(phase === 'egg-enter' || phase === 'egg-shake' || phase === 'magic-circle' || phase === 'golden-egg') && (
           <motion.div
@@ -163,59 +202,107 @@ export const EggHatchCinematic: React.FC<EggHatchCinematicProps> = ({
               className="relative"
               initial={phase === 'egg-enter' ? { y: '100vh', scale: 0.5 } : false}
               animate={{
-                y: phase === 'egg-enter' ? 0 : 0,
+                y: phase === 'egg-enter' 
+                  ? 0 
+                  : isShaking 
+                    ? shakeValues.y 
+                    : 0,
                 scale: phase === 'egg-enter' ? 1 : 1,
-                rotate: phase === 'egg-shake' ? [0, -2, 2, -2, 2, -1, 1, 0] : 0,
-                x: phase === 'egg-shake' ? [0, -3, 3, -3, 3, -2, 2, 0] : 0,
-                filter: phase === 'golden-egg' ? 'brightness(1.5) drop-shadow(0 0 30px rgba(255, 215, 0, 0.8))' : 'none',
+                rotate: isShaking ? shakeValues.rotate : 0,
+                x: isShaking ? shakeValues.x : 0,
+                filter: phase === 'golden-egg' 
+                  ? 'brightness(1.8) drop-shadow(0 0 40px rgba(255, 215, 0, 1)) saturate(1.5)' 
+                  : phase === 'magic-circle'
+                  ? 'brightness(1.2) drop-shadow(0 0 20px rgba(255, 215, 0, 0.6))'
+                  : 'none',
               }}
               transition={{
-                y: phase === 'egg-enter' ? { duration: 0.8, ease: 'easeOut' } : {},
-                scale: phase === 'egg-enter' ? { duration: 0.8, ease: 'easeOut' } : {},
-                rotate: phase === 'egg-shake' ? { 
-                  duration: 0.15, 
-                  repeat: 8, 
+                y: phase === 'egg-enter' 
+                  ? { duration: 0.6, ease: 'easeOut' } 
+                  : isShaking 
+                    ? { 
+                        duration: 0.12, 
+                        repeat: Infinity, 
+                        ease: 'easeInOut',
+                        times: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]
+                      }
+                    : { duration: 0.2 },
+                scale: phase === 'egg-enter' ? { duration: 0.6, ease: 'easeOut' } : {},
+                rotate: isShaking ? { 
+                  duration: 0.12, 
+                  repeat: Infinity, 
                   ease: 'easeInOut',
                   times: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]
                 } : { duration: 0.2 },
-                x: phase === 'egg-shake' ? { 
-                  duration: 0.15, 
-                  repeat: 8, 
+                x: isShaking ? { 
+                  duration: 0.12, 
+                  repeat: Infinity, 
                   ease: 'easeInOut',
                   times: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]
                 } : { duration: 0.2 },
-                filter: phase === 'golden-egg' ? { duration: 0.3 } : {},
+                filter: { duration: 0.4 },
               }}
             >
-              {/* Egg image - using a placeholder, replace with actual egg asset if available */}
-              <div
-                className="w-64 h-80 rounded-full relative"
-                style={{
-                  background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fcd34d 100%)',
-                  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3), inset 0 -20px 60px rgba(0, 0, 0, 0.1)',
-                  border: '4px solid #fbbf24',
-                }}
-              >
-                {/* Egg shine effect */}
-                <div
-                  className="absolute top-4 left-8 w-24 h-32 rounded-full opacity-60"
+              {/* Egg image - use actual egg icon from item */}
+              {hatchedPet.eggIcon ? (
+                <img
+                  src={getItemIconUrl(hatchedPet.eggIcon)}
+                  alt="Egg"
+                  className="w-64 h-64 object-contain"
                   style={{
-                    background: 'radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 70%)',
+                    filter: 'drop-shadow(0 10px 30px rgba(0, 0, 0, 0.3))',
+                  }}
+                  onError={(e) => {
+                    // Fallback to default egg design if image fails
+                    (e.target as HTMLImageElement).style.display = 'none';
+                    const parent = (e.target as HTMLImageElement).parentElement;
+                    if (parent && !parent.querySelector('.egg-fallback')) {
+                      const fallback = document.createElement('div');
+                      fallback.className = 'egg-fallback';
+                      fallback.style.cssText = `
+                        width: 256px;
+                        height: 256px;
+                        border-radius: 50%;
+                        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fcd34d 100%);
+                        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3), inset 0 -20px 60px rgba(0, 0, 0, 0.1);
+                        border: 4px solid #fbbf24;
+                        position: relative;
+                      `;
+                      parent.appendChild(fallback);
+                    }
                   }}
                 />
-                {/* Egg spots/pattern */}
+              ) : (
+                // Fallback egg design
                 <div
-                  className="absolute top-20 right-12 w-8 h-8 rounded-full opacity-40"
-                  style={{ background: '#f59e0b' }}
-                />
-                <div
-                  className="absolute bottom-24 left-16 w-6 h-6 rounded-full opacity-40"
-                  style={{ background: '#f59e0b' }}
-                />
-              </div>
+                  className="w-64 h-64 rounded-full relative"
+                  style={{
+                    background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fcd34d 100%)',
+                    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3), inset 0 -20px 60px rgba(0, 0, 0, 0.1)',
+                    border: '4px solid #fbbf24',
+                  }}
+                >
+                  {/* Egg shine effect */}
+                  <div
+                    className="absolute top-4 left-8 w-24 h-32 rounded-full opacity-60"
+                    style={{
+                      background: 'radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, transparent 70%)',
+                    }}
+                  />
+                  {/* Egg spots/pattern */}
+                  <div
+                    className="absolute top-20 right-12 w-8 h-8 rounded-full opacity-40"
+                    style={{ background: '#f59e0b' }}
+                  />
+                  <div
+                    className="absolute bottom-24 left-16 w-6 h-6 rounded-full opacity-40"
+                    style={{ background: '#f59e0b' }}
+                  />
+                </div>
+              )}
             </motion.div>
 
-            {/* Magic Circle - appears during magic-circle phase */}
+            {/* Magic Circle - appears during magic-circle phase while egg is still shaking */}
             {phase === 'magic-circle' && (
               <motion.div
                 className="absolute"
@@ -228,7 +315,7 @@ export const EggHatchCinematic: React.FC<EggHatchCinematicProps> = ({
                   y: [0, -20, -40],
                 }}
                 transition={{
-                  duration: 1.5,
+                  duration: 0.8,
                   ease: 'easeInOut',
                 }}
                 style={{
@@ -296,11 +383,34 @@ export const EggHatchCinematic: React.FC<EggHatchCinematicProps> = ({
                 </svg>
               </motion.div>
             )}
+
+            {/* Golden light effects during magic circle phase */}
+            {phase === 'magic-circle' && (
+              <motion.div
+                className="absolute inset-0"
+                initial={{ opacity: 0 }}
+                animate={{ 
+                  opacity: [0, 0.3, 0.5, 0.3, 0],
+                }}
+                transition={{
+                  duration: 0.8,
+                  ease: 'easeInOut',
+                }}
+                style={{
+                  background: 'radial-gradient(circle, rgba(255, 215, 0, 0.4) 0%, transparent 70%)',
+                  width: '500px',
+                  height: '500px',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                }}
+              />
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Step 5: White flash - full screen */}
+      {/* Step 5: White flash - full screen - MUST PLAY */}
       <AnimatePresence>
         {phase === 'white-flash' && (
           <motion.div
@@ -309,7 +419,7 @@ export const EggHatchCinematic: React.FC<EggHatchCinematicProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 bg-white"
+            className="absolute inset-0 bg-white z-[10001]"
           />
         )}
       </AnimatePresence>
@@ -322,8 +432,8 @@ export const EggHatchCinematic: React.FC<EggHatchCinematicProps> = ({
             initial={{ opacity: 1 }}
             animate={{ opacity: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
-            className="absolute inset-0 bg-white"
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="absolute inset-0 bg-white z-[10001]"
           />
         )}
       </AnimatePresence>
@@ -348,11 +458,11 @@ export const EggHatchCinematic: React.FC<EggHatchCinematicProps> = ({
                 ease: 'easeOut',
               },
             }}
-            className="absolute inset-0 flex flex-col items-center justify-center"
+            className="absolute inset-0 flex flex-col items-center justify-center z-[10002]"
           >
             {/* Pet icon */}
             <motion.img
-              src={hatchedPet.icon || getAssetUrl('/Asset/item/classTicket.png')}
+              src={hatchedPet.icon ? getItemIconUrl(hatchedPet.icon) : getAssetUrl('/Asset/item/classTicket.png')}
               alt={hatchedPet.name}
               className="w-32 h-32 object-contain mb-4"
               initial={{ scale: 0 }}
@@ -408,11 +518,11 @@ export const EggHatchCinematic: React.FC<EggHatchCinematicProps> = ({
             animate={{ y: '100vh', opacity: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1, ease: 'easeIn' }}
-            className="absolute inset-0 flex flex-col items-center justify-center"
+            className="absolute inset-0 flex flex-col items-center justify-center z-[10002]"
           >
             {/* Pet icon */}
             <img
-              src={hatchedPet.icon || getAssetUrl('/Asset/item/classTicket.png')}
+              src={hatchedPet.icon ? getItemIconUrl(hatchedPet.icon) : getAssetUrl('/Asset/item/classTicket.png')}
               alt={hatchedPet.name}
               className="w-32 h-32 object-contain mb-4"
               onError={(e) => {
@@ -430,20 +540,6 @@ export const EggHatchCinematic: React.FC<EggHatchCinematicProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Skip hint (optional) */}
-      {canSkip && phase !== 'pet-reveal' && phase !== 'pet-exit' && phase !== 'complete' && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className={`absolute bottom-8 left-1/2 transform -translate-x-1/2 text-sm ${
-            theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-          }`}
-        >
-          Click to skip
-        </motion.div>
-      )}
     </div>
   );
 };
-

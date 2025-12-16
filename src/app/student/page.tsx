@@ -119,7 +119,7 @@ const StudentPage: React.FC = () => {
   
   // Egg hatching animation state (declared early for use in callbacks)
   const [isEggHatchActive, setIsEggHatchActive] = useState(false);
-  const [hatchedPet, setHatchedPet] = useState<{ name: string; icon?: string } | null>(null);
+  const [hatchedPet, setHatchedPet] = useState<{ name: string; icon?: string; eggIcon?: string } | null>(null);
   
   // Wrapper for handleUseItem to handle egg hatching animation
   const handleUseItemWithAnimation = useCallback(async (itemId: string) => {

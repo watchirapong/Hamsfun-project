@@ -86,7 +86,10 @@ export const useItems = (onPetEquipped?: () => void) => {
 
       // If it's an egg item, extract hatched pet data from response or inventory
       if (isEggItem) {
-        let hatchedPet: { name: string; icon?: string } | undefined;
+        let hatchedPet: { name: string; icon?: string; eggIcon?: string } | undefined;
+
+        // Get the egg icon from the item that was used
+        const eggIcon = item.icon || item.image;
 
         // Try to get pet from API response first
         if (response?.pet || response?.hatchedPet) {
@@ -94,6 +97,7 @@ export const useItems = (onPetEquipped?: () => void) => {
           hatchedPet = {
             name: petData.name || petData.itemId?.name || 'Unknown Pet',
             icon: petData.icon || petData.itemId?.icon,
+            eggIcon: eggIcon,
           };
         } else {
           // Fallback: find the newly added pet in inventory (first Pet item that wasn't there before)
@@ -106,11 +110,18 @@ export const useItems = (onPetEquipped?: () => void) => {
             hatchedPet = {
               name: newPet.itemId?.name || 'Unknown Pet',
               icon: newPet.itemId?.icon,
+              eggIcon: eggIcon,
+            };
+          } else {
+            // If we can't find the pet, still return with egg icon
+            hatchedPet = {
+              name: 'Unknown Pet',
+              eggIcon: eggIcon,
             };
           }
         }
 
-        return { hatchedPet: hatchedPet || { name: 'Unknown Pet' } };
+        return { hatchedPet: hatchedPet || { name: 'Unknown Pet', eggIcon: eggIcon } };
       }
 
       return null;
