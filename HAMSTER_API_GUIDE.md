@@ -5,13 +5,6 @@
 **Base URL:** `/api/v1`
 **Authentication:** JWT Token (Hamster Role Required)
 
-> [!IMPORTANT]
-> **Cloudflare R2 Migration (2025-12-19):**
-> 1. **Storage Consolidation:** All files (Submissions, Icons, Avatars, Items) are now stored in a single Cloudflare R2 bucket.
-> 2. **Full URLs:** Images are no longer served as relative paths. All icon/image fields in JSON responses now contain **FULL HTTP(S) URLS**.
->    - Example: `https://<R2_PUBLIC_URL>/items/quest-icon.png`
-> 3. **Uploads:** Field names for Multipart/Form-Data remain unchanged.
-
 ---
 
 ## 1. Authentication
@@ -60,7 +53,7 @@ Authorization: Bearer <JWT_TOKEN>
       "_id": "quest123...",
       "title": "Hamster Training",
       "type": "Main",
-      "icon": "/images/quest.png"
+      "icon": "https://pub-xxxx.r2.dev/items/quest.png"
     },
     "status": "Active",
     "acceptedAt": "2024-01-01T00:00:00.000Z",
@@ -163,28 +156,53 @@ Authorization: Bearer <JWT_TOKEN>
 
 ---
 
-## 5. Quest Submission
+## 5. Quest Submission (Hamster)
 
-Hamsters สามารถส่ง Quest ผ่าน User API ได้เช่นกัน:
+> [!IMPORTANT]
+> Hamsters must use the **dedicated Hamster endpoint** for quest submissions. This ensures proper approval workflow without auto-approve.
 
-### 5.1 Submit Quest
-**URL:** `POST /api/v1/quests/:id/submit`
-**Description:** ส่งงานเควส (Multipart/Form-Data)
+### 5.1 Submit Quest (Hamster Only)
+**URL:** `POST /api/v1/hamster/quests/:id/submit`
+**Description:** Submit quest completion for Hamsters (Multipart/Form-Data)
 
 **Request (Form Data):**
 | Field | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
-| `description` | String | No | ข้อความอธิบายเพิ่มเติม |
-| `subQuestId` | String | No | ID ของ Sub-Quest |
-| `imageProof` | File | No | รูปหลักฐาน |
+| `description` | String | No | Additional description |
+| `subQuestId` | String | No | ID of Sub-Quest |
+| `imageProof` | File | No | Proof image |
+
+**Response:**
+```json
+{
+  "message": "Sub-quest submitted for review",
+  "submission": {
+    "_id": "submission123",
+    "status": "Pending",
+    "autoApprove": false
+  }
+}
+```
+
+### Hamster Quest Behavior
+
+| Feature | Behavior |
+|---------|----------|
+| **Auto-Approve** | ❌ **Never** - ทุก submission ต้องรอ Star Master approve |
+| **Immediate Rewards** | ❌ **Never** - Rewards จะ grant เมื่อ approve เท่านั้น |
+| **Submission Status** | Always `Pending` |
+| **Star Master Notification** | ✅ Always |
+
+> [!CAUTION]
+> **DO NOT use** `/api/v1/quests/:id/submit` for Hamster quests. That endpoint is for Regular Users only and may cause incorrect behavior.
 
 **Quest Reward Types:**
-- `Item` - ไอเทม
-- `Coin` - เหรียญ
-- `RankPoint` - แต้ม Rank
-- `BadgePoint` - แต้ม Badge
-- `LeaderboardScore` - คะแนน Leaderboard
-- `PetExp` - ค่าประสบการณ์ Pet
+- `Item` - Item rewards
+- `Coin` - Coin rewards
+- `RankPoint` - Rank points
+- `BadgePoint` - Badge points
+- `LeaderboardScore` - Leaderboard score
+- `PetExp` - Pet experience points
 - `Ball` - Ball currency (Hamster only)
 
 ---
@@ -231,17 +249,17 @@ Hamsters สามารถใช้ User APIs ทั้งหมดได้ด
  ```
  
  #### 7.1.3 Update Member Quest
- **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex`
+ **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqId`
  
  #### 7.1.4 Delete Member Quest
- **URL:** `DELETE /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex`
+ **URL:** `DELETE /api/v1/hamsters/team-quests/:id/member-quests/:mqId`
  
  #### 7.1.5 Approve Member Quest Work
- **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex/approve`
+ **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqId/approve`
  **Description:** อนุมัติงานที่สมาชิกส่งมา
  
  #### 7.1.6 Reject Member Quest Work
- **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex/reject`
+ **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqId/reject`
  **Description:** สั่งแก้เกน (สามารถระบุ Note ได้)
  
  #### 7.1.7 Submit Team Quest (For Review)
@@ -256,8 +274,8 @@ Hamsters สามารถใช้ User APIs ทั้งหมดได้ด
  **URL:** `GET /api/v1/hamsters/my-quests`
  **Description:** ดูรายการงานที่ได้รับมอบหมาย
  
- #### 7.2.2 Submit Work
- **URL:** `POST /api/v1/hamsters/team-quests/:id/member-quests/:mqIndex/submit`
+ #### 7.2.2 Submit Member Quest Work
+ **URL:** `POST /api/v1/hamsters/team-quests/:id/member-quests/:mqId/submit`
  **Description:** ส่งหลักฐานการทำงาน (รูปภาพ/ข้อความ)
  
  **Request (Form Data):**
@@ -273,6 +291,20 @@ Hamsters สามารถใช้ User APIs ทั้งหมดได้ด
    "memberQuest": { ...Updated Object... }
  }
  ```
+
+ ---
+
+ ### 7.3 SubQuest Actions
+ 
+ #### 7.3.1 Submit SubQuest Work (Member)
+ **URL:** `POST /api/v1/hamsters/team-quests/:id/member-quests/:mqId/sub-quests/:sqId/submit`
+ **Description:** ส่งงาน SubQuest ย่อย
+ 
+ #### 7.3.2 Approve SubQuest (Leader)
+ **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqId/sub-quests/:sqId/approve`
+ 
+ #### 7.3.3 Reject SubQuest (Leader)
+ **URL:** `PUT /api/v1/hamsters/team-quests/:id/member-quests/:mqId/sub-quests/:sqId/reject`
 
 ---
 
@@ -331,7 +363,42 @@ const socket = io('http://localhost:5000', {
   "type": "Quest",
   "status": "Approved",
   "questId": "65672...",
-  "submissionId": "65673..."
+  "submissionId": "65673...",
+  "grantedRewards": {
+    "coins": 500,
+    "rankPoints": 100,
+    "leaderboardScore": 50,
+    "badgePoints": { "GameDesign": 200 },
+    "items": [
+      { "name": "Golden Sword", "quantity": 1, "type": "Equipment" }
+    ],
+    "petExp": 150,
+    "petLevelUps": [{ "level": 5 }],
+    "balls": 10
+  }
+}
+```
+
+**grantedRewards Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `coins` | Number | Amount of Coins granted |
+| `rankPoints` | Number | Amount of Rank Points granted |
+| `leaderboardScore` | Number | Amount of Leaderboard Score granted |
+| `badgePoints` | Object | Badge Points by category |
+| `items` | Array | Items granted `[{ name, quantity, type }]` |
+| `petExp` | Number | Pet EXP granted (optional) |
+| `petLevelUps` | Array | Level ups that occurred (optional) |
+| `balls` | Number | Balls granted - Hamster only (optional) |
+
+#### `quest_assigned`
+เมื่อได้รับ Quest ใหม่โดยอัตโนมัติ (เช่น หลังจากจบ Quest ก่อนหน้าใน Chain)
+
+```json
+{
+  "type": "Quest",
+  "questId": "65672...",
+  "title": "New Quest Title"
 }
 ```
 

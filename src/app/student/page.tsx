@@ -356,7 +356,7 @@ const StudentPage: React.FC = () => {
   }, []);
   
   // Use new quest notification hook (for students, isHamster = false)
-  const { hasNewQuests, newQuestIds, recheckQuests } = useNewQuestNotification(
+  const { hasNewQuests, newQuestIds, setNewQuestIds, recheckQuests } = useNewQuestNotification(
     isAuthenticated,
     false // Students are not hamsters
   );
@@ -433,6 +433,8 @@ const StudentPage: React.FC = () => {
     awardObjectiveReward,
     awardQuestRewards,
     applyPendingRewards: () => {},
+    setNewQuestIds,
+    recheckQuests,
     onShowRewardModal: (rewards) => {
       setRewardModalRewards(rewards);
       setRewardModalOpen(true);

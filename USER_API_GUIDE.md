@@ -4,13 +4,6 @@ This guide details the public API endpoints available for users and external app
 
 **Base URL:** `/api/v1` (except Auth routes)
 
-> [!IMPORTANT]
-> **Cloudflare R2 Migration (2025-12-19):**
-> 1. **Storage Consolidation:** All files (Submissions, Icons, Avatars, Items) are now stored in a single Cloudflare R2 bucket.
-> 2. **Full URLs:** Images are no longer served as relative paths. All icon/image fields in JSON responses now contain **FULL HTTP(S) URLS**.
->    - Example: `https://<R2_PUBLIC_URL>/items/quest-icon.png`
-> 3. **Uploads:** Field names for Multipart/Form-Data remain unchanged.
-
 ---
 
 ## 1. Authentication
@@ -120,7 +113,7 @@ This guide details the public API endpoints available for users and external app
         {
             "_id": "QuestID",
             "title": "Quest Title",
-            "icon": "Icon URL",
+            "icon": "https://pub-xxxx.r2.dev/items/quest-icon.png",
             "type": "Quest Type",
             "description": "Quest Description",
             "rewardPool": { "totalBalls": 100, "totalLeaderboardScore": 50 },
@@ -258,6 +251,38 @@ This guide details the public API endpoints available for users and external app
 > [!TIP]
 > **Pet IV Distribution:** IVs (0-100) use a bell curve distribution. Middle values (~40-60) are most common, while extreme values (0-10 or 90-100) are rare. This makes high-IV pets more valuable!
 
+**Response (Egg Item - Hatching):**
+```json
+{
+  "message": "Hatched Dragon!",
+  "hatchedPet": {
+    "icon": "https://example.com/dragon.png",
+    "name": "Dragon",
+    "kind": "Pet",
+    "itemId": "item123",
+    "nickname": "Dragon",
+    "level": 1,
+    "experience": 0,
+    "currentStats": {
+      "maxHealth": 100,
+      "attackDamage": 15,
+      "defense": 5
+    },
+    "iv": {
+      "maxHealth": 80,
+      "attackDamage": 95,
+      "defense": 60
+    },
+    "acquiredAt": "2024-01-01T12:00:00Z"
+  },
+  "item": {
+    "_id": "inventoryItem123",
+    "itemId": "eggItem123",
+    "quantity": 0
+  }
+}
+```
+
 ### 2.6 Generate Item Redeem Code
 **URL:** `POST /api/v1/users/me/inventory/redeem-code`
 **Description:** Generates a 10-character code for redeeming an item in Roblox.
@@ -352,9 +377,12 @@ This guide details the public API endpoints available for users and external app
 **URL:** `GET /api/v1/quests`
 **Description:** Retrieves all available quests.
 
-### 4.2 Submit Quest
+### 4.2 Submit Quest (User)
 **URL:** `POST /api/v1/quests/:id/submit`
-**Description:** Submit quest completion (Multipart/Form-Data).
+**Description:** Submit quest completion for **Regular Users** (Multipart/Form-Data).
+
+> [!IMPORTANT]
+> **Hamsters must use** `/api/v1/hamster/quests/:id/submit` instead. This endpoint is for Regular Users only.
 
 **Request (Form Data):**
 | Field | Type | Required | Description |
@@ -363,8 +391,51 @@ This guide details the public API endpoints available for users and external app
 | `subQuestId` | String | No | ID of sub-quest (if submitting sub-quest) |
 | `imageProof` | File | No | Proof image |
 
+**Response:**
+```json
+{
+  "message": "Sub-quest auto-approved",
+  "submission": {
+    "_id": "submission123",
+    "status": "Pending",
+    "autoApprove": true
+  },
+  "grantedRewards": {
+    "coins": 100,
+    "rankPoints": 50,
+    "leaderboardScore": 25,
+    "items": [
+        {
+            "_id": "item123",
+            "name": "Golden Sword",
+            "icon": "https://...",
+            "quantity": 1,
+            "type": "Equipment"
+        }
+    ]
+  },
+  "nextQuest": null
+}
+```
+
+### Quest Submission Behavior
+
+#### SubQuest Submission
+| Action | Result |
+|--------|--------|
+| **Submit** | Rewards granted **immediately** (regardless of autoApprove) |
+| **Last SubQuest + No Main Rewards** | Main Quest auto-completed |
+| **Submission Status** | Always `Pending` |
+
+#### Main Quest Submission
+| Condition | Result |
+|-----------|--------|
+| `autoApprove: true` | Quest completed, rewards granted immediately |
+| `autoApprove: false` | Quest marked as Pending, wait for Star Master |
+| **Submission Status** | Always `Pending` |
+
 > [!TIP]
-> **Auto Approve Submissions:** When a Quest has `autoApprove: true`, submissions will be automatically approved without requiring Star Master review. Rewards are granted immediately upon submission.
+> **Auto Approve Submissions:** When a Quest has `autoApprove: true`, rewards are granted immediately upon submission. The submission is still created with status `Pending` for tracking purposes, but Star Master approval will NOT re-grant rewards.
 
 ---
 
@@ -450,7 +521,13 @@ Emitted when a quest submission is reviewed (Approved/Rejected).
     "leaderboardScore": 50,
     "badgePoints": { "GameDesign": 200 },
     "items": [
-      { "name": "Golden Sword", "quantity": 1, "type": "Equipment" }
+      {
+        "_id": "item123",
+        "name": "Golden Sword",
+        "icon": "https://...",
+        "quantity": 1,
+        "type": "Equipment"
+      }
     ],
     "petExp": 150,
     "petLevelUps": [{ "level": 5 }],
@@ -473,6 +550,18 @@ Emitted when a quest submission is reviewed (Approved/Rejected).
 
 > [!NOTE]
 > `grantedRewards` will be `null` if Rejected or no rewards were granted.
+
+#### `quest_assigned`
+Emitted when a new quest is automatically assigned to the user (e.g., following a quest chain).
+
+**Payload:**
+```json
+{
+  "type": "Quest",
+  "questId": "65672...",
+  "title": "New Quest Title"
+}
+```
 
 #### `unity_login_code`
 Emitted to the Unity client after requesting a login.

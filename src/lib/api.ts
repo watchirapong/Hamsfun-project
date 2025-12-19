@@ -156,9 +156,6 @@ export const userAPI = {
 
 // Quest APIs
 export const questAPI = {
-  // List all quests
-  listAllQuests: () => apiCall<any[]>('/api/v1/quests'),
-
   // Submit quest
   submitQuest: (questId: string, formData: FormData) =>
     apiCallMultipart(`/api/v1/quests/${questId}/submit`, formData),

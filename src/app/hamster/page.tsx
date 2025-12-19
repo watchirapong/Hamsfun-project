@@ -331,7 +331,7 @@ const HamsterPage: React.FC = () => {
   // Coin flight handler removed - hamster users don't use coin animations
   
   // Use new quest notification hook (for hamsters, isHamster = true)
-  const { hasNewQuests, newQuestIds, recheckQuests } = useNewQuestNotification(
+  const { hasNewQuests, newQuestIds, setNewQuestIds, recheckQuests } = useNewQuestNotification(
     isAuthenticated,
     true // Hamsters are hamster users
   );
@@ -398,6 +398,8 @@ const HamsterPage: React.FC = () => {
     awardObjectiveReward,
     awardQuestRewards,
     applyPendingRewards: () => {},
+    setNewQuestIds,
+    recheckQuests,
     onShowRewardModal: (rewards) => {
       setRewardModalRewards(rewards);
       setRewardModalOpen(true);
@@ -563,6 +565,7 @@ const HamsterPage: React.FC = () => {
               newQuestIds={newQuestIds}
               onQuestClick={handleQuestCardClick}
               theme={theme}
+              onBossCinematicChange={setIsBossCinematicActive}
             />
             <button 
               className="w-full bg-[#4EAAFF] text-white py-3 rounded-xl font-medium hover:bg-blue-600 transition-colors"

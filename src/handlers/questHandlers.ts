@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { questAPI, hamsterAPI } from '@/lib/api';
 import { Quest, ObjectiveReward } from '@/types';
+import { mapApiQuestToFrontend } from '@/utils/questHelpers';
 import { RewardData } from '@/components/quests/RewardClaimModal';
 import { getApprovedObjectivesCount, areAllObjectivesCompleted } from '@/utils/helpers';
 import { hasValidGrantedRewards } from '@/utils/rewardHelpers';
@@ -23,6 +24,8 @@ interface QuestHandlersParams {
   setSkills: React.Dispatch<React.SetStateAction<any[]>>;
   triggerRewardAnimation: (reward: any) => void;
   handleSkillLevelUp: (skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => void;
+  recheckQuests: () => Promise<void>;
+  setNewQuestIds: React.Dispatch<React.SetStateAction<string[]>>;
   awardedRewards: Set<string>;
   processingObjectives: React.MutableRefObject<Set<string>>;
   questPanelShouldAnimate: React.MutableRefObject<boolean>;
@@ -64,6 +67,8 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
     awardObjectiveReward,
     awardQuestRewards,
     applyPendingRewards,
+    recheckQuests,
+    setNewQuestIds,
     onShowRewardModal
   } = params;
 
@@ -265,6 +270,34 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       // Hamster Member Quests don't get immediate rewards
       const grantedRewards = submitResponse?.grantedRewards;
       console.log('grantedRewards from API:', grantedRewards);
+
+      // Handle nextQuest if provided in response
+      const nextQuestData = submitResponse?.nextQuest;
+      if (nextQuestData) {
+        console.log('New quest detected in submission response:', nextQuestData);
+        try {
+          // Map to frontend Quest format
+          const mappedNextQuest = mapApiQuestToFrontend(nextQuestData);
+          const nextQuestId = String(mappedNextQuest.id);
+
+          // 1. Update quests state to include the next quest
+          setQuestsState(prev => {
+            const exists = prev.some(q => String(q.id) === nextQuestId);
+            if (exists) return prev;
+            return [...prev, mappedNextQuest];
+          });
+
+          // 2. Trigger fly-in animation by adding to newQuestIds
+          setNewQuestIds(prev => {
+            if (prev.includes(nextQuestId)) return prev;
+            return [...prev, nextQuestId];
+          });
+
+          console.log(`Successfully loaded nextQuest ${nextQuestId} and triggered animation`);
+        } catch (err) {
+          console.error('Error processing nextQuest data:', err);
+        }
+      }
 
       const hasGrantedRewards = !quest.isMemberQuest && hasValidGrantedRewards(grantedRewards);
       console.log('hasGrantedRewards calculated as:', hasGrantedRewards);
@@ -575,6 +608,34 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       // Check if rewards were granted by the backend
       const grantedRewards = submitResponse?.grantedRewards;
       const hasGrantedRewards = hasValidGrantedRewards(grantedRewards);
+
+      // Handle nextQuest if provided in response
+      const nextQuestData = submitResponse?.nextQuest;
+      if (nextQuestData) {
+        console.log('New quest detected in quest completion response:', nextQuestData);
+        try {
+          // Map to frontend Quest format
+          const mappedNextQuest = mapApiQuestToFrontend(nextQuestData);
+          const nextQuestId = String(mappedNextQuest.id);
+
+          // 1. Update quests state to include the next quest
+          setQuestsState(prev => {
+            const exists = prev.some(q => String(q.id) === nextQuestId);
+            if (exists) return prev;
+            return [...prev, mappedNextQuest];
+          });
+
+          // 2. Trigger fly-in animation by adding to newQuestIds
+          setNewQuestIds(prev => {
+            if (prev.includes(nextQuestId)) return prev;
+            return [...prev, nextQuestId];
+          });
+
+          console.log(`Successfully loaded nextQuest ${nextQuestId} from completion response and triggered animation`);
+        } catch (err) {
+          console.error('Error processing nextQuest data from completion:', err);
+        }
+      }
 
       // Process rewards from API response
       if (hasGrantedRewards) {

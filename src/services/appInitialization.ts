@@ -1,11 +1,12 @@
 import { Gamepad2, Monitor, Paintbrush, Code } from 'lucide-react';
-import { userAPI, hamsterAPI, getToken, setToken, removeToken } from '@/lib/api';
+import { userAPI, hamsterAPI, questAPI, getToken, setToken, removeToken } from '@/lib/api';
 import { User, Skill, Quest, BackpackItem, ObjectiveReward, ApprovalStatus } from '@/types';
 import { getRankIconPath, getAssetUrl } from '@/utils/helpers';
 import {
   mapBackendRewardEntryToFrontend,
   extractSubQuestIdFromProgress,
-  extractSubQuestIdFromSubQuest
+  extractSubQuestIdFromSubQuest,
+  mapApiQuestToFrontend
 } from '@/utils/questHelpers';
 import { mapApiSkillNameToDisplayName } from '@/utils/rewardHelpers';
 import { populateItemCache, getItemIconUrl } from '@/utils/itemHelpers';
@@ -268,353 +269,56 @@ export const initializeApp = async (params: InitializeAppParams) => {
       }
     }
 
-    // Fetch active quests - use hamsterAPI for Hamster users, userAPI for regular users
+    // Unified Quest Loading Flow
     try {
-      console.log('Fetching active quests, isHamsterUser:', isHamsterUser);
-      const activeQuests = isHamsterUser
-        ? await hamsterAPI.getActiveQuests()
-        : await userAPI.getActiveQuests();
-      console.log('Active quests from API:', activeQuests);
-      // Map backend quests to frontend Quest interface
-      // Filter out quests where questId is null or not populated (not an object)
-      const mappedQuests = activeQuests
+      console.log('Fetching all quest types...');
+      const [activeQuests, completedQuests] = await Promise.all([
+        isHamsterUser ? hamsterAPI.getActiveQuests().catch(() => []) : userAPI.getActiveQuests().catch(() => []),
+        isHamsterUser ? hamsterAPI.getCompletedQuests().catch(() => []) : userAPI.getCompletedQuests().catch(() => [])
+      ]);
+      const allQuests = [...activeQuests, ...completedQuests];
+
+      const questMap = new Map<string, Quest>();
+
+      // 1. Map All Quests from Structure (as "New Quests" initially)
+      allQuests.forEach((q: any) => {
+        if (q && q._id) {
+          const mapped = mapApiQuestToFrontend(q);
+          questMap.set(q._id.toString(), mapped);
+        }
+      });
+
+      // 2. Map Active Quests (overwrite with progress)
+      activeQuests
         .filter((aq: any) => aq.questId && typeof aq.questId === 'object' && aq.questId._id)
-        .map((aq: any) => {
-          const quest = aq.questId;
-          return {
-            id: quest._id,
-            type: quest.type || "Main",
-            title: quest.title,
-            description: quest.description,
-            steps: quest.subQuests?.map((_: any, i: number) => i + 1) || [],
-            currentStep: aq.subQuestsProgress?.filter((p: any) => p.status === 'Completed').length || 0,
-            rewards: (() => {
-              // Map completionRewards from backend structure to frontend format
-              // Backend structure: completionRewards: [{ chance: 1, entries: [{ type, minAmount, maxAmount, ... }] }]
-              if (!quest.completionRewards || !Array.isArray(quest.completionRewards)) {
-                return [];
-              }
-
-              const mappedRewards: ObjectiveReward[] = [];
-
-              quest.completionRewards.forEach((rewardGroup: any) => {
-                if (rewardGroup && Array.isArray(rewardGroup.entries)) {
-                  rewardGroup.entries.forEach((entry: any) => {
-                    const mappedReward = mapBackendRewardEntryToFrontend(entry);
-                    mappedRewards.push(mappedReward);
-                  });
-                }
-              });
-
-              return mappedRewards;
-            })(),
-            completed: aq.isCompleted || false,
-            objectives: quest.subQuests?.map((sq: any, idx: number) => {
-              // Backend reward structure:
-              // rewards: [
-              //   {
-              //     chance: 1,
-              //     entries: [
-              //       {
-              //         type: "Coin" | "RankPoint" | "LeaderboardScore" | "BadgePoint",
-              //         minAmount: number,
-              //         maxAmount: number,
-              //         weight: number,
-              //         badgeCategory?: string (for BadgePoint)
-              //       }
-              //     ]
-              //   }
-              // ]
-
-              let rewards: ObjectiveReward[] = [];
-
-              // Try sq.reward first (single object - for backwards compatibility)
-              if (sq.reward && typeof sq.reward === 'object' && sq.reward.type) {
-                rewards = [sq.reward];
-              }
-              // Try sq.rewards array (actual backend structure)
-              else if (Array.isArray(sq.rewards) && sq.rewards.length > 0) {
-                sq.rewards.forEach((rewardGroup: any) => {
-                  if (rewardGroup && Array.isArray(rewardGroup.entries)) {
-                    rewardGroup.entries.forEach((entry: any) => {
-                      const mappedReward = mapBackendRewardEntryToFrontend(entry);
-                      rewards.push(mappedReward);
-                    });
-                  }
-                });
-              }
-              // Check if reward data is in the progress entry
-              else {
-                const progressEntry = aq.subQuestsProgress?.find((p: any) => {
-                  const pId = extractSubQuestIdFromProgress(p)?.toString();
-                  const sqId = extractSubQuestIdFromSubQuest(sq)?.toString();
-                  return pId === sqId;
-                });
-
-                if (progressEntry?.reward && typeof progressEntry.reward === 'object' && progressEntry.reward.type) {
-                  rewards = [progressEntry.reward];
-                } else if (Array.isArray(progressEntry?.rewards) && progressEntry.rewards.length > 0) {
-                  progressEntry.rewards.forEach((rewardGroup: any) => {
-                    if (rewardGroup && Array.isArray(rewardGroup.entries)) {
-                      rewardGroup.entries.forEach((entry: any) => {
-                        const mappedReward = mapBackendRewardEntryToFrontend(entry);
-                        rewards.push(mappedReward);
-                      });
-                    }
-                  });
-                }
-              }
-
-              // If no rewards found, add a default coin reward
-              if (rewards.length === 0) {
-                rewards = [{ type: 'coins', value: 0 }];
-              }
-
-              // Ensure all rewards have the correct structure
-              rewards = rewards.map(reward => {
-                if (!reward || typeof reward !== 'object') {
-                  return { type: 'coins', value: 0 };
-                }
-                if (!reward.type) {
-                  reward.type = 'coins';
-                }
-                if (typeof reward.value === 'undefined' || reward.value === null) {
-                  reward.value = 0;
-                }
-                return reward;
-              });
-
-              // Use single reward if only one, otherwise use array
-              const reward = rewards.length === 1 ? rewards[0] : rewards;
-
-              return {
-                text: sq.title || sq.description,
-                reward: reward,
-                subQuestId: sq._id || sq.id, // Store subQuest ID for API submission
-                description: sq.description // Store subQuest description
-              };
-            }) || [],
-            objectiveCompleted: (() => {
-              // Match progress to objectives by subQuestId, not by array index
-              const objectives = quest.subQuests || [];
-              const progressMap = new Map();
-              // Create a map of subQuestId -> progress status
-              // Try multiple possible field names for subQuestId in progress
-              aq.subQuestsProgress?.forEach((p: any, idx: number) => {
-                // Try to get subQuestId from progress object - check various possible structures
-                const progressSubQuestId = extractSubQuestIdFromProgress(p);
-
-                if (progressSubQuestId) {
-                  const subQuestIdString = progressSubQuestId.toString();
-                  // Mark as completed if status is 'Completed' OR 'Pending' (user sees pending as completed)
-                  progressMap.set(subQuestIdString, p.status === 'Completed' || p.status === 'Pending');
-                }
-              });
-              // Map each objective to its completion status by matching subQuestId
-              return objectives.map((sq: any, idx: number) => {
-                const objectiveSubQuestId = extractSubQuestIdFromSubQuest(sq)?.toString();
-
-                // First, try to get from the map we built
-                let completed = progressMap.get(objectiveSubQuestId);
-
-                // If not found in map, try to find progress by searching through all progress entries
-                if (completed === undefined) {
-                  const matchingProgress = aq.subQuestsProgress?.find((p: any) => {
-                    const pId = extractSubQuestIdFromProgress(p)?.toString();
-                    return pId === objectiveSubQuestId;
-                  });
-                  if (matchingProgress) {
-                    // Mark as completed if status is 'Completed' OR 'Pending' (user sees pending as completed)
-                    completed = matchingProgress.status === 'Completed' || matchingProgress.status === 'Pending';
-                  } else {
-                    // DO NOT use array index fallback - it causes incorrect mapping
-                    completed = false;
-                  }
-                }
-                return completed || false;
-              });
-            })(),
-            objectiveSubmissions: (() => {
-              // Match submissions to objectives by subQuestId, not by array index
-              const objectives = quest.subQuests || [];
-              const submissionsMap = new Map();
-              // Create a map of subQuestId -> submission data
-              // Try multiple possible field names for subQuestId in progress
-              aq.subQuestsProgress?.forEach((p: any, idx: number) => {
-                const subQuestId = extractSubQuestIdFromProgress(p);
-                if (subQuestId) {
-                  submissionsMap.set(subQuestId.toString(), {
-                    imageUrl: p.imageProof || null,
-                    status: p.status === 'Completed' ? 'approved' : p.status === 'Pending' ? 'pending' : p.status === 'Rejected' ? 'rejected' : 'none'
-                  });
-                }
-              });
-              // Map each objective to its submission by matching subQuestId
-              return objectives.map((sq: any, idx: number) => {
-                const subQuestId = extractSubQuestIdFromSubQuest(sq)?.toString();
-                let submission = submissionsMap.get(subQuestId);
-
-                // If not found in map, try to find by searching all progress entries
-                if (!submission) {
-                  const matchingProgress = aq.subQuestsProgress?.find((p: any) => {
-                    const pId = extractSubQuestIdFromProgress(p)?.toString();
-                    return pId === subQuestId;
-                  });
-                  if (matchingProgress) {
-                    submission = {
-                      imageUrl: matchingProgress.imageProof || null,
-                      status: matchingProgress.status === 'Completed' ? 'approved' : matchingProgress.status === 'Pending' ? 'pending' : matchingProgress.status === 'Rejected' ? 'rejected' : 'none'
-                    };
-                  }
-                }
-
-                return submission || {
-                  imageUrl: null,
-                  status: 'none' as ApprovalStatus
-                };
-              });
-            })(),
-            objectiveRewardsAwarded: (() => {
-              // Match rewards awarded to objectives by subQuestId, not by array index
-              const objectives = quest.subQuests || [];
-              const rewardsMap = new Map();
-              const submissionsMap = new Map();
-
-              // Create a map of subQuestId -> reward awarded status
-              // Also create a map of subQuestId -> submission status
-              aq.subQuestsProgress?.forEach((p: any, idx: number) => {
-                const subQuestId = extractSubQuestIdFromProgress(p);
-                if (subQuestId) {
-                  rewardsMap.set(subQuestId.toString(), p.rewardAwarded || false);
-                  // Track submission status
-                  const status = p.status === 'Completed' ? 'approved' : p.status === 'Pending' ? 'pending' : p.status === 'Rejected' ? 'rejected' : 'none';
-                  submissionsMap.set(subQuestId.toString(), status);
-                }
-              });
-
-              // Map each objective to its reward awarded status by matching subQuestId
-              return objectives.map((sq: any, idx: number) => {
-                const subQuestId = extractSubQuestIdFromSubQuest(sq)?.toString();
-                let awarded = rewardsMap.get(subQuestId);
-                const submissionStatus = submissionsMap.get(subQuestId) || 'none';
-
-                // If not found in map, try to find by searching all progress entries
-                if (awarded === undefined) {
-                  const matchingProgress = aq.subQuestsProgress?.find((p: any) => {
-                    const pId = extractSubQuestIdFromProgress(p)?.toString();
-                    return pId === subQuestId;
-                  });
-                  if (matchingProgress) {
-                    awarded = matchingProgress.rewardAwarded || false;
-                  }
-                }
-
-                // On reload: if objective was submitted (status !== 'none'), always show as completed (green)
-                // The "CLAIM REWARD" state is temporary and frontend-only, so on reload it should be green
-                if (submissionStatus !== 'none') {
-                  return true; // Show green "Task completed" state
-                }
-
-                return awarded || false;
-              });
-            })(),
-            rewardClaimed: aq.status === 'Completed',
-            rewardSubmissionStatus: (aq.status === 'Pending' ? 'pending' : aq.status === 'Completed' ? 'approved' : 'none') as ApprovalStatus,
-            questRewardsAwarded: aq.isCompleted || false,
-            category: quest.category || "General"
-          };
+        .forEach((aq: any) => {
+          const mapped = mapApiQuestToFrontend(aq.questId, aq);
+          questMap.set(aq.questId._id.toString(), mapped);
         });
-      // Only set quests if we got any from the API - don't overwrite with empty array
-      if (mappedQuests.length > 0) {
-        setQuestsState(mappedQuests);
+
+      // 3. Map Completed Quests (overwrite as completed)
+      completedQuests
+        .filter((cq: any) => cq.questId && typeof cq.questId === 'object' && cq.questId._id)
+        .forEach((cq: any) => {
+          const mapped = mapApiQuestToFrontend(cq.questId, cq);
+          questMap.set(cq.questId._id.toString(), mapped);
+        });
+
+      // Merge with existing quests (preserving any from profile)
+      const finalQuests = Array.from(questMap.values());
+      if (finalQuests.length > 0) {
+        setQuestsState(prev => {
+          const combinedMap = new Map<string, Quest>();
+          // Add existing quests first
+          prev.forEach(q => combinedMap.set(String(q.id), q));
+          // Overwrite/Add with newly fetched quests
+          finalQuests.forEach(q => combinedMap.set(String(q.id), q));
+          return Array.from(combinedMap.values());
+        });
+        console.log(`Merged ${finalQuests.length} new/active/completed quests`);
       }
     } catch (error) {
-      console.error('Error fetching active quests:', error);
-    }
-
-    // Fetch completed quests - use hamsterAPI for Hamster users, userAPI for regular users
-    try {
-      const completedQuests = isHamsterUser
-        ? await hamsterAPI.getCompletedQuests()
-        : await userAPI.getCompletedQuests();
-      // Similar mapping as active quests
-      // Filter out quests where questId is null or not populated (not an object)
-      const mappedCompleted = completedQuests
-        .filter((cq: any) => cq.questId && typeof cq.questId === 'object' && cq.questId._id)
-        .map((cq: any) => {
-          const quest = cq.questId;
-          return {
-            id: quest._id,
-            type: quest.type || "Main",
-            title: quest.title,
-            description: quest.description,
-            steps: quest.subQuests?.map((_: any, i: number) => i + 1) || [],
-            currentStep: quest.subQuests?.length || 0,
-            rewards: (() => {
-              // Map completionRewards from backend structure to frontend format
-              // Backend structure: completionRewards: [{ chance: 1, entries: [{ type, minAmount, maxAmount, ... }] }]
-              if (!quest.completionRewards || !Array.isArray(quest.completionRewards)) {
-                return [];
-              }
-
-              const mappedRewards: ObjectiveReward[] = [];
-
-              quest.completionRewards.forEach((rewardGroup: any) => {
-                if (rewardGroup && Array.isArray(rewardGroup.entries)) {
-                  rewardGroup.entries.forEach((entry: any) => {
-                    const mappedReward = mapBackendRewardEntryToFrontend(entry);
-                    mappedRewards.push(mappedReward);
-                  });
-                }
-              });
-
-              return mappedRewards;
-            })(),
-            completed: true,
-            objectives: quest.subQuests?.map((sq: any) => ({
-              text: sq.title || sq.description,
-              reward: sq.reward || { type: 'coins', value: 0 },
-              description: sq.description || quest.description
-            })) || [],
-            objectiveCompleted: cq.subQuestsProgress?.map(() => true) || [],
-            objectiveSubmissions: cq.subQuestsProgress?.map((p: any) => ({
-              imageUrl: p.imageProof || null,
-              status: 'approved'
-            })) || [],
-            objectiveRewardsAwarded: cq.subQuestsProgress?.map(() => true) || [],
-            rewardClaimed: true,
-            rewardSubmissionStatus: 'approved' as ApprovalStatus,
-            questRewardsAwarded: true,
-            category: quest.category || "General"
-          };
-        });
-
-      // Merge completed quests with active quests, avoiding duplicates
-      // If a quest exists in both lists, prefer the completed version
-      setQuestsState(prev => {
-        const questMap = new Map<string | number, any>();
-
-        // First, add all active quests (normalize ID to string for consistent comparison)
-        prev.forEach(quest => {
-          const normalizedId = String(quest.id);
-          questMap.set(normalizedId, quest);
-        });
-
-        // Then, add/update with completed quests (completed quests take precedence)
-        mappedCompleted.forEach(completedQuest => {
-          const normalizedId = String(completedQuest.id);
-          // Only add if not already present, or replace if the existing one is not completed
-          const existingQuest = questMap.get(normalizedId);
-          if (!existingQuest || !existingQuest.completed) {
-            questMap.set(normalizedId, completedQuest);
-          }
-        });
-
-        // Convert map back to array
-        return Array.from(questMap.values());
-      });
-    } catch (error) {
-      console.error('Error fetching completed quests:', error);
+      console.error('Error in unified quest loading:', error);
     }
 
     // Fetch inventory

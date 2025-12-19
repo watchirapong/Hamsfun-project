@@ -5,6 +5,7 @@ import { getUserId, getQuestStorageKey } from '@/utils/userId';
 interface NewQuestNotificationResult {
   hasNewQuests: boolean;
   newQuestIds: string[];
+  setNewQuestIds: React.Dispatch<React.SetStateAction<string[]>>;
   isLoading: boolean;
   error: Error | null;
   recheckQuests: () => Promise<void>; // Allow external trigger to recheck
@@ -241,6 +242,7 @@ export const useNewQuestNotification = (
   return {
     hasNewQuests,
     newQuestIds,
+    setNewQuestIds,
     isLoading,
     error,
     recheckQuests,
