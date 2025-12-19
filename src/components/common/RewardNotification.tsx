@@ -5,7 +5,7 @@ import { Coins, Star, Trophy, Crown, Package, TrendingUp, X, Heart } from 'lucid
 
 export interface RewardNotificationData {
   id: string;
-  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp';
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp' | 'balls';
   value: number | string;
   skillName?: string;
   itemName?: string;
@@ -75,6 +75,8 @@ export const RewardNotification: React.FC<RewardNotificationProps> = ({
         return <TrendingUp className="w-6 h-6 text-orange-500 dark:text-orange-400 transition-colors" />;
       case 'petExp':
         return <Heart className="w-6 h-6 text-pink-500 dark:text-pink-400 transition-colors" />;
+      case 'balls':
+        return <img src="/Asset/item/ball.png" alt="Balls" className="w-6 h-6 object-contain" />;
       default:
         return null;
     }
@@ -105,6 +107,8 @@ export const RewardNotification: React.FC<RewardNotificationProps> = ({
         return `+${getFormattedValue()} Leaderboard Points`;
       case 'petExp':
         return `+${getFormattedValue()} Pet EXP`;
+      case 'balls':
+        return `+${getFormattedValue()} Balls`;
       default:
         return '';
     }
@@ -128,6 +132,8 @@ export const RewardNotification: React.FC<RewardNotificationProps> = ({
         return 'Leaderboard Points';
       case 'petExp':
         return 'Pet EXP';
+      case 'balls':
+        return 'Balls';
       default:
         return 'Reward';
     }

@@ -3,12 +3,13 @@ import { ObjectiveReward, User, Skill } from '@/types';
 import { calculatePetLevelProgression } from '@/services/rewardService';
 import { mapApiSkillNameToDisplayName } from '@/utils/rewardHelpers';
 import { getAssetUrl } from '@/utils/helpers';
+import { getItemIconUrl } from '@/utils/itemHelpers';
 import { RewardNotificationData } from '@/components/common/RewardNotification';
 import { animateCount, easeOutCubic } from '@/utils/countingAnimation';
 
 export interface RewardAnimationInstance {
   id: string;
-  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp';
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp' | 'balls';
   value: number | string;
   skillName?: string;
   itemName?: string;
@@ -21,7 +22,7 @@ export interface RewardAnimationInstance {
 }
 
 export interface PendingReward {
-  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp';
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp' | 'balls';
   value: number | string;
   skillName?: string;
   itemName?: string;
@@ -127,26 +128,26 @@ export const useRewards = (
     const mainPageWidth = 428; // Main page max width
     const bubbleSize = 80;
     const margin = Math.max(20, bubbleSize / 2); // At least 20px margin, or half bubble size
-    
+
     // Calculate main page boundaries
     // Main page is centered: left = (window.innerWidth - 428) / 2, right = left + 428
     const mainPageLeft = (window.innerWidth - mainPageWidth) / 2;
     const mainPageRight = mainPageLeft + mainPageWidth;
-    
+
     // X position range within main page only
     const minX = mainPageLeft + margin;
     const maxX = mainPageRight - margin - bubbleSize;
-    
+
     // Ensure valid range
     const validMinX = Math.max(mainPageLeft, minX);
     const validMaxX = Math.max(validMinX + bubbleSize, Math.min(maxX, mainPageRight - bubbleSize));
-    
+
     // Randomize X position within main page safe bounds
     const x = validMinX + Math.random() * (validMaxX - validMinX);
-    
+
     // Final safety check - clamp to ensure bubble stays within main page
     const clampedX = Math.max(mainPageLeft, Math.min(x, mainPageRight - bubbleSize));
-    
+
     // Y position: Spawn from bottom of screen (for bottom positioning)
     // Leave small margin from absolute bottom
     const bottomMargin = 20;
@@ -198,6 +199,15 @@ export const useRewards = (
           coins: prev.coins + coinValue
         }));
         console.log(`Applied ${coinValue} coins`);
+      }
+    } else if (reward.type === 'balls') {
+      const ballValue = typeof reward.value === 'number' ? reward.value : 0;
+      if (ballValue > 0) {
+        setUser(prev => ({
+          ...prev,
+          balls: (prev.balls || 0) + ballValue
+        }));
+        console.log(`Applied ${ballValue} balls`);
       }
     } else if (reward.type === 'exp') {
       const expValue = typeof reward.value === 'number' ? reward.value : 0;
@@ -295,10 +305,10 @@ export const useRewards = (
     // Get current user state for animation start values
     let currentUser: User | null = null;
     let currentSkills: Skill[] | null = null;
-    
+
     // We'll need to get these from the state setters - for now, we'll use a callback approach
     // This will be called from page.tsx with current state
-    
+
     // Clear pending rewards after processing
     pendingRewardTotals.current.clear();
     setPendingRewards([]);
@@ -333,13 +343,13 @@ export const useRewards = (
 
     // Queue reward for later application (when overlay closes)
     const rewardValue = typeof reward.value === 'number' ? reward.value : 0;
-    
+
     // Create a key for merging duplicate rewards of the same type
-    const mergeKey = reward.type === 'skill' 
+    const mergeKey = reward.type === 'skill'
       ? `${reward.type}-${reward.skillName}`
       : reward.type === 'item'
-      ? `${reward.type}-${reward.itemId}`
-      : reward.type;
+        ? `${reward.type}-${reward.itemId}`
+        : reward.type;
 
     // Merge with existing pending rewards of the same type
     const currentTotal = pendingRewardTotals.current.get(mergeKey) || 0;
@@ -348,7 +358,7 @@ export const useRewards = (
     // Add to pending rewards list for tracking
     setPendingRewards(prev => {
       // Check if we already have a pending reward of this type to merge
-      const existingIndex = prev.findIndex(p => 
+      const existingIndex = prev.findIndex(p =>
         p.type === reward.type &&
         (reward.type === 'skill' ? p.skillName === reward.skillName : true) &&
         (reward.type === 'item' ? p.itemId === reward.itemId : true)
@@ -409,6 +419,12 @@ export const useRewards = (
       awardObjectiveReward({ type: 'coins', value: grantedRewards.coins }, rewardKey);
     }
 
+    // Process balls - use awardObjectiveReward for proper deduplication
+    if (grantedRewards.balls && grantedRewards.balls > 0) {
+      const rewardKey = contextKey ? `${contextKey}-balls` : `granted-balls-${Date.now()}`;
+      awardObjectiveReward({ type: 'balls' as any, value: grantedRewards.balls }, rewardKey);
+    }
+
     // Process rank points - use awardObjectiveReward for proper deduplication
     if (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) {
       const rewardKey = contextKey ? `${contextKey}-rank` : `granted-rank-${Date.now()}`;
@@ -425,9 +441,7 @@ export const useRewards = (
     if (grantedRewards.items && Array.isArray(grantedRewards.items) && grantedRewards.items.length > 0) {
       grantedRewards.items.forEach((item: any, index: number) => {
         if (item.quantity > 0) {
-          const iconUrl = item.icon?.startsWith('/') && !item.icon.startsWith('/Asset')
-            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}${item.icon}`
-            : item.icon || getAssetUrl("/Asset/item/classTicket.png");
+          const iconUrl = getItemIconUrl(item.icon);
 
           const rewardKey = contextKey
             ? `${contextKey}-item-${index}`
@@ -554,161 +568,179 @@ export const useRewards = (
 
         // Process coins
         const coinsTotal = rewardsByType.get('coins') || 0;
-    if (coinsTotal > 0) {
-      animations.push(
-        animateCount(
-          currentUser.coins,
-          currentUser.coins + coinsTotal,
-          {
-            duration: 1000,
-            easing: easeOutCubic,
-              onUpdate: (value) => {
-                setUserCallback(prev => ({ ...prev, coins: value }));
+        if (coinsTotal > 0) {
+          animations.push(
+            animateCount(
+              currentUser.coins,
+              currentUser.coins + coinsTotal,
+              {
+                duration: 1000,
+                easing: easeOutCubic,
+                onUpdate: (value) => {
+                  setUserCallback(prev => ({ ...prev, coins: value }));
+                }
               }
-          }
-        )
-      );
-    }
+            )
+          );
+        }
+
+        // Process balls
+        const ballsTotal = rewardsByType.get('balls') || 0;
+        if (ballsTotal > 0) {
+          animations.push(
+            animateCount(
+              currentUser.balls || 0,
+              (currentUser.balls || 0) + ballsTotal,
+              {
+                duration: 1000,
+                easing: easeOutCubic,
+                onUpdate: (value) => {
+                  setUserCallback(prev => ({ ...prev, balls: value }));
+                }
+              }
+            )
+          );
+        }
 
         // Process rank points
         const rankTotal = rewardsByType.get('rank') || 0;
-    if (rankTotal > 0) {
-      animations.push(
-        animateCount(
-          currentUser.rankPoints,
-          currentUser.rankPoints + rankTotal,
-          {
-            duration: 1000,
-            easing: easeOutCubic,
-              onUpdate: (value) => {
-                setUserCallback(prev => ({ ...prev, rankPoints: value }));
+        if (rankTotal > 0) {
+          animations.push(
+            animateCount(
+              currentUser.rankPoints,
+              currentUser.rankPoints + rankTotal,
+              {
+                duration: 1000,
+                easing: easeOutCubic,
+                onUpdate: (value) => {
+                  setUserCallback(prev => ({ ...prev, rankPoints: value }));
+                }
               }
-          }
-        )
-      );
-    }
+            )
+          );
+        }
 
         // Process leaderboard points
         const leaderboardTotal = rewardsByType.get('leaderboard') || 0;
-    if (leaderboardTotal > 0) {
-      animations.push(
-        animateCount(
-          currentUser.leaderboardScore || 0,
-          (currentUser.leaderboardScore || 0) + leaderboardTotal,
-          {
-            duration: 1000,
-            easing: easeOutCubic,
-              onUpdate: (value) => {
-                setUserCallback((prev: any) => ({ ...prev, leaderboardScore: value }));
+        if (leaderboardTotal > 0) {
+          animations.push(
+            animateCount(
+              currentUser.leaderboardScore || 0,
+              (currentUser.leaderboardScore || 0) + leaderboardTotal,
+              {
+                duration: 1000,
+                easing: easeOutCubic,
+                onUpdate: (value) => {
+                  setUserCallback((prev: any) => ({ ...prev, leaderboardScore: value }));
+                }
               }
-          }
-        )
-      );
-    }
+            )
+          );
+        }
 
         // Process EXP
         const expTotal = rewardsByType.get('exp') || 0;
-    if (expTotal > 0) {
-      let currentXp = currentUser.petXp;
-      animations.push(
-        animateCount(
-          currentXp,
-          currentXp + expTotal,
-          {
-            duration: 1000,
-            easing: easeOutCubic,
-              onUpdate: (value) => {
-                setUserCallback(prev => {
-                  const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, value - prev.petXp);
-                  return {
-                    ...prev,
-                    petXp: progression.newXp,
-                    petLevel: progression.newLevel,
-                    petMaxXp: progression.newMaxXp
-                  };
-                });
+        if (expTotal > 0) {
+          let currentXp = currentUser.petXp;
+          animations.push(
+            animateCount(
+              currentXp,
+              currentXp + expTotal,
+              {
+                duration: 1000,
+                easing: easeOutCubic,
+                onUpdate: (value) => {
+                  setUserCallback(prev => {
+                    const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, value - prev.petXp);
+                    return {
+                      ...prev,
+                      petXp: progression.newXp,
+                      petLevel: progression.newLevel,
+                      petMaxXp: progression.newMaxXp
+                    };
+                  });
+                }
               }
-          }
-        )
-      );
-    }
+            )
+          );
+        }
 
         // Process Pet EXP
         const petExpTotal = rewardsByType.get('petExp') || 0;
-    if (petExpTotal > 0) {
-      let currentXp = currentUser.petXp;
-      animations.push(
-        animateCount(
-          currentXp,
-          currentXp + petExpTotal,
-          {
-            duration: 1000,
-            easing: easeOutCubic,
-              onUpdate: (value) => {
-                setUserCallback(prev => {
-                  const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, value - prev.petXp);
-                  return {
-                    ...prev,
-                    petXp: progression.newXp,
-                    petLevel: progression.newLevel,
-                    petMaxXp: progression.newMaxXp
-                  };
-                });
+        if (petExpTotal > 0) {
+          let currentXp = currentUser.petXp;
+          animations.push(
+            animateCount(
+              currentXp,
+              currentXp + petExpTotal,
+              {
+                duration: 1000,
+                easing: easeOutCubic,
+                onUpdate: (value) => {
+                  setUserCallback(prev => {
+                    const progression = calculatePetLevelProgression(prev.petLevel, prev.petXp, value - prev.petXp);
+                    return {
+                      ...prev,
+                      petXp: progression.newXp,
+                      petLevel: progression.newLevel,
+                      petMaxXp: progression.newMaxXp
+                    };
+                  });
+                }
               }
-          }
-        )
-      );
-    }
+            )
+          );
+        }
 
         // Process skill points (badge points)
         skillRewards.forEach((total, skillName) => {
           const skill = currentSkills.find(s => s.name === skillName);
           if (skill && total > 0) {
-          animations.push(
-            new Promise<void>((resolve) => {
-              let currentPoints = skill.points;
-              animateCount(
-                currentPoints,
-                currentPoints + total,
-                {
-                  duration: 1000,
-                  easing: easeOutCubic,
-                  onUpdate: (value) => {
-                    setSkillsCallback(prev => prev.map(s => {
-                      if (s.name === skillName) {
-                        const oldLevel = s.currentLevel;
-                        const oldMaxPoints = s.maxPoints;
-                        const newPoints = value;
-                        let newLevel = oldLevel;
-                        let newMaxPoints = oldMaxPoints;
+            animations.push(
+              new Promise<void>((resolve) => {
+                let currentPoints = skill.points;
+                animateCount(
+                  currentPoints,
+                  currentPoints + total,
+                  {
+                    duration: 1000,
+                    easing: easeOutCubic,
+                    onUpdate: (value) => {
+                      setSkillsCallback(prev => prev.map(s => {
+                        if (s.name === skillName) {
+                          const oldLevel = s.currentLevel;
+                          const oldMaxPoints = s.maxPoints;
+                          const newPoints = value;
+                          let newLevel = oldLevel;
+                          let newMaxPoints = oldMaxPoints;
 
-                        if (newPoints >= oldMaxPoints && oldLevel < 5) {
-                          newLevel = oldLevel + 1;
-                          newMaxPoints = 10000 * newLevel;
-                          setTimeout(() => {
-                            if (handleSkillLevelUpRef.current) {
-                              handleSkillLevelUpRef.current(skill.name, newLevel, skill.rewards);
-                            }
-                          }, 100);
+                          if (newPoints >= oldMaxPoints && oldLevel < 5) {
+                            newLevel = oldLevel + 1;
+                            newMaxPoints = 10000 * newLevel;
+                            setTimeout(() => {
+                              if (handleSkillLevelUpRef.current) {
+                                handleSkillLevelUpRef.current(skill.name, newLevel, skill.rewards);
+                              }
+                            }, 100);
+                          }
+
+                          const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
+
+                          return {
+                            ...s,
+                            points: cappedPoints,
+                            currentLevel: newLevel,
+                            maxPoints: newMaxPoints
+                          };
                         }
-
-                        const cappedPoints = newLevel === 5 ? newMaxPoints : (newPoints >= newMaxPoints ? newMaxPoints : newPoints);
-
-                        return {
-                          ...s,
-                          points: cappedPoints,
-                          currentLevel: newLevel,
-                          maxPoints: newMaxPoints
-                        };
-                      }
-                      return s;
-                    }));
-                  },
-                  onComplete: resolve
-                }
-              );
-            })
-          );
+                        return s;
+                      }));
+                    },
+                    onComplete: resolve
+                  }
+                );
+              })
+            );
           }
         });
 

@@ -1,5 +1,18 @@
 import { Skill } from '@/types';
 import { getAssetUrl } from './helpers';
+import { getItemIconUrl as getGlobalItemIconUrl } from './itemHelpers';
+import { ObjectiveReward } from '@/types';
+
+/**
+ * Unified type for reward animation payload
+ */
+export type RewardAnimationPayload = {
+  type: ObjectiveReward['type'];
+  value: number;
+  skillName?: string;
+  itemName?: string;
+  itemIcon?: string;
+};
 
 /**
  * Maps API skill names to display names
@@ -39,6 +52,7 @@ export const hasValidGrantedRewards = (grantedRewards: any): boolean => {
 
   return (
     (grantedRewards.coins && grantedRewards.coins > 0) ||
+    (grantedRewards.balls && grantedRewards.balls > 0) ||
     (grantedRewards.rankPoints && grantedRewards.rankPoints > 0) ||
     (grantedRewards.leaderboardScore && grantedRewards.leaderboardScore > 0) ||
     (grantedRewards.badgePoints && Object.keys(grantedRewards.badgePoints || {}).length > 0) ||
@@ -55,7 +69,7 @@ export const hasValidGrantedRewards = (grantedRewards: any): boolean => {
 export const processCoinsFromApi = (
   coins: number,
   setUser: React.Dispatch<React.SetStateAction<any>>,
-  triggerRewardAnimation: (reward: { type: 'coins'; value: number }) => void
+  triggerRewardAnimation: (reward: RewardAnimationPayload) => void
 ) => {
   if (coins && coins > 0) {
     triggerRewardAnimation({
@@ -72,6 +86,31 @@ export const processCoinsFromApi = (
 };
 
 /**
+ * Processes balls from API response (Hamster only)
+ * @param balls - Amount of balls to award
+ * @param setUser - State setter for user
+ * @param triggerRewardAnimation - Function to trigger reward animation
+ */
+export const processBallsFromApi = (
+  balls: number,
+  setUser: React.Dispatch<React.SetStateAction<any>>,
+  triggerRewardAnimation: (reward: RewardAnimationPayload) => void
+) => {
+  if (balls && balls > 0) {
+    triggerRewardAnimation({
+      type: 'balls',
+      value: balls
+    });
+
+    setUser((prev: any) => ({
+      ...prev,
+      balls: (prev.balls || 0) + balls
+    }));
+    console.log(`Awarded ${balls} balls (from API)`);
+  }
+};
+
+/**
  * Processes rank points from API response
  * @param rankPoints - Amount of rank points to award
  * @param setUser - State setter for user
@@ -80,7 +119,7 @@ export const processCoinsFromApi = (
 export const processRankPointsFromApi = (
   rankPoints: number,
   setUser: React.Dispatch<React.SetStateAction<any>>,
-  triggerRewardAnimation: (reward: { type: 'rank'; value: number }) => void
+  triggerRewardAnimation: (reward: RewardAnimationPayload) => void
 ) => {
   if (rankPoints && rankPoints > 0) {
     triggerRewardAnimation({
@@ -107,7 +146,7 @@ export const processRankPointsFromApi = (
 export const processBadgePointsFromApi = (
   badgePoints: { [skillName: string]: number },
   setSkills: React.Dispatch<React.SetStateAction<Skill[]>>,
-  triggerRewardAnimation: (reward: { type: 'skill'; value: number; skillName: string }) => void,
+  triggerRewardAnimation: (reward: RewardAnimationPayload) => void,
   handleSkillLevelUp: (skillName: string, newLevel: number, skillRewards?: { type: string; value: string }[]) => void
 ) => {
   console.log('[Badge Processing] Processing badge points from backend:', badgePoints);
@@ -172,7 +211,7 @@ export const processBadgePointsFromApi = (
 export const processLeaderboardPointsFromApi = (
   leaderboardScore: number,
   setUser: React.Dispatch<React.SetStateAction<any>>,
-  triggerRewardAnimation: (reward: { type: 'leaderboard'; value: number }) => void
+  triggerRewardAnimation: (reward: RewardAnimationPayload) => void
 ) => {
   if (leaderboardScore && leaderboardScore > 0) {
     triggerRewardAnimation({
@@ -196,17 +235,14 @@ export const processLeaderboardPointsFromApi = (
  */
 export const processItemsFromApi = (
   items: Array<{ itemId: string; name: string; quantity: number; icon?: string }>,
-  triggerRewardAnimation: (reward: { type: 'item'; value: number; itemName?: string; itemIcon?: string }) => void,
+  triggerRewardAnimation: (reward: RewardAnimationPayload) => void,
   getItemIconUrl?: (icon?: string) => string
 ) => {
   if (items && items.length > 0) {
     items.forEach(item => {
       if (item.quantity > 0) {
-        const iconUrl = getItemIconUrl
-          ? getItemIconUrl(item.icon)
-          : (item.icon?.startsWith('/') && !item.icon.startsWith('/Asset')
-            ? `${process.env.NEXT_PUBLIC_BACKEND_URL}${item.icon}`
-            : item.icon || getAssetUrl("/Asset/item/classTicket.png"));
+        const iconResolver = getItemIconUrl || getGlobalItemIconUrl;
+        const iconUrl = iconResolver(item.icon);
 
         triggerRewardAnimation({
           type: 'item',

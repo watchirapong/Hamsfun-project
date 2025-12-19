@@ -4,6 +4,13 @@ This guide details the public API endpoints available for users and external app
 
 **Base URL:** `/api/v1` (except Auth routes)
 
+> [!IMPORTANT]
+> **Cloudflare R2 Migration (2025-12-19):**
+> 1. **Storage Consolidation:** All files (Submissions, Icons, Avatars, Items) are now stored in a single Cloudflare R2 bucket.
+> 2. **Full URLs:** Images are no longer served as relative paths. All icon/image fields in JSON responses now contain **FULL HTTP(S) URLS**.
+>    - Example: `https://<R2_PUBLIC_URL>/items/quest-icon.png`
+> 3. **Uploads:** Field names for Multipart/Form-Data remain unchanged.
+
 ---
 
 ## 1. Authentication

@@ -8,7 +8,7 @@ import {
   extractSubQuestIdFromSubQuest
 } from '@/utils/questHelpers';
 import { mapApiSkillNameToDisplayName } from '@/utils/rewardHelpers';
-import { populateItemCache } from '@/utils/itemHelpers';
+import { populateItemCache, getItemIconUrl } from '@/utils/itemHelpers';
 
 interface InitializeAppParams {
   setIsLoading: (loading: boolean) => void;
@@ -69,6 +69,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
         avatar: profile.avatar || getAssetUrl("/Asset/pets/dog.png"),
         badge: getRankIconPath(profile.rank?.currentTier || "Meteor I"),
         coins: profile.coins || 0,
+        balls: profile.hamster?.balls || profile.balls || 0,
         rankPoints: profile.rank?.points || 0,
         rankName: profile.rank?.currentTier || "Meteor I",
         nextRankPoints: profile.rank?.nextRankPoints || undefined,
@@ -631,7 +632,7 @@ export const initializeApp = async (params: InitializeAppParams) => {
         description: inv.itemId?.description || '',
         date: inv.itemId?.date || '',
         quantity: inv.quantity || 1,
-        image: inv.itemId?.icon || inv.itemId?.image || getAssetUrl("/Asset/item/classTicket.png"),
+        image: getItemIconUrl(inv.itemId?.icon || inv.itemId?.image),
         icon: inv.itemId?.icon,
         used: inv.used || false,
         active: inv.active || false

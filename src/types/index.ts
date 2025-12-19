@@ -78,7 +78,7 @@ export interface Skill {
 }
 
 export interface ObjectiveReward {
-  type: 'exp' | 'rank' | 'skill' | 'coins' | 'animal' | 'item' | 'leaderboard' | 'petExp';
+  type: 'exp' | 'rank' | 'skill' | 'coins' | 'animal' | 'item' | 'leaderboard' | 'petExp' | 'balls';
   value?: number | string; // Optional for animal type (calculated average or single value), or quantity for items
   minValue?: number; // Minimum reward value
   maxValue?: number; // Maximum reward value

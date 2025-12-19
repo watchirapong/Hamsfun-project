@@ -221,6 +221,7 @@ const HamsterPage: React.FC = () => {
                   const { grantedRewards } = data;
                   
                   if (grantedRewards.coins) rewards.push({ type: 'coins', value: grantedRewards.coins });
+                  if (grantedRewards.balls) rewards.push({ type: 'balls' as any, value: grantedRewards.balls });
                   if (grantedRewards.rankPoints) rewards.push({ type: 'rank', value: grantedRewards.rankPoints });
                   if (grantedRewards.leaderboardScore) rewards.push({ type: 'leaderboard', value: grantedRewards.leaderboardScore });
                   if (grantedRewards.petExp) rewards.push({ type: 'petExp', value: grantedRewards.petExp });
@@ -521,7 +522,7 @@ const HamsterPage: React.FC = () => {
           <Header
             description={description}
             isEditingDescription={isEditingDescription}
-            coins={0}
+            coins={user.coins || 0}
             balls={user.balls !== undefined ? user.balls : undefined}
             isHamster={true}
             theme={theme}

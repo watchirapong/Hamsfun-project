@@ -5,7 +5,7 @@ import { Coins, Star, Trophy, Crown, Package, TrendingUp, Heart } from 'lucide-r
 
 export interface RewardAnimationInstance {
   id: number | string;
-  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp';
+  type: 'coins' | 'exp' | 'rank' | 'skill' | 'animal' | 'item' | 'leaderboard' | 'petExp' | 'balls';
   value: number | string;
   x: number;
   y: number;
@@ -192,6 +192,8 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation, the
         return <TrendingUp className="w-6 h-6 text-orange-600" />;
       case 'petExp':
         return <Heart className="w-6 h-6 text-pink-600" />;
+      case 'balls':
+        return <img src="/Asset/item/ball.png" alt="Balls" className="w-6 h-6 object-contain" />;
       default:
         return null;
     }
@@ -215,6 +217,8 @@ export const RewardAnimation: React.FC<RewardAnimationProps> = ({ animation, the
         return `+${animation.value} LP`;
       case 'petExp':
         return `+${animation.value} Pet EXP`;
+      case 'balls':
+        return `+${animation.value}`;
       default:
         return '';
     }

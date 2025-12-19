@@ -784,6 +784,7 @@ export const useQuestHandlers = (params: QuestHandlersParams) => {
       const rewards: RewardData[] = [];
 
       if (grantedRewards.coins) rewards.push({ type: 'coins', value: grantedRewards.coins });
+      if (grantedRewards.balls) rewards.push({ type: 'balls' as any, value: grantedRewards.balls });
       if (grantedRewards.rankPoints) rewards.push({ type: 'rank', value: grantedRewards.rankPoints });
       if (grantedRewards.leaderboardScore) rewards.push({ type: 'leaderboard', value: grantedRewards.leaderboardScore });
       if (grantedRewards.petExp) rewards.push({ type: 'petExp', value: grantedRewards.petExp });

@@ -48,6 +48,7 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
     if (reward.type === 'coins') return getAssetUrl("/Asset/item/coin.png");
     if (reward.type === 'petExp') return null; // Custom UI
     if (reward.type === 'item') return getItemIconUrl(reward.itemIcon || "default");
+    if (reward.type === 'balls') return getAssetUrl("/Asset/item/ball.png");
     
     return null;
   };
@@ -65,6 +66,7 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
         case 'rank': return `${range} RP`;
         case 'leaderboard': return `${range} LP`;
         case 'petExp': return `${range} Pet XP`;
+        case 'balls': return `${range}`;
         case 'item': return `${range ? 'x' + range : ''} ${reward.itemName || 'Item'}`;
         default: return 'Reward';
     }
@@ -147,7 +149,7 @@ export const RewardClaimModal: React.FC<RewardClaimModalProps> = ({
                                         </svg>
                                     </div>
                                 )}
-                                {(reward.type === 'coins' || reward.type === 'item') && (
+                                {(reward.type === 'coins' || reward.type === 'balls' || reward.type === 'item') && (
                                     <img 
                                         src={getRewardIcon(reward) || ''} 
                                         alt={reward.type}
